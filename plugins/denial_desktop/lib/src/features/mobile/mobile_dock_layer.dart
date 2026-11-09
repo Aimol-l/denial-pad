@@ -4,6 +4,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 import 'package:denial_flutter_sdk/applications.dart';
 import 'package:denial_flutter_sdk/effects.dart';
@@ -19,6 +20,10 @@ import '../../launcher/home_interactions.dart';
 import '../../launcher/home_launch.dart';
 import '../../launcher/widgets/launcher_icon.dart';
 import '../../state/reference_shell_controller.dart';
+
+/// The Arch mark behind the dock's all-apps button.
+const _archMarkAsset =
+    'packages/denial_flutter_sdk/assets/branding/arch-linux.svg';
 
 /// The home dock's pinned applications. An empty or missing file falls back
 /// to the defaults; a saved empty list means the user removed everything.
@@ -427,10 +432,14 @@ class _AllAppsButtonState extends State<_AllAppsButton> {
                         : const Color(0x00000000),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  child: Icon(
-                    Icons.grid_view_rounded,
-                    size: 28,
-                    color: context.shellColors.panelText,
+                  child: SvgPicture.asset(
+                    _archMarkAsset,
+                    width: 30,
+                    height: 30,
+                    colorFilter: ColorFilter.mode(
+                      context.shellColors.panelText,
+                      BlendMode.srcIn,
+                    ),
                   ),
                 ),
               ),
@@ -499,7 +508,7 @@ class _DockButtonState extends State<_DockButton> {
               if (rect != null) widget.onTap(rect);
             },
             child: SizedBox(
-              width: 62,
+              width: 66,
               height: 74,
               child: Stack(
                 alignment: Alignment.center,
