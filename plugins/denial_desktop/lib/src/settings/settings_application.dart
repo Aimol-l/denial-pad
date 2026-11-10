@@ -457,14 +457,18 @@ class _SettingsPageBody extends ConsumerWidget {
           applications: applications.asData?.value ?? const <DesktopApp>[],
         );
       case SettingsPageId.environment:
-        final settings = ref.watch(
+        final configuration = ref.watch(
           shellSettingsProvider.select(
-            (settings) => settings.applicationEnvironment,
+            (settings) => (
+              environment: settings.applicationEnvironment,
+              scales: settings.applicationScales,
+            ),
           ),
         );
         final applications = ref.watch(settingsDesktopApplicationsProvider);
         return SettingsEnvironmentPage(
-          settings: settings,
+          settings: configuration.environment,
+          applicationScales: configuration.scales,
           applications: applications.asData?.value ?? const <DesktopApp>[],
           applicationsLoading: applications.isLoading,
           applicationsUnavailable: applications.hasError,
@@ -482,8 +486,17 @@ class _SettingsPageBody extends ConsumerWidget {
               desktopFileId: desktopFileId,
             );
           },
-          onReset: controller.resetApplicationEnvironment,
-          onResetScope: controller.resetApplicationEnvironmentScope,
+          onReset: () {
+            controller.resetApplicationEnvironment();
+            controller.resetApplicationScales();
+          },
+          onResetScope: (desktopFileId) {
+            controller.resetApplicationEnvironmentScope(desktopFileId);
+            if (desktopFileId != null) {
+              controller.removeApplicationScale(desktopFileId);
+            }
+          },
+          onScaleChanged: controller.setApplicationScale,
         );
       case SettingsPageId.layout:
         final settings = ref.watch(

@@ -2694,6 +2694,21 @@ pub(super) fn apply_managed_client_state_request(
     let before = managed.facts().client_state;
     let kind = request.kind();
     let entering = request_enters_client_state(kind);
+    // Fullscreen is exempt from per-application scaling: a fullscreen game or
+    // video keeps the display's own logical size. A client scale covers the
+    // whole client, so this is exact for single-window apps and is revisited
+    // for the multi-window case later.
+    if matches!(
+        kind,
+        ClientStateRequestKind::Fullscreen | ClientStateRequestKind::Unfullscreen
+    ) {
+        let scale = if entering {
+            1.0
+        } else {
+            super::application_scale::application_scale_for_window(state.frontend(), window)
+        };
+        super::application_scale::apply_window_scale(state.frontend_mut(), window, scale);
+    }
     let unconstrained_after = client_state_unconstrained_after(kind, before);
     let current = state.frontend().window_geometry_target(window);
     let (target, fullscreen_output) = if entering {

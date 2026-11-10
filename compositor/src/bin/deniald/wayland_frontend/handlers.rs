@@ -285,6 +285,11 @@ impl Default for DenialClientState {
 }
 
 impl DenialClientState {
+    /// Smithay's coordinate mapping for this client.
+    pub(super) fn compositor_state(&self) -> &CompositorClientState {
+        &self.compositor_state
+    }
+
     fn try_register_surface(&self, surface: ObjectId) -> bool {
         let mut surfaces = self
             .surfaces
@@ -1404,7 +1409,7 @@ impl CompositorHandler for RuntimeState {
             let window = frontend.window_for_root_surface(&root);
             if let Some(window) = window {
                 #[cfg(feature = "flutter")]
-                let previous_content_geometry = window.geometry();
+                let previous_content_geometry = super::application_scale::window_geometry(&window);
                 #[cfg(feature = "flutter")]
                 let previous_target_geometry = frontend.window_geometry_target(&window);
                 // app_id, parent, constraints and explicit state requests are
@@ -1452,14 +1457,15 @@ impl CompositorHandler for RuntimeState {
                 {
                     let current_target_geometry = frontend.window_geometry_target(&window);
                     if previous_target_geometry != current_target_geometry
-                        || previous_content_geometry != window.geometry()
+                        || previous_content_geometry
+                            != super::application_scale::window_geometry(&window)
                         || first_buffer
                         || buffer_removed
                     {
                         frontend.update_window_output_membership(&window);
                     }
                     committed_window_metadata_changed |= previous_content_geometry
-                        != window.geometry()
+                        != super::application_scale::window_geometry(&window)
                         || previous_target_geometry != current_target_geometry
                         || auxiliary_toplevel_target.is_some();
                 }
@@ -1983,6 +1989,14 @@ impl XdgShellHandler for RuntimeState {
             frontend.space.map_element(window.clone(), location, true);
             frontend.update_window_output_membership(&window);
             frontend.remember_layout_insertion_anchor(&window);
+            let app_id = super::application_scale::toplevel_app_id(&focus);
+            if !app_id.is_empty()
+                && let Some(window) = frontend.window_for_root_surface(&focus)
+            {
+                super::application_scale::refresh_window_application_scale(
+                    frontend, &window, &app_id,
+                );
+            }
             for candidate in frontend.space.elements() {
                 let changed = candidate.set_activated(candidate == &window);
                 if changed && let Some(toplevel) = candidate.toplevel() {
@@ -2030,9 +2044,11 @@ impl XdgShellHandler for RuntimeState {
     }
 
     fn app_id_changed(&mut self, surface: ToplevelSurface) {
+        let app_id = super::application_scale::toplevel_app_id(surface.wl_surface());
         let frontend = self.frontend_mut();
         if let Some(window) = frontend.window_for_root_surface(surface.wl_surface()) {
             frontend.update_foreign_toplevel(&window);
+            super::application_scale::refresh_window_application_scale(frontend, &window, &app_id);
         }
         self.scene_sync.mark_dirty();
     }

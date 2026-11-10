@@ -30,9 +30,10 @@ final class SettingsDocumentProjection {
     ...document,
     for (final entry in settings.entries)
       entry.key:
-          // Environment maps express the complete desired overrides. Merging
-          // would resurrect entries deliberately removed by the user.
+          // Environment maps and application scales express complete desired
+          // maps. Merging would resurrect entries deliberately removed.
           entry.key != 'applicationEnvironment' &&
+              entry.key != 'applicationScales' &&
               document[entry.key] is Map<String, Object?> &&
               entry.value is Map<String, Object?>
           ? _merge(

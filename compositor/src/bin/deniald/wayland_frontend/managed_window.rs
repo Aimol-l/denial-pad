@@ -200,6 +200,11 @@ impl<'a> ManagedWindow<'a> {
                     let current = cached.current();
                     (current.min_size, current.max_size)
                 });
+                // Size hints are client-space; layout consumes display space.
+                let minimum_size =
+                    super::application_scale::scale_size(toplevel.wl_surface(), minimum_size);
+                let maximum_size =
+                    super::application_scale::scale_size(toplevel.wl_surface(), maximum_size);
                 ManagedWindowFacts {
                     client_state: ClientWindowState {
                         fullscreen: toplevel_has_state(toplevel, xdg_toplevel::State::Fullscreen),
@@ -362,6 +367,7 @@ impl<'a> ManagedWindow<'a> {
                 if !toplevel.wl_surface().is_alive() {
                     return false;
                 }
+                let target_size = target_size.map(|size| self.client_size(size));
                 let changed = toplevel.with_pending_state(|pending| match request {
                     ClientStateRequestKind::Maximize => {
                         let mut changed = pending.states.set(xdg_toplevel::State::Maximized);
@@ -486,6 +492,19 @@ impl<'a> ManagedWindow<'a> {
         }
     }
 
+    /// Converts a compositor-logical size to the client's own coordinate
+    /// space. The per-application scale lives on the client, so every configure
+    /// outlet divides through this one helper.
+    fn client_size(&self, size: Size<i32, Logical>) -> Size<i32, Logical> {
+        match self.protocol {
+            ManagedWindowProtocol::Xdg(toplevel) => {
+                super::application_scale::client_size(toplevel.wl_surface(), size)
+            }
+            #[cfg(feature = "xwayland")]
+            ManagedWindowProtocol::X11(_) => size,
+        }
+    }
+
     /// Performs the protocol handshake for a shell-owned geometry target.
     /// The target itself is applied once by `set_window_geometry_target`.
     pub(super) fn prepare_shell_geometry(&self, target: Rectangle<i32, Logical>) {
@@ -493,7 +512,7 @@ impl<'a> ManagedWindow<'a> {
             ManagedWindowProtocol::Xdg(toplevel) => {
                 toplevel.with_pending_state(|pending| {
                     pending.states.unset(xdg_toplevel::State::Resizing);
-                    pending.size = Some(target.size);
+                    pending.size = Some(self.client_size(target.size));
                 });
                 send_paced_resize_configure(toplevel, false);
             }
@@ -519,7 +538,7 @@ impl<'a> ManagedWindow<'a> {
                     } else {
                         pending.states.unset(xdg_toplevel::State::Maximized)
                     };
-                    pending.size = Some(target.size);
+                    pending.size = Some(self.client_size(target.size));
                     changed
                 });
                 if toplevel.is_initial_configure_sent()
@@ -542,7 +561,9 @@ impl<'a> ManagedWindow<'a> {
     pub(super) fn prepare_restore_size(&self, size: Size<i32, Logical>, force: bool) {
         match self.protocol {
             ManagedWindowProtocol::Xdg(toplevel) => {
-                toplevel.with_pending_state(|pending| pending.size = Some(size));
+                toplevel.with_pending_state(|pending| {
+                    pending.size = Some(self.client_size(size));
+                });
                 if toplevel.is_initial_configure_sent() {
                     send_paced_resize_configure(toplevel, force);
                 }
@@ -562,7 +583,7 @@ impl<'a> ManagedWindow<'a> {
                 } else {
                     pending.states.set(xdg_toplevel::State::Resizing);
                 }
-                pending.size = Some(size);
+                pending.size = Some(self.client_size(size));
             });
             send_paced_resize_configure(toplevel, false);
         }
@@ -583,7 +604,7 @@ impl<'a> ManagedWindow<'a> {
                     } else {
                         pending.states.set(xdg_toplevel::State::Resizing);
                     }
-                    pending.size = Some(target.size);
+                    pending.size = Some(self.client_size(target.size));
                 });
                 send_paced_resize_configure(toplevel, false);
             }
@@ -665,7 +686,7 @@ impl<'a> ManagedWindow<'a> {
         match self.protocol {
             ManagedWindowProtocol::Xdg(toplevel) => {
                 toplevel.with_pending_state(|pending| {
-                    prepare_geometry_reassertion(pending, target.size, exact);
+                    prepare_geometry_reassertion(pending, self.client_size(target.size), exact);
                 });
                 if toplevel.is_initial_configure_sent() {
                     send_paced_resize_configure(toplevel, true);

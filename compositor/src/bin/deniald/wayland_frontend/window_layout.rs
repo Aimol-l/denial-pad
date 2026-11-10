@@ -1222,10 +1222,18 @@ impl WaylandFrontend {
             let target = frame;
             let previous = self.window_geometry_target(&window);
             if let Some(managed) = ManagedWindow::new(&window) {
+                // A client that derives its size from wl_output.mode while
+                // maximized ignores the configured 1/k rect, so a scaled
+                // window is tiled without the maximize state: the shell still
+                // gives it the slot, and the client lays out in the rect we
+                // send.
+                let client_maximized = layout_maximized
+                    && super::application_scale::application_scale_for_window(self, &window)
+                        <= 1.0;
                 managed.prepare_tiled_geometry(
                     target,
                     previous.size != target.size,
-                    layout_maximized,
+                    client_maximized,
                 );
             }
             self.set_window_geometry_target_with_authority(

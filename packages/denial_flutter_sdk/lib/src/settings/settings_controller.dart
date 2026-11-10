@@ -659,6 +659,33 @@ class ShellSettingsController extends Notifier<ShellSettings> {
     );
   }
 
+  void setApplicationScale(String desktopFileId, double? factor) {
+    final scales = factor == null
+        ? state.applicationScales.withoutScale(desktopFileId)
+        : state.applicationScales.withScale(desktopFileId, factor);
+    _update(state.copyWith(applicationScales: scales));
+  }
+
+  void removeApplicationScale(String desktopFileId) {
+    if (!state.applicationScales.scales.containsKey(desktopFileId)) {
+      return;
+    }
+    _update(
+      state.copyWith(
+        applicationScales: state.applicationScales.withoutScale(desktopFileId),
+      ),
+    );
+  }
+
+  void resetApplicationScales() {
+    if (state.applicationScales.scales.isEmpty) {
+      return;
+    }
+    _update(
+      state.copyWith(applicationScales: const ShellApplicationScaleSettings()),
+    );
+  }
+
   void resetAppearance() {
     _update(state.copyWith(appearance: const ShellAppearanceSettings()));
   }
@@ -885,6 +912,7 @@ void _applySettingsPatch(
     final current = document[entry.key];
     final next = entry.value;
     if (entry.key != 'applicationEnvironment' &&
+        entry.key != 'applicationScales' &&
         current is Map<String, dynamic> &&
         next is Map<String, Object?>) {
       _applySettingsPatch(current, next);
@@ -912,6 +940,7 @@ void _removeCommittedSettingsPatch(
     final pendingValue = pending[entry.key];
     final committedValue = entry.value;
     if (entry.key != 'applicationEnvironment' &&
+        entry.key != 'applicationScales' &&
         pendingValue is Map<String, Object?> &&
         committedValue is Map<String, Object?>) {
       _removeCommittedSettingsPatch(pendingValue, committedValue);

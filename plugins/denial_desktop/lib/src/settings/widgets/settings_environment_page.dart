@@ -60,10 +60,12 @@ enum _EnvironmentOverrideMode { add, hide }
 class SettingsEnvironmentPage extends StatefulWidget {
   const SettingsEnvironmentPage({
     required this.settings,
+    required this.applicationScales,
     required this.onSave,
     required this.onDelete,
     required this.onReset,
     required this.onResetScope,
+    required this.onScaleChanged,
     this.applications = const <DesktopApp>[],
     this.applicationsLoading = false,
     this.applicationsUnavailable = false,
@@ -71,6 +73,7 @@ class SettingsEnvironmentPage extends StatefulWidget {
   });
 
   final ShellApplicationEnvironmentSettings settings;
+  final ShellApplicationScaleSettings applicationScales;
   final List<DesktopApp> applications;
   final bool applicationsLoading;
   final bool applicationsUnavailable;
@@ -78,6 +81,7 @@ class SettingsEnvironmentPage extends StatefulWidget {
   final ApplicationEnvironmentDelete onDelete;
   final VoidCallback onReset;
   final ValueChanged<String?> onResetScope;
+  final void Function(String desktopFileId, double? factor) onScaleChanged;
 
   @override
   State<SettingsEnvironmentPage> createState() =>
@@ -125,7 +129,8 @@ class _SettingsEnvironmentPageState extends State<SettingsEnvironmentPage> {
       title: l10n.settingsEnvironmentTitle,
       onReset:
           widget.settings.variables.isEmpty &&
-              widget.settings.applications.isEmpty
+              widget.settings.applications.isEmpty &&
+              widget.applicationScales.scales.isEmpty
           ? null
           : widget.onReset,
       children: [_buildWorkspace(context)],
@@ -198,6 +203,10 @@ class _SettingsEnvironmentPageState extends State<SettingsEnvironmentPage> {
                   _clearEditor();
                 },
         ),
+        if (_selectedDesktopFileId != null) ...[
+          const SizedBox(height: 12),
+          _buildScaleCard(context),
+        ],
         const SizedBox(height: 12),
         _buildEditorCard(context),
         const SizedBox(height: 12),
@@ -223,6 +232,17 @@ class _SettingsEnvironmentPageState extends State<SettingsEnvironmentPage> {
       }
     }
     return null;
+  }
+
+  Widget _buildScaleCard(BuildContext context) {
+    final desktopFileId = _selectedDesktopFileId;
+    if (desktopFileId == null) {
+      return const SizedBox.shrink();
+    }
+    return _ApplicationScaleCard(
+      factor: widget.applicationScales.scaleFor(desktopFileId),
+      onChanged: (factor) => widget.onScaleChanged(desktopFileId, factor),
+    );
   }
 
   Widget _buildEditorCard(BuildContext context) {
@@ -1329,6 +1349,147 @@ class _EnvironmentTextField extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Whole-interface scale for one application, applied by the compositor on
+/// top of the global display scale.
+class _ApplicationScaleCard extends StatefulWidget {
+  const _ApplicationScaleCard({required this.factor, required this.onChanged});
+
+  final double? factor;
+  final ValueChanged<double?> onChanged;
+
+  @override
+  State<_ApplicationScaleCard> createState() => _ApplicationScaleCardState();
+}
+
+class _ApplicationScaleCardState extends State<_ApplicationScaleCard> {
+  static const _presets = <double>[1.0, 1.25, 1.5, 1.75, 2.0];
+  static const _customValue = -1.0;
+
+  late bool _customOpen = _isCustom(widget.factor);
+
+  /// The value the slider is showing while it is being dragged. The settings
+  /// document is only written once the drag ends, so a drag does not rewrite
+  /// it on every pixel.
+  double? _pending;
+
+  double get _sliderValue => (_pending ?? widget.factor ?? 1.5).clamp(
+    applicationScaleMinimum,
+    applicationScaleMaximum,
+  );
+
+  static bool _isCustom(double? factor) =>
+      factor != null && !_presets.any((p) => (p - factor).abs() < 0.001);
+
+  @override
+  void didUpdateWidget(covariant _ApplicationScaleCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.factor != widget.factor) {
+      _pending = null;
+      _customOpen = _isCustom(widget.factor);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = context.l10n;
+    final factor = widget.factor;
+    final preset = factor == null || !_isCustom(factor);
+    final selected = factor == null
+        ? null
+        : preset
+        ? factor
+        : _customValue;
+    final choices = <SettingsChoice<double?>>[
+      SettingsChoice<double?>(null, l10n.settingsApplicationScaleFollowSystem),
+      for (final value in _presets)
+        SettingsChoice<double?>(value, '${(value * 100).round()}%'),
+      SettingsChoice<double?>(
+        _customValue,
+        l10n.settingsApplicationScaleCustom,
+      ),
+    ];
+    return SettingsCardGroup(
+      children: [
+        SettingsSection(
+          title: l10n.settingsApplicationScaleTitle,
+          leading: Icon(
+            Icons.zoom_out_map_rounded,
+            size: 18,
+            color: ShellTheme.of(context).accent,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                l10n.settingsApplicationScaleDescription,
+                style: ShellText.base.copyWith(
+                  color: context.applicationColors.secondary,
+                  fontSize: 11.5,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 12),
+              SettingsSegmentedControl<double?>(
+                value: selected,
+                choices: choices,
+                onChanged: (value) {
+                  if (value == null) {
+                    setState(() => _customOpen = false);
+                    widget.onChanged(null);
+                  } else if (value == _customValue) {
+                    setState(() => _customOpen = true);
+                  } else {
+                    setState(() => _customOpen = false);
+                    widget.onChanged(value);
+                  }
+                },
+              ),
+              if (_customOpen) ...[
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Slider(
+                        value: _sliderValue,
+                        min: applicationScaleMinimum,
+                        max: applicationScaleMaximum,
+                        divisions:
+                            ((applicationScaleMaximum -
+                                        applicationScaleMinimum) *
+                                    20)
+                                .round(),
+                        label: '${(_sliderValue * 100).round()}%',
+                        onChanged: (value) =>
+                            setState(() => _pending = value),
+                        onChangeEnd: widget.onChanged,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 44,
+                      child: Text(
+                        '${(_sliderValue * 100).round()}%',
+                        textAlign: TextAlign.right,
+                        style: ShellText.base.copyWith(
+                          color: context.applicationColors.foreground,
+                          fontSize: 12,
+                          fontFeatures: const [
+                            FontFeature.tabularFigures(),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

@@ -38,7 +38,10 @@ mod tests;
 
 fn configure_mobile_toplevel(toplevel: &ToplevelSurface, size: Size<i32, Logical>) {
     toplevel.with_pending_state(|pending| {
-        pending.size = Some(size);
+        pending.size = Some(super::application_scale::client_size(
+            toplevel.wl_surface(),
+            size,
+        ));
         pending.states.unset(xdg_toplevel::State::Fullscreen);
         pending.states.unset(xdg_toplevel::State::Maximized);
         // Mobile clients fill their assigned rectangle, including dialogs and
@@ -64,7 +67,10 @@ pub(super) fn configure_desktop_toplevel(
     state: WindowPlacementState,
 ) {
     toplevel.with_pending_state(|pending| {
-        pending.size = Some(size);
+        pending.size = Some(super::application_scale::client_size(
+            toplevel.wl_surface(),
+            size,
+        ));
         pending.states.unset(xdg_toplevel::State::Resizing);
         if !state.fullscreen {
             pending.fullscreen_output = None;

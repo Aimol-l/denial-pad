@@ -202,6 +202,59 @@ impl ApplicationEnvironment {
     }
 }
 
+const APPLICATION_SCALE_MINIMUM: f64 = 0.5;
+const APPLICATION_SCALE_MAXIMUM: f64 = 3.0;
+const MAX_APPLICATION_SCALES: usize = 512;
+
+/// Per-application whole-interface scale factors on top of the global display
+/// scale. The compositor applies them when the scaling backend consumes the
+/// document; storing them here keeps one validated source of truth.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(super) struct ApplicationScales {
+    scales: BTreeMap<String, f64>,
+}
+
+impl ApplicationScales {
+    fn from_document(document: &Map<String, Value>) -> Result<Self, SettingsError> {
+        let Some(value) = document.get("applicationScales") else {
+            return Ok(Self::default());
+        };
+        let object = value.as_object().ok_or_else(|| {
+            SettingsError::Document("settings applicationScales must be an object".to_owned())
+        })?;
+        if object.len() > MAX_APPLICATION_SCALES {
+            return Err(SettingsError::Document(format!(
+                "settings applicationScales contains more than {MAX_APPLICATION_SCALES} applications"
+            )));
+        }
+        let mut scales = BTreeMap::new();
+        for (desktop_file_id, value) in object {
+            validate_desktop_file_id(desktop_file_id)?;
+            let Some(factor) = value.as_f64() else {
+                return Err(SettingsError::Document(format!(
+                    "application scale for {desktop_file_id} must be a number"
+                )));
+            };
+            if !factor.is_finite()
+                || !(APPLICATION_SCALE_MINIMUM..=APPLICATION_SCALE_MAXIMUM).contains(&factor)
+            {
+                return Err(SettingsError::Document(format!(
+                    "application scale for {desktop_file_id} is outside {APPLICATION_SCALE_MINIMUM}..={APPLICATION_SCALE_MAXIMUM}"
+                )));
+            }
+            scales.insert(desktop_file_id.clone(), factor);
+        }
+        Ok(Self { scales })
+    }
+
+    fn write_to_document(&self, document: &mut Map<String, Value>) {
+        document.insert(
+            "applicationScales".to_owned(),
+            serde_json::to_value(&self.scales).expect("validated application scales serialize"),
+        );
+    }
+}
+
 fn parse_environment_overrides(
     value: &Value,
     scope: &str,
@@ -741,6 +794,7 @@ struct TypedSettings {
     color: ColorSettings,
     color_scheme_preference: DesktopColorSchemePreference,
     allow_client_cursor_surfaces: bool,
+    application_scales: ApplicationScales,
 }
 
 pub(super) struct SettingsManager {
@@ -848,6 +902,15 @@ impl SettingsManager {
         parse_cursor_size(&self.document).unwrap_or(DEFAULT_CURSOR_SIZE)
     }
 
+    /// The configured whole-interface scale for one desktop-file ID.
+    pub(super) fn application_scale_for(&self, desktop_file_id: &str) -> Option<f64> {
+        self.typed
+            .application_scales
+            .scales
+            .get(desktop_file_id)
+            .copied()
+    }
+
     pub(super) fn keyboard_resize_step(&self) -> super::keyboard_resize::ResizeStep {
         parse_keyboard_resize_step(&self.document).unwrap_or_default()
     }
@@ -942,6 +1005,13 @@ impl SettingsManager {
         {
             incoming.insert("rotationLock".to_owned(), policy.clone());
         }
+        // An older shell projection may omit this section for a while; keep
+        // the persisted per-application scales until the new shell writes one.
+        if !incoming.contains_key("applicationScales")
+            && let Some(scales) = self.document.get("applicationScales")
+        {
+            incoming.insert("applicationScales".to_owned(), scales.clone());
+        }
         self.capture_rotation_lock(&mut incoming)?;
 
         // Native-owned fields can be echoed by Flutter but can never be
@@ -973,6 +1043,7 @@ impl SettingsManager {
         );
         let color_scheme_preference = parse_color_scheme_preference(&incoming)?;
         let allow_client_cursor_surfaces = parse_allow_client_cursor_surfaces(&incoming)?;
+        let application_scales = ApplicationScales::from_document(&incoming)?;
         parse_cursor_size(&incoming)?;
         parse_window_layout_kind(&incoming)?;
         parse_keyboard_resize_step(&incoming)?;
@@ -984,6 +1055,7 @@ impl SettingsManager {
             TypedSettings {
                 color_scheme_preference,
                 allow_client_cursor_surfaces,
+                application_scales,
                 ..self.typed.clone()
             },
         )
@@ -1199,6 +1271,8 @@ impl SettingsManager {
     ) -> Result<PreparedSettingsUpdate, SettingsError> {
         let application_environment = ApplicationEnvironment::from_document(&document)?;
         application_environment.write_to_document(&mut document);
+        let application_scales = ApplicationScales::from_document(&document)?;
+        application_scales.write_to_document(&mut document);
         let revision = document
             .get("revision")
             .and_then(Value::as_u64)
@@ -1448,6 +1522,10 @@ fn parse_document(bytes: &[u8]) -> Result<ParsedSettingsDocument, SettingsError>
     };
     color.validate()?;
     let migrated_application_scale = migrate_legacy_application_scale(&mut document);
+    // Validate without rewriting: a document written before application scales
+    // existed must not be treated as migrated, or every read would rewrite the
+    // file and invalidate a live writer's expected bytes.
+    let application_scales = ApplicationScales::from_document(&document)?;
     let had_application_environment = document.contains_key("applicationEnvironment");
     let application_environment = ApplicationEnvironment::from_document(&document)?;
     application_environment.write_to_document(&mut document);
@@ -1573,6 +1651,7 @@ fn parse_document(bytes: &[u8]) -> Result<ParsedSettingsDocument, SettingsError>
             color,
             color_scheme_preference,
             allow_client_cursor_surfaces,
+            application_scales,
         },
         application_environment,
         migrated,
@@ -1606,6 +1685,7 @@ fn default_document() -> (Map<String, Value>, u64, TypedSettings) {
         "color".to_owned(),
         serde_json::to_value(&color).expect("default color settings serialize"),
     );
+    document.insert("applicationScales".to_owned(), Value::Object(Map::new()));
     ApplicationEnvironment::default().write_to_document(&mut document);
     set_color_scheme_preference(&mut document, color_scheme_preference)
         .expect("default appearance settings serialize");
@@ -1633,6 +1713,7 @@ fn default_document() -> (Map<String, Value>, u64, TypedSettings) {
         color,
         color_scheme_preference,
         allow_client_cursor_surfaces,
+        application_scales: ApplicationScales::default(),
     };
     (document, revision, typed)
 }

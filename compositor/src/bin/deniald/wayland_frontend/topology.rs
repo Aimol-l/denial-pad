@@ -483,7 +483,10 @@ impl WaylandFrontend {
                 && let Some(toplevel) = record.window.toplevel()
             {
                 toplevel.with_pending_state(|pending| {
-                    pending.size = Some(target.size);
+                    pending.size = Some(super::application_scale::client_size(
+                        toplevel.wl_surface(),
+                        target.size,
+                    ));
                     if record.fullscreen {
                         pending.fullscreen_output = None;
                     }

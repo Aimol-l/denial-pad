@@ -406,7 +406,7 @@ impl WaylandFrontend {
         if client.fullscreen || client.maximized {
             return None;
         }
-        let committed = window.geometry();
+        let committed = super::application_scale::window_geometry(window);
         if committed.size.w <= 0 || committed.size.h <= 0 {
             return None;
         }
@@ -720,6 +720,9 @@ impl WaylandFrontend {
             let current = cached.current();
             (current.min_size, current.max_size)
         });
+        // Size hints arrive in the client's coordinate space.
+        let minimum = super::application_scale::scale_size(root, minimum);
+        let maximum = super::application_scale::scale_size(root, maximum);
         restored.geometry.size = Size::from((
             constrain_dimension(restored.geometry.size.w, minimum.w, maximum.w),
             constrain_dimension(restored.geometry.size.h, minimum.h, maximum.h),
@@ -729,7 +732,9 @@ impl WaylandFrontend {
         let target = self.apply_restored_window_state(window, restored.geometry, restored.state);
         #[cfg(not(feature = "flutter"))]
         let target = restored.geometry;
-        toplevel.with_pending_state(|pending| pending.size = Some(target.size));
+        toplevel.with_pending_state(|pending| {
+            pending.size = Some(super::application_scale::client_size(root, target.size));
+        });
         let authority = if restored.state.maximized || restored.state.fullscreen {
             WindowGeometryAuthority::Shell
         } else {
@@ -785,7 +790,7 @@ impl WaylandFrontend {
         let pending = self
             .window_record_for_surface(&object_id)?
             .pending_client_sized_placement?;
-        let committed = window.geometry();
+        let committed = super::application_scale::window_geometry(window);
         if committed.size.w <= 0 || committed.size.h <= 0 {
             return None;
         }
@@ -826,7 +831,7 @@ impl WaylandFrontend {
         let pending = self
             .window_record_for_surface(&object_id)?
             .pending_auxiliary_toplevel_placement?;
-        let committed = window.geometry();
+        let committed = super::application_scale::window_geometry(window);
         if committed.size.w <= 0 || committed.size.h <= 0 {
             return None;
         }
@@ -956,6 +961,7 @@ impl WaylandFrontend {
                 .unwrap_or_else(|| self.window_geometry_target(window).loc);
             super::window_outputs::refresh_window_outputs(
                 window,
+                super::application_scale::window_geometry(window),
                 location,
                 self.outputs
                     .iter()
@@ -1103,7 +1109,9 @@ impl WaylandFrontend {
             record.pending_client_sized_placement = None;
             record.pending_auxiliary_toplevel_placement = None;
         }
-        if window.geometry().size == target.size && !authority.persistent() {
+        if super::application_scale::window_geometry(window).size == target.size
+            && !authority.persistent()
+        {
             // A move needs no client acknowledgement.  Reading the geometry
             // back from Space is already authoritative and avoids retaining a
             // stale target indefinitely when the client has no reason to
@@ -1276,7 +1284,7 @@ impl WaylandFrontend {
         };
         let target = intent.target;
         let authority = intent.authority;
-        let committed = window.geometry();
+        let committed = super::application_scale::window_geometry(window);
         // `target.loc` and Space's element location use the same global
         // geometry coordinate system.  `committed.loc` remains surface-local
         // and must affect rendering only (Space subtracts it internally).

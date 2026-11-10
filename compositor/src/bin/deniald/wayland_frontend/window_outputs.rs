@@ -7,12 +7,13 @@ use smithay::{
 
 pub(super) fn refresh_window_outputs<'a>(
     window: &impl SpaceElement,
+    content: Rectangle<i32, Logical>,
     location: Point<i32, Logical>,
     outputs: impl IntoIterator<Item = (&'a Output, Rectangle<i32, Logical>)>,
 ) {
     // Match Space's root-relative overlap convention, including CSD/popups.
     let mut bounds = window.bbox();
-    bounds.loc += location - window.geometry().loc;
+    bounds.loc += location - content.loc;
     for (output, geometry) in outputs {
         if let Some(mut overlap) = geometry.intersection(bounds) {
             overlap.loc -= bounds.loc;
@@ -84,11 +85,11 @@ mod tests {
             (&fast, Rectangle::new((1000, 0).into(), (1000, 1000).into())),
         ];
         let window = Window::default();
-        refresh_window_outputs(&window, (100, 100).into(), monitors);
+        refresh_window_outputs(&window, window.bbox(), (100, 100).into(), monitors);
         assert!(window.0.borrow()[0].1.is_some());
         assert!(window.0.borrow()[1].1.is_none());
         window.0.borrow_mut().clear();
-        refresh_window_outputs(&window, (1100, 100).into(), monitors);
+        refresh_window_outputs(&window, window.bbox(), (1100, 100).into(), monitors);
         assert!(window.0.borrow()[0].1.is_none());
         assert_eq!(
             window.0.borrow()[1],
@@ -99,7 +100,7 @@ mod tests {
         );
         assert_eq!(fast.current_mode().unwrap().refresh, 240_000);
         window.0.borrow_mut().clear();
-        refresh_window_outputs(&window, (900, 100).into(), monitors);
+        refresh_window_outputs(&window, window.bbox(), (900, 100).into(), monitors);
         assert_eq!(window.0.borrow()[0].1.unwrap().size.w, 100);
         assert_eq!(window.0.borrow()[1].1.unwrap().loc.x, 100);
     }

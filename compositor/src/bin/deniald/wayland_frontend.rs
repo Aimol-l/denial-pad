@@ -142,6 +142,8 @@ use super::wire::{
     WindowOpacityClass, WindowPlacement, WindowPlacementChange, WindowPlacementPhase,
 };
 
+#[path = "wayland_frontend/application_scale.rs"]
+mod application_scale;
 #[path = "wayland_frontend/clipboard.rs"]
 mod clipboard_io;
 #[path = "wayland_frontend/color_management.rs"]

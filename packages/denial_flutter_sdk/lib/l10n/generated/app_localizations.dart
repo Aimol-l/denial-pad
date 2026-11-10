@@ -4163,6 +4163,42 @@ abstract class AppLocalizations {
   /// **'System'**
   String get settingsApplicationCategorySystem;
 
+  /// Settings · per-application UI scale.
+  ///
+  /// In en, this message translates to:
+  /// **'Apply'**
+  String get settingsApplicationScaleApply;
+
+  /// Settings · per-application UI scale.
+  ///
+  /// In en, this message translates to:
+  /// **'Custom'**
+  String get settingsApplicationScaleCustom;
+
+  /// Settings · per-application UI scale.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale this application’s whole interface on top of the display scale, from the Displays page. Restart the app to apply.'**
+  String get settingsApplicationScaleDescription;
+
+  /// Settings · per-application UI scale.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow display'**
+  String get settingsApplicationScaleFollowSystem;
+
+  /// Settings · per-application UI scale.
+  ///
+  /// In en, this message translates to:
+  /// **'Interface scale'**
+  String get settingsApplicationScaleTitle;
+
+  /// Settings · per-application UI scale.
+  ///
+  /// In en, this message translates to:
+  /// **'Scale'**
+  String get settingsApplicationScaleValueLabel;
+
   /// Accessibility label for the complete Settings application.
   ///
   /// In en, this message translates to:

@@ -2329,6 +2329,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsApplicationCategorySystem => 'System';
 
   @override
+  String get settingsApplicationScaleApply => 'Apply';
+
+  @override
+  String get settingsApplicationScaleCustom => 'Custom';
+
+  @override
+  String get settingsApplicationScaleDescription =>
+      'Scale this application’s whole interface on top of the display scale, from the Displays page. Restart the app to apply.';
+
+  @override
+  String get settingsApplicationScaleFollowSystem => 'Follow display';
+
+  @override
+  String get settingsApplicationScaleTitle => 'Interface scale';
+
+  @override
+  String get settingsApplicationScaleValueLabel => 'Scale';
+
+  @override
   String get settingsApplicationSemanticsLabel => 'Denial Settings';
 
   @override

@@ -3248,6 +3248,30 @@
   "@settingsApplicationCategorySystem": {
     "description": "Search category for system-level settings."
   },
+  "settingsApplicationScaleApply": "Apply",
+  "@settingsApplicationScaleApply": {
+    "description": "Settings · per-application UI scale."
+  },
+  "settingsApplicationScaleCustom": "Custom",
+  "@settingsApplicationScaleCustom": {
+    "description": "Settings · per-application UI scale."
+  },
+  "settingsApplicationScaleDescription": "Scale this application’s whole interface on top of the display scale, from the Displays page. Restart the app to apply.",
+  "@settingsApplicationScaleDescription": {
+    "description": "Settings · per-application UI scale."
+  },
+  "settingsApplicationScaleFollowSystem": "Follow display",
+  "@settingsApplicationScaleFollowSystem": {
+    "description": "Settings · per-application UI scale."
+  },
+  "settingsApplicationScaleTitle": "Interface scale",
+  "@settingsApplicationScaleTitle": {
+    "description": "Settings · per-application UI scale."
+  },
+  "settingsApplicationScaleValueLabel": "Scale",
+  "@settingsApplicationScaleValueLabel": {
+    "description": "Settings · per-application UI scale."
+  },
   "settingsApplicationSemanticsLabel": "Denial Settings",
   "@settingsApplicationSemanticsLabel": {
     "description": "Accessibility label for the complete Settings application."

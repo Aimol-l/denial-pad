@@ -657,6 +657,10 @@ class ShellPowerSettings {
   );
 }
 
+const double applicationScaleMinimum = 0.5;
+const double applicationScaleMaximum = 3.0;
+const int applicationScaleMaximumApplications = 512;
+
 const int applicationEnvironmentMaximumNameBytes = 256;
 const int applicationEnvironmentMaximumValueBytes = 16 * 1024;
 const int applicationEnvironmentMaximumDesktopFileIdBytes = 4096;
@@ -985,6 +989,94 @@ Map<String, String?> _parseApplicationEnvironmentVariables(Object? value) {
   return Map<String, String?>.unmodifiable(variables);
 }
 
+/// Per-application whole-interface scale factors on top of the global
+/// display scale, keyed by the standard desktop-file ID.
+@immutable
+class ShellApplicationScaleSettings {
+  const ShellApplicationScaleSettings({this.scales = const <String, double>{}});
+
+  final Map<String, double> scales;
+
+  double? scaleFor(String desktopFileId) => scales[desktopFileId];
+
+  ShellApplicationScaleSettings withScale(String desktopFileId, double factor) {
+    if (!isValidApplicationEnvironmentDesktopFileId(desktopFileId)) {
+      throw ArgumentError.value(
+        desktopFileId,
+        'desktopFileId',
+        'invalid desktop-file ID',
+      );
+    }
+    if (!isValidApplicationScaleFactor(factor)) {
+      throw ArgumentError.value(
+        factor,
+        'factor',
+        'application scale is outside its supported range',
+      );
+    }
+    return ShellApplicationScaleSettings(
+      scales: Map<String, double>.unmodifiable(<String, double>{
+        ...scales,
+        desktopFileId: factor,
+      }),
+    );
+  }
+
+  ShellApplicationScaleSettings withoutScale(String desktopFileId) {
+    if (!scales.containsKey(desktopFileId)) {
+      return this;
+    }
+    return ShellApplicationScaleSettings(
+      scales: Map<String, double>.unmodifiable(
+        <String, double>{...scales}..remove(desktopFileId),
+      ),
+    );
+  }
+
+  factory ShellApplicationScaleSettings.fromJson(Object? value) {
+    final parsed = <String, double>{};
+    for (final entry in _map(value).entries) {
+      final raw = entry.value;
+      final factor = raw is num ? raw.toDouble() : null;
+      if (factor == null ||
+          !isValidApplicationScaleFactor(factor) ||
+          !isValidApplicationEnvironmentDesktopFileId(entry.key) ||
+          parsed.length >= applicationScaleMaximumApplications) {
+        continue;
+      }
+      parsed[entry.key] = factor;
+    }
+    return ShellApplicationScaleSettings(
+      scales: Map<String, double>.unmodifiable(parsed),
+    );
+  }
+
+  Map<String, Object?> toJson() => <String, Object?>{
+    for (final entry in scales.entries) entry.key: entry.value,
+  };
+
+  @override
+  bool operator ==(Object other) {
+    return other is ShellApplicationScaleSettings &&
+        mapEquals(other.scales, scales);
+  }
+
+  @override
+  int get hashCode {
+    final entries = scales.entries.toList(growable: false)
+      ..sort((first, second) => first.key.compareTo(second.key));
+    return Object.hashAll(
+      entries.map((entry) => Object.hash(entry.key, entry.value)),
+    );
+  }
+}
+
+bool isValidApplicationScaleFactor(double factor) {
+  return factor.isFinite &&
+      factor >= applicationScaleMinimum &&
+      factor <= applicationScaleMaximum;
+}
+
 Map<String, Map<String, String?>> _immutableApplicationEnvironmentMaps(
   Map<String, Map<String, String?>> applications,
 ) {
@@ -1025,6 +1117,7 @@ class ShellSettings {
     this.notifications = const ShellNotificationSettings(),
     this.sound = const ShellSoundSettings(),
     this.applicationEnvironment = const ShellApplicationEnvironmentSettings(),
+    this.applicationScales = const ShellApplicationScaleSettings(),
   });
 
   // Blur levels are additive in schema 9. Keep emitting the derived legacy
@@ -1042,6 +1135,7 @@ class ShellSettings {
   final ShellNotificationSettings notifications;
   final ShellSoundSettings sound;
   final ShellApplicationEnvironmentSettings applicationEnvironment;
+  final ShellApplicationScaleSettings applicationScales;
 
   ShellSettings copyWith({
     InputDeckSettings? inputDeck,
@@ -1055,6 +1149,7 @@ class ShellSettings {
     ShellNotificationSettings? notifications,
     ShellSoundSettings? sound,
     ShellApplicationEnvironmentSettings? applicationEnvironment,
+    ShellApplicationScaleSettings? applicationScales,
   }) {
     return ShellSettings(
       inputDeck: inputDeck ?? this.inputDeck,
@@ -1069,6 +1164,7 @@ class ShellSettings {
       sound: sound ?? this.sound,
       applicationEnvironment:
           applicationEnvironment ?? this.applicationEnvironment,
+      applicationScales: applicationScales ?? this.applicationScales,
     );
   }
 
@@ -1340,6 +1436,11 @@ class ShellSettings {
       patch['applicationEnvironment'] = applicationEnvironment.toJson();
     }
 
+    if (applicationScales != previous.applicationScales) {
+      // Like the environment, this is a complete desired map.
+      patch['applicationScales'] = applicationScales.toJson();
+    }
+
     return patch;
   }
 
@@ -1428,6 +1529,7 @@ class ShellSettings {
       'sound': sound.toJson(),
       'inputDeck': inputDeck.toJson(),
       'applicationEnvironment': applicationEnvironment.toJson(),
+      'applicationScales': applicationScales.toJson(),
     };
   }
 
@@ -1812,6 +1914,9 @@ class ShellSettings {
       applicationEnvironment: ShellApplicationEnvironmentSettings.fromJson(
         json['applicationEnvironment'],
       ),
+      applicationScales: ShellApplicationScaleSettings.fromJson(
+        json['applicationScales'],
+      ),
     );
   }
 
@@ -1828,7 +1933,8 @@ class ShellSettings {
         other.power == power &&
         other.notifications == notifications &&
         other.sound == sound &&
-        other.applicationEnvironment == applicationEnvironment;
+        other.applicationEnvironment == applicationEnvironment &&
+        other.applicationScales == applicationScales;
   }
 
   @override
@@ -1844,6 +1950,7 @@ class ShellSettings {
     notifications,
     sound,
     applicationEnvironment,
+    applicationScales,
   );
 }
 

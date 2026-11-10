@@ -500,7 +500,7 @@ impl WaylandFrontend {
 
     pub(super) fn client_preferred_scale(surface: &WlSurface, output_scale: f64) -> f64 {
         let client_scale = xwayland::surface_client_scale(surface)
-            .unwrap_or(1.0)
+            .unwrap_or_else(|| super::application_scale::client_scale_for_surface(surface))
             .max(f64::EPSILON);
         (output_scale / client_scale).max(1.0)
     }
@@ -1159,7 +1159,7 @@ impl WaylandFrontend {
     #[cfg(feature = "flutter")]
     pub(super) fn input_method_editor_rectangle_global(&self) -> Option<Rectangle<i32, Logical>> {
         let editor = self.input_method.active_editor()?;
-        let rectangle = editor.cursor_rectangle.unwrap_or_default();
+        let mut rectangle = editor.cursor_rectangle.unwrap_or_default();
         let origin = match editor.endpoint {
             EditorEndpoint::Flutter { .. } => Point::from((
                 self.atlas_origin
@@ -1174,9 +1174,11 @@ impl WaylandFrontend {
             EditorEndpoint::Wayland { surface, .. } => {
                 let root = self.owning_toplevel_surface(&surface)?;
                 let window = self.window_for_root_surface(&root)?;
+                // The editor's cursor rectangle is in the client's space.
+                rectangle = super::application_scale::scale_rect(&surface, rectangle);
                 let root_origin = saturating_point_sub(
                     self.window_geometry_target(&window).loc,
-                    window.geometry().loc,
+                    super::application_scale::window_geometry(&window).loc,
                 );
                 let surface_offset = self.surface_tree_offset(&root, &surface)?;
                 saturating_point_add(root_origin, surface_offset)
@@ -1329,7 +1331,7 @@ impl WaylandFrontend {
             if geometry.size.w <= 0 || geometry.size.h <= 0 {
                 continue;
             }
-            let content = window.geometry();
+            let content = super::application_scale::window_geometry(window);
             if content.size.w <= 0 || content.size.h <= 0 {
                 continue;
             }
@@ -1378,8 +1380,11 @@ impl WaylandFrontend {
                     PopupKind::InputMethod(_) => 0,
                 };
                 let popup_origin = saturating_point_sub(
-                    saturating_point_add(content.loc, popup_location),
-                    popup.geometry().loc,
+                    saturating_point_add(
+                        content.loc,
+                        super::application_scale::scale_point(popup_surface, popup_location),
+                    ),
+                    super::application_scale::scale_point(popup_surface, popup.geometry().loc),
                 );
                 self.append_surface_tree(
                     popup_surface,
@@ -1740,7 +1745,13 @@ impl WaylandFrontend {
                     };
                     self.append_surface_tree(
                         popup_surface,
-                        saturating_point_sub(popup_location, popup.geometry().loc),
+                        saturating_point_sub(
+                            super::application_scale::scale_point(popup_surface, popup_location),
+                            super::application_scale::scale_point(
+                                popup_surface,
+                                popup.geometry().loc,
+                            ),
+                        ),
                         SurfaceTreeRoot::Popup {
                             parent_surface_id: parent_surface_id,
                             popup_surface_id: popup_surface_id,

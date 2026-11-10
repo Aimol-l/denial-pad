@@ -453,18 +453,19 @@ impl WaylandFrontend {
             return;
         };
         let window_geometry = self.space.element_geometry(window).unwrap_or_default();
-        let parent_offset = get_popup_toplevel_coords(&popup_kind);
+        // Positioner values arrive in the client's coordinate space.
+        let parent_offset =
+            super::application_scale::scale_point(&root, get_popup_toplevel_coords(&popup_kind));
         let positioner = popup.with_pending_state(|state| state.positioner);
-        let desired_geometry = positioner.get_geometry();
+        let anchor_rect = super::application_scale::scale_rect(&root, positioner.anchor_rect);
+        let desired_geometry =
+            super::application_scale::scale_rect(&root, positioner.get_geometry());
         let anchor = saturating_point_add(
             saturating_point_add(
                 saturating_point_add(window_geometry.loc, parent_offset),
-                positioner.anchor_rect.loc,
+                anchor_rect.loc,
             ),
-            Point::from((
-                positioner.anchor_rect.size.w / 2,
-                positioner.anchor_rect.size.h / 2,
-            )),
+            Point::from((anchor_rect.size.w / 2, anchor_rect.size.h / 2)),
         );
         let desired_global = Rectangle::new(
             saturating_point_add(
@@ -492,8 +493,10 @@ impl WaylandFrontend {
             saturating_point_sub(target.loc, parent_offset),
             window_geometry.loc,
         );
+        // Store the popup geometry back in the client's coordinate space.
+        let client_target = super::application_scale::client_rect(&root, target);
         popup.with_pending_state(|state| {
-            state.geometry = state.positioner.get_unconstrained_geometry(target);
+            state.geometry = state.positioner.get_unconstrained_geometry(client_target);
         });
     }
 }

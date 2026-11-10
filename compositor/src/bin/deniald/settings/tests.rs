@@ -829,6 +829,81 @@ fn validates_application_environment_before_writing() {
 }
 
 #[test]
+fn validates_application_scales_before_writing() {
+    let temporary = TemporaryDirectory::new("settings-application-scales");
+    let manager = SettingsManager::load_path(temporary.settings_path()).unwrap();
+    let valid_document = shell_document(serde_json::json!({
+        "appearance": {"colorSchemePreference": "preferDark"},
+        "applicationScales": {
+            "org.example.App.desktop": 1.5,
+            "org.example.Other.desktop": 2
+        }
+    }));
+    manager
+        .prepare_shell_update(manager.revision(), &valid_document)
+        .expect("valid application scales");
+
+    for document in [
+        shell_document(serde_json::json!({
+            "appearance": {"colorSchemePreference": "preferDark"},
+            "applicationScales": []
+        })),
+        shell_document(serde_json::json!({
+            "appearance": {"colorSchemePreference": "preferDark"},
+            "applicationScales": {"not/a.desktop": 1.5}
+        })),
+        shell_document(serde_json::json!({
+            "appearance": {"colorSchemePreference": "preferDark"},
+            "applicationScales": {"org.example.App.desktop": "1.5"}
+        })),
+        shell_document(serde_json::json!({
+            "appearance": {"colorSchemePreference": "preferDark"},
+            "applicationScales": {"org.example.App.desktop": 4.0}
+        })),
+        shell_document(serde_json::json!({
+            "appearance": {"colorSchemePreference": "preferDark"},
+            "applicationScales": {"org.example.App.desktop": 0.25}
+        })),
+    ] {
+        assert!(matches!(
+            manager.prepare_shell_update(manager.revision(), &document),
+            Err(SettingsError::Document(_))
+        ));
+    }
+}
+
+#[test]
+fn parses_and_persists_application_scales() {
+    let temporary = TemporaryDirectory::new("settings-application-scales-load");
+    let path = temporary.settings_path();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        &path,
+        shell_document(serde_json::json!({
+            "appearance": {"colorSchemePreference": "preferDark"},
+            "applicationScales": {
+                "org.example.App.desktop": 1.25,
+                "org.example.Other.desktop": 2.0
+            }
+        })),
+    )
+    .unwrap();
+
+    let manager = SettingsManager::load_path(path).unwrap();
+    let loaded: Value = serde_json::from_str(&manager.document_json().unwrap()).unwrap();
+    assert_eq!(loaded["applicationScales"]["org.example.App.desktop"], 1.25);
+    assert_eq!(
+        loaded["applicationScales"]["org.example.Other.desktop"],
+        2.0
+    );
+
+    let empty = TemporaryDirectory::new("settings-application-scales-empty");
+    let manager = SettingsManager::load_path(empty.settings_path()).unwrap();
+    let loaded: Value = serde_json::from_str(&manager.document_json().unwrap()).unwrap();
+    assert_eq!(loaded["applicationScales"], serde_json::json!({}));
+}
+
+#[test]
 fn gtk_input_method_policy_is_split_by_display_backend() {
     fn environment(value: serde_json::Value) -> ApplicationEnvironment {
         let document = serde_json::json!({"applicationEnvironment": value});

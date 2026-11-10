@@ -70,6 +70,25 @@ void main() {
     expect(decoded['plugins'], {'example': true});
   });
 
+  test('removing an application scale does not resurrect the saved entry', () {
+    final document = SettingsDocumentProjection();
+    document.remember(
+      revision: 1,
+      document: jsonEncode({
+        'applicationScales': {
+          'org.example.App.desktop': 1.5,
+          'org.example.Other.desktop': 2.0,
+        },
+      }),
+    );
+    final decoded = jsonDecode(
+      document.encode({
+        'applicationScales': {'org.example.App.desktop': 1.25},
+      }),
+    ) as Map;
+    expect(decoded['applicationScales'], {'org.example.App.desktop': 1.25});
+  });
+
   test(
     'refreshed documents retain newer plugin data and reject stale state',
     () {
