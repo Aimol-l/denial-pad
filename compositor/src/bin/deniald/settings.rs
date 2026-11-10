@@ -73,42 +73,11 @@ pub(super) fn x11_gtk_input_method_backend_fallback() -> &'static str {
         .expect("GTK input-method backend fallback must contain Wayland and X11 arms")
 }
 
-/// Internal environment keys that carry a per-application UI scale. The
-/// launcher consumes them and removes them from the child environment.
-pub(super) const APPLICATION_SCALE_ENV: &str = "DENIAL_UI_SCALE";
-pub(super) const APPLICATION_SCALE_BACKEND_ENV: &str = "DENIAL_UI_SCALE_BACKEND";
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum ScaleBackend {
-    Auto,
-    Gtk,
-    Qt,
-    Electron,
-    Firefox,
-    Java,
-    None,
-}
-
-impl ScaleBackend {
-    pub(super) fn parse(value: &str) -> Option<Self> {
-        match value.trim().to_ascii_lowercase().as_str() {
-            "auto" => Some(Self::Auto),
-            "gtk" => Some(Self::Gtk),
-            "qt" => Some(Self::Qt),
-            "electron" => Some(Self::Electron),
-            "firefox" => Some(Self::Firefox),
-            "java" => Some(Self::Java),
-            "none" => Some(Self::None),
-            _ => None,
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(super) struct ApplicationScale {
-    pub(super) factor: f64,
-    pub(super) backend: ScaleBackend,
-}
+/// Environment keys left behind by the removed toolkit-based per-application
+/// UI scale. They stay reserved so an older settings document drops them on
+/// load instead of leaking them into a child environment.
+const LEGACY_APPLICATION_SCALE_ENV: &str = "DENIAL_UI_SCALE";
+const LEGACY_APPLICATION_SCALE_BACKEND_ENV: &str = "DENIAL_UI_SCALE_BACKEND";
 
 /// Environment overrides applied only to processes launched by Denial.
 ///
@@ -230,24 +199,6 @@ impl ApplicationEnvironment {
             .and_then(|desktop_file_id| self.application_overrides.get(desktop_file_id))
             .and_then(|overrides| overrides.get(name))
             .or_else(|| self.default_overrides.get(name))
-    }
-
-    /// The per-application UI scale, if the settings carry one. Values outside
-    /// the supported range are ignored rather than passed to an application.
-    pub(super) fn scale_for(&self, desktop_file_id: Option<&str>) -> Option<ApplicationScale> {
-        let raw = self
-            .override_for(APPLICATION_SCALE_ENV, desktop_file_id)?
-            .as_deref()?;
-        let factor = raw.trim().parse::<f64>().ok()?;
-        if !factor.is_finite() || !(0.5..=3.0).contains(&factor) {
-            return None;
-        }
-        let backend = self
-            .override_for(APPLICATION_SCALE_BACKEND_ENV, desktop_file_id)
-            .and_then(|value| value.as_deref())
-            .and_then(ScaleBackend::parse)
-            .unwrap_or(ScaleBackend::Auto);
-        Some(ApplicationScale { factor, backend })
     }
 }
 
@@ -1496,6 +1447,7 @@ fn parse_document(bytes: &[u8]) -> Result<ParsedSettingsDocument, SettingsError>
         None => ColorSettings::default(),
     };
     color.validate()?;
+    let migrated_application_scale = migrate_legacy_application_scale(&mut document);
     let had_application_environment = document.contains_key("applicationEnvironment");
     let application_environment = ApplicationEnvironment::from_document(&document)?;
     application_environment.write_to_document(&mut document);
@@ -1578,7 +1530,8 @@ fn parse_document(bytes: &[u8]) -> Result<ParsedSettingsDocument, SettingsError>
     };
     set_workspace_settings(&mut document, workspace_settings)?;
     migrate_idle_timeouts(&mut document);
-    let migrated = version != SETTINGS_SCHEMA_VERSION
+    let migrated = migrated_application_scale
+        || version != SETTINGS_SCHEMA_VERSION
         || !document.contains_key("revision")
         || !document.contains_key("keyboard")
         || !document.contains_key("mouse")
@@ -1702,6 +1655,65 @@ fn parse_color_scheme_preference(
             "unsupported appearance.colorSchemePreference {value:?}"
         ))
     })
+}
+
+/// Removes the environment keys of the removed toolkit-based per-application
+/// UI scale, in both the flat schema 11 shape and the nested schema. Returns
+/// whether the document changed so the cleaned form is persisted.
+fn migrate_legacy_application_scale(document: &mut Map<String, Value>) -> bool {
+    let Some(environment) = document
+        .get_mut("applicationEnvironment")
+        .and_then(Value::as_object_mut)
+    else {
+        return false;
+    };
+    let keys = [
+        LEGACY_APPLICATION_SCALE_ENV,
+        LEGACY_APPLICATION_SCALE_BACKEND_ENV,
+    ];
+    let mut changed = false;
+    if environment
+        .values()
+        .all(|value| value.is_string() || value.is_null())
+    {
+        for key in keys {
+            changed |= environment.remove(key).is_some();
+        }
+        return changed;
+    }
+    if let Some(defaults) = environment
+        .get_mut("default")
+        .and_then(Value::as_object_mut)
+    {
+        for key in keys {
+            changed |= defaults.remove(key).is_some();
+        }
+    }
+    if let Some(applications) = environment
+        .get_mut("applications")
+        .and_then(Value::as_object_mut)
+    {
+        let mut emptied = Vec::new();
+        for (desktop_file_id, scope) in applications.iter_mut() {
+            let Some(scope) = scope.as_object_mut() else {
+                continue;
+            };
+            let mut scope_changed = false;
+            for key in keys {
+                scope_changed |= scope.remove(key).is_some();
+            }
+            if scope_changed {
+                changed = true;
+                if scope.is_empty() {
+                    emptied.push(desktop_file_id.clone());
+                }
+            }
+        }
+        for desktop_file_id in emptied {
+            applications.remove(&desktop_file_id);
+        }
+    }
+    changed
 }
 
 /// Schema 30 counts the idle timeouts in seconds; earlier documents kept

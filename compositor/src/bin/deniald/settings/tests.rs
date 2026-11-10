@@ -92,6 +92,68 @@ fn migrates_idle_timeouts_from_minutes_to_seconds() {
 }
 
 #[test]
+fn drops_legacy_toolkit_application_scale() {
+    let temporary = TemporaryDirectory::new("settings-legacy-scale");
+    let path = temporary.settings_path();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    let document = serde_json::json!({
+        "version": SETTINGS_SCHEMA_VERSION,
+        "applicationEnvironment": {
+            "default": {
+                "DENIAL_UI_SCALE": "1.0",
+                "XMODIFIERS": "@im=fcitx"
+            },
+            "applications": {
+                "org.example.OnlyScale.desktop": {
+                    "DENIAL_UI_SCALE": "2.0",
+                    "DENIAL_UI_SCALE_BACKEND": "gtk"
+                },
+                "org.example.Mixed.desktop": {
+                    "DENIAL_UI_SCALE": "1.5",
+                    "GTK_IM_MODULE": "xim"
+                }
+            }
+        }
+    });
+    fs::write(&path, serde_json::to_string(&document).unwrap()).unwrap();
+
+    let manager = SettingsManager::load_path(path).unwrap();
+    let loaded: Value = serde_json::from_str(&manager.document_json().unwrap()).unwrap();
+    let environment = loaded["applicationEnvironment"].as_object().unwrap();
+    let defaults = environment["default"].as_object().unwrap();
+    assert!(!defaults.contains_key("DENIAL_UI_SCALE"));
+    assert_eq!(defaults["XMODIFIERS"], "@im=fcitx");
+    let applications = environment["applications"].as_object().unwrap();
+    assert!(!applications.contains_key("org.example.OnlyScale.desktop"));
+    let mixed = applications["org.example.Mixed.desktop"]
+        .as_object()
+        .unwrap();
+    assert!(!mixed.contains_key("DENIAL_UI_SCALE"));
+    assert_eq!(mixed["GTK_IM_MODULE"], "xim");
+}
+
+#[test]
+fn drops_legacy_toolkit_application_scale_from_flat_schema() {
+    let temporary = TemporaryDirectory::new("settings-legacy-scale-flat");
+    let path = temporary.settings_path();
+    fs::create_dir_all(path.parent().unwrap()).unwrap();
+    fs::write(
+        &path,
+        br#"{"version":11,"applicationEnvironment":{"DENIAL_UI_SCALE":"1.5","DENIAL_UI_SCALE_BACKEND":"firefox","FOO":"bar"}}"#,
+    )
+    .unwrap();
+
+    let manager = SettingsManager::load_path(path).unwrap();
+    let loaded: Value = serde_json::from_str(&manager.document_json().unwrap()).unwrap();
+    let defaults = loaded["applicationEnvironment"]["default"]
+        .as_object()
+        .unwrap();
+    assert!(!defaults.contains_key("DENIAL_UI_SCALE"));
+    assert!(!defaults.contains_key("DENIAL_UI_SCALE_BACKEND"));
+    assert_eq!(defaults["FOO"], "bar");
+}
+
+#[test]
 fn migrates_existing_shell_document_without_losing_sections() {
     let temporary = TemporaryDirectory::new("settings-migrate");
     let path = temporary.settings_path();

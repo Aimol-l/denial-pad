@@ -4163,60 +4163,6 @@ abstract class AppLocalizations {
   /// **'System'**
   String get settingsApplicationCategorySystem;
 
-  /// Settings · per-application UI scale.
-  ///
-  /// In en, this message translates to:
-  /// **'Apply'**
-  String get settingsApplicationScaleApply;
-
-  /// Settings · per-application UI scale.
-  ///
-  /// In en, this message translates to:
-  /// **'Scale method'**
-  String get settingsApplicationScaleBackend;
-
-  /// Settings · per-application UI scale.
-  ///
-  /// In en, this message translates to:
-  /// **'Automatic'**
-  String get settingsApplicationScaleBackendAuto;
-
-  /// Settings · per-application UI scale.
-  ///
-  /// In en, this message translates to:
-  /// **'Do nothing'**
-  String get settingsApplicationScaleBackendNone;
-
-  /// Settings · per-application UI scale.
-  ///
-  /// In en, this message translates to:
-  /// **'Custom'**
-  String get settingsApplicationScaleCustom;
-
-  /// Settings · per-application UI scale.
-  ///
-  /// In en, this message translates to:
-  /// **'Override this application’s whole UI scale; restart the app to apply.'**
-  String get settingsApplicationScaleDescription;
-
-  /// Settings · per-application UI scale.
-  ///
-  /// In en, this message translates to:
-  /// **'Follow system'**
-  String get settingsApplicationScaleFollowSystem;
-
-  /// Settings · per-application UI scale.
-  ///
-  /// In en, this message translates to:
-  /// **'Per-application UI scale'**
-  String get settingsApplicationScaleTitle;
-
-  /// Settings · per-application UI scale.
-  ///
-  /// In en, this message translates to:
-  /// **'Scale'**
-  String get settingsApplicationScaleValueLabel;
-
   /// Accessibility label for the complete Settings application.
   ///
   /// In en, this message translates to:

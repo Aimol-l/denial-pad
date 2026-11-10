@@ -2228,33 +2228,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsApplicationCategorySystem => '系统';
 
   @override
-  String get settingsApplicationScaleApply => '应用';
-
-  @override
-  String get settingsApplicationScaleBackend => '缩放方式';
-
-  @override
-  String get settingsApplicationScaleBackendAuto => '自动识别';
-
-  @override
-  String get settingsApplicationScaleBackendNone => '不处理';
-
-  @override
-  String get settingsApplicationScaleCustom => '自定义';
-
-  @override
-  String get settingsApplicationScaleDescription => '覆盖此应用的整体界面缩放，应用重启后生效。';
-
-  @override
-  String get settingsApplicationScaleFollowSystem => '跟随系统';
-
-  @override
-  String get settingsApplicationScaleTitle => '界面缩放';
-
-  @override
-  String get settingsApplicationScaleValueLabel => '缩放比例';
-
-  @override
   String get settingsApplicationSemanticsLabel => 'Denial 设置';
 
   @override

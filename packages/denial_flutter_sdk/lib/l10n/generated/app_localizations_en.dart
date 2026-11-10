@@ -2329,34 +2329,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsApplicationCategorySystem => 'System';
 
   @override
-  String get settingsApplicationScaleApply => 'Apply';
-
-  @override
-  String get settingsApplicationScaleBackend => 'Scale method';
-
-  @override
-  String get settingsApplicationScaleBackendAuto => 'Automatic';
-
-  @override
-  String get settingsApplicationScaleBackendNone => 'Do nothing';
-
-  @override
-  String get settingsApplicationScaleCustom => 'Custom';
-
-  @override
-  String get settingsApplicationScaleDescription =>
-      'Override this application’s whole UI scale; restart the app to apply.';
-
-  @override
-  String get settingsApplicationScaleFollowSystem => 'Follow system';
-
-  @override
-  String get settingsApplicationScaleTitle => 'Per-application UI scale';
-
-  @override
-  String get settingsApplicationScaleValueLabel => 'Scale';
-
-  @override
   String get settingsApplicationSemanticsLabel => 'Denial Settings';
 
   @override

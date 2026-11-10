@@ -3248,42 +3248,6 @@
   "@settingsApplicationCategorySystem": {
     "description": "Search category for system-level settings."
   },
-  "settingsApplicationScaleApply": "Apply",
-  "@settingsApplicationScaleApply": {
-    "description": "Settings · per-application UI scale."
-  },
-  "settingsApplicationScaleBackend": "Scale method",
-  "@settingsApplicationScaleBackend": {
-    "description": "Settings · per-application UI scale."
-  },
-  "settingsApplicationScaleBackendAuto": "Automatic",
-  "@settingsApplicationScaleBackendAuto": {
-    "description": "Settings · per-application UI scale."
-  },
-  "settingsApplicationScaleBackendNone": "Do nothing",
-  "@settingsApplicationScaleBackendNone": {
-    "description": "Settings · per-application UI scale."
-  },
-  "settingsApplicationScaleCustom": "Custom",
-  "@settingsApplicationScaleCustom": {
-    "description": "Settings · per-application UI scale."
-  },
-  "settingsApplicationScaleDescription": "Override this application’s whole UI scale; restart the app to apply.",
-  "@settingsApplicationScaleDescription": {
-    "description": "Settings · per-application UI scale."
-  },
-  "settingsApplicationScaleFollowSystem": "Follow system",
-  "@settingsApplicationScaleFollowSystem": {
-    "description": "Settings · per-application UI scale."
-  },
-  "settingsApplicationScaleTitle": "Per-application UI scale",
-  "@settingsApplicationScaleTitle": {
-    "description": "Settings · per-application UI scale."
-  },
-  "settingsApplicationScaleValueLabel": "Scale",
-  "@settingsApplicationScaleValueLabel": {
-    "description": "Settings · per-application UI scale."
-  },
   "settingsApplicationSemanticsLabel": "Denial Settings",
   "@settingsApplicationSemanticsLabel": {
     "description": "Accessibility label for the complete Settings application."
