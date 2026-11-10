@@ -47,7 +47,7 @@ import 'package:denial_flutter_sdk/wallpaper.dart'
 
 import '../../profile/desktop_profile.dart';
 import '../../state/notification_groups.dart';
-import '../edge_panel_layer.dart';
+import '../mobile_keyboard_viewport.dart';
 import '../mobile_ui_metrics.dart';
 import '../notification_banner.dart';
 

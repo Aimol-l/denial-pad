@@ -114,7 +114,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   /// last one. Recents alone leaves the app in front, as does the lock
   /// screen; focusing it again restores it.
   void _minimizeLeftApp(int? previous, ReferenceShellState next) {
-    if (!_automaticSoftwareKeyboard ||
+    if (!_mobileShellProfile ||
         previous == null ||
         previous == next.foregroundObjectId) {
       return;
@@ -132,7 +132,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     _deck = ref.read(appDeckProvider);
     _deck.presenting.addListener(_deckPresentingChanged);
     _resetBuildFields();
-    _automaticSoftwareKeyboard =
+    _mobileShellProfile =
         ref.watch(referenceShellProfileProvider) ==
         ReferenceShellProfile.mobile;
     _buildGeneration = beginBuildGeneration();
@@ -157,8 +157,6 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     });
     ref.onDispose(() {
       _deck.presenting.removeListener(_deckPresentingChanged);
-      _automaticSoftwareKeyboardCloseTimer?.cancel();
-      _automaticSoftwareKeyboardCloseTimer = null;
       _launchRequestTimer?.cancel();
       _launchRequestTimer = null;
       _appSwitchOrderTimer?.cancel();
@@ -257,9 +255,6 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   /// How long a quick-switch order outlives its last switch, as on Android.
   static const Duration _appSwitchOrderHold = Duration(seconds: 5);
-  static const Duration _automaticSoftwareKeyboardCloseGrace = Duration(
-    milliseconds: 24,
-  );
 
   late DenialBridge _bridge;
   late int _buildGeneration;
@@ -317,17 +312,13 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   int _nextLaunchRequestId = 1;
   Timer? _launchRequestTimer;
   Timer? _appSwitchOrderTimer;
-  bool _automaticSoftwareKeyboard = false;
-  final Set<String> _legacyTextInputAppIds = <String>{};
+  bool _mobileShellProfile = false;
   final Set<String> _backgroundLaunchAppIds = <String>{};
-  Timer? _automaticSoftwareKeyboardCloseTimer;
   StreamSubscription<DenialTextInputState>? _textInputStateSubscription;
 
   void _resetBuildFields() {
     _lastTextInput = null;
     _edgePanelDismissalSerial = null;
-    _automaticSoftwareKeyboardCloseTimer?.cancel();
-    _automaticSoftwareKeyboardCloseTimer = null;
     unawaited(_textInputStateSubscription?.cancel());
     _textInputStateSubscription = null;
     _inputLayoutCoordinator = ReferenceInputLayoutCoordinator(_bridge);
@@ -346,56 +337,13 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     _launchRequestTimer = null;
     _appSwitchOrderTimer?.cancel();
     _appSwitchOrderTimer = null;
-    _legacyTextInputAppIds.clear();
     _backgroundLaunchAppIds.clear();
   }
 
   void _handleTextInputState(DenialTextInputState input) {
+    // The software keyboard is gone; remember the editor so Back and the
+    // remaining dismissal paths still know which panel an app owns.
     _lastTextInput = input;
-    if (!_automaticSoftwareKeyboard) {
-      return;
-    }
-    // Text fields on a desk take the desk's keyboard, never the phone's.
-    if (state.desk.foregroundObjectId != null &&
-        ref.read(phoneDeskProvider) != null) {
-      return;
-    }
-    if (input.inputPanelVisible) {
-      final foregroundAppId = AppLaunchRequest.normalizeAppId(
-        state.foregroundWindow?.appId ?? '',
-      );
-      if (input.legacy && !_legacyTextInputAppIds.contains(foregroundAppId)) {
-        closeEdgePanel();
-        return;
-      }
-      _automaticSoftwareKeyboardCloseTimer?.cancel();
-      _automaticSoftwareKeyboardCloseTimer = null;
-      openEdgePanel();
-    } else {
-      // Flutter retires the old TextInputClient just before registering the
-      // next one during a field-to-field focus transfer. Preserve the panel
-      // across that short protocol gap; a replacement editor cancels this
-      // close before any visible keyboard motion begins.
-      _automaticSoftwareKeyboardCloseTimer?.cancel();
-      final generation = _buildGeneration;
-      _automaticSoftwareKeyboardCloseTimer = Timer(
-        _automaticSoftwareKeyboardCloseGrace,
-        () {
-          _automaticSoftwareKeyboardCloseTimer = null;
-          if (isBuildGenerationActive(generation)) {
-            closeEdgePanel();
-          }
-        },
-      );
-    }
-  }
-
-  void registerLegacyTextInputAppIds(Iterable<String> appIds) {
-    _legacyTextInputAppIds.addAll(
-      appIds
-          .map(AppLaunchRequest.normalizeAppId)
-          .where((identity) => identity.isNotEmpty),
-    );
   }
 
   void lock() {

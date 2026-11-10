@@ -49,12 +49,6 @@ class ReferenceInputLayoutCoordinator {
       viewSize,
       edgePanelProgress,
     );
-    List<Rect> softwareKeyboardRegions({required bool scrollStripVisible}) =>
-        ReferenceShellMetrics.softwareKeyboardRegions(
-          viewSize,
-          progress: edgePanelProgress,
-          scrollStripVisible: scrollStripVisible,
-        );
     if (state.lockLayerVisible) {
       final lockBackgroundWindow = state.primaryWindow;
       _publishInputLayout(
@@ -70,9 +64,6 @@ class ReferenceInputLayoutCoordinator {
               hitTest: false,
             ),
         ],
-        softwareKeyboardRegions: softwareKeyboardRegions(
-          scrollStripVisible: state.edgePanelVisible,
-        ),
         keyboardCapture: true,
         exclusiveShellMode: true,
       );
@@ -105,9 +96,6 @@ class ReferenceInputLayoutCoordinator {
             geometryLocked: true,
           ),
         ],
-        softwareKeyboardRegions: softwareKeyboardRegions(
-          scrollStripVisible: state.edgePanelVisible,
-        ),
       );
       return;
     }
@@ -150,7 +138,6 @@ class ReferenceInputLayoutCoordinator {
       ] else ...[
         if (!statusEdge) ReferenceShellMetrics.statusRect(viewSize),
         ReferenceShellMetrics.gestureRect(viewSize),
-        ReferenceShellMetrics.edgePanelGestureRect(viewSize),
       ],
       // Child regions are in scene coordinates.
       for (final region in interactions.childRegions)
@@ -186,9 +173,6 @@ class ReferenceInputLayoutCoordinator {
       viewSize: viewSize,
       shellRegions: shellRegions,
       windows: inputRegions,
-      softwareKeyboardRegions: softwareKeyboardRegions(
-        scrollStripVisible: scrollStripVisible,
-      ),
       edgeSwipeRegions: edgeSwipeRegions,
       keyboardCapture: quickSettingsActive || interactions.capturesKeyboard,
       exclusiveShellMode: interactions.compositorExclusive,

@@ -20,7 +20,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../widgets/app_flight_layer.dart';
 import '../../widgets/back_gesture_layer.dart';
 import '../../widgets/bottom_gesture_handle.dart';
-import '../../widgets/edge_panel_layer.dart';
+import '../../widgets/mobile_keyboard_viewport.dart';
 import '../../widgets/shade/shade_progress.dart';
 import '../../widgets/shade/system_shade_layer.dart';
 import 'mobile_launcher_layer.dart';

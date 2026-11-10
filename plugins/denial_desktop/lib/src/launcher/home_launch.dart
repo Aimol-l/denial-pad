@@ -32,9 +32,6 @@ Future<void> launchHomeApp(
       .record(desktopApplicationRecentId(desktop.id));
   final launcher = ref.read(appLauncherProvider);
   final expectedAppIds = launcher.expectedWindowAppIds(desktop);
-  if (launcher.usesLegacyTextInput(desktop)) {
-    shell.registerLegacyTextInputAppIds(expectedAppIds);
-  }
   final running = launcher.findOpenWindow(
     desktop,
     ref.read(referenceShellProvider).openAppWindows,

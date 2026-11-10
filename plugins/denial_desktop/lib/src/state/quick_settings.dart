@@ -1,5 +1,3 @@
-import 'package:denial_desktop/src/state/reference_shell_controller.dart';
-
 import 'package:denial_flutter_sdk/lifecycle.dart' show NotifierLifecycle;
 
 import 'dart:async';
@@ -312,9 +310,6 @@ class QuickSettingsController extends Notifier<QuickSettingsState>
     state = state.copyWith(profile: next);
     unawaited(_power.write(next));
   }
-
-  void openKeyboard() =>
-      ref.read(referenceShellProvider.notifier).openEdgePanel();
 
   /// Captures a screenshot. The caller is expected to dismiss the shade first;
   /// the settle delay gives that animation time to clear the frame.

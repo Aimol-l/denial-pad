@@ -10,7 +10,7 @@ import 'package:denial_flutter_sdk/state.dart';
 import 'package:denial_flutter_sdk/platform.dart';
 import 'package:denial_flutter_sdk/motion.dart';
 
-import '../../widgets/edge_panel_layer.dart';
+import '../../widgets/mobile_keyboard_viewport.dart';
 
 import 'package:denial_flutter_sdk/rendering.dart';
 import 'package:denial_flutter_sdk/wallpaper.dart';

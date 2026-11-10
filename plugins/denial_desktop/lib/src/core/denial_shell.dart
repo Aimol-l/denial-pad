@@ -30,7 +30,6 @@ import '../widgets/low_battery_notification_binding.dart';
 
 import 'package:denial_flutter_sdk/rendering.dart';
 
-import '../widgets/edge_panel_layer.dart';
 import '../widgets/input_deck/input_deck_layer.dart';
 import '../widgets/screenshot_selection_layer.dart';
 
@@ -256,7 +255,6 @@ class _PhoneDeskScene extends ConsumerWidget {
                   profile: ReferenceShellProfile.desktop,
                   policyProfile: policyProfile,
                   scene: desktop,
-                  besidePhone: true,
                 ),
               ),
             ),
@@ -298,16 +296,11 @@ class _ProfileScene extends StatelessWidget {
     required this.profile,
     required this.policyProfile,
     required this.scene,
-    this.besidePhone = false,
   });
 
   final ReferenceShellProfile profile;
   final ReferenceShellProfile policyProfile;
   final DenialShellScene scene;
-
-  /// The desktop shell runs on a monitor beside the phone, which owns the
-  /// software keyboard.
-  final bool besidePhone;
 
   @override
   Widget build(BuildContext context) {
@@ -329,7 +322,6 @@ class _ProfileScene extends StatelessWidget {
             ),
             const ScreenshotSelectionLayer(),
             const MobileSystemOverlayLayer(),
-            const SystemKeyboardLayer(),
             // Over everything on the phone, like the lock screen it comes
             // from.
             const UnlockedAmbientDisplay(),
@@ -341,9 +333,7 @@ class _ProfileScene extends StatelessWidget {
         ),
       ),
       ReferenceShellProfile.desktop => DesktopInputLayoutPublisher(
-        // The startup profile controls automatic pop-up, not access to the
-        // manual edge gesture. Desktop-first touch devices need it too.
-        softwareKeyboardEnabled: !besidePhone,
+        softwareKeyboardEnabled: false,
         child: DesktopPetHoldPublisher(
           child: Stack(
             fit: StackFit.expand,
@@ -371,7 +361,6 @@ class _ProfileScene extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!besidePhone) const SystemKeyboardLayer(),
             ],
           ),
         ),
