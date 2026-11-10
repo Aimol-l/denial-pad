@@ -1155,40 +1155,40 @@ class AppLocalizationsZh extends AppLocalizations {
   String get mobileUnavailable => '移动网络不可用';
 
   @override
-  String get monthApril => '四月';
+  String get monthApril => '4月';
 
   @override
-  String get monthAugust => '八月';
+  String get monthAugust => '8月';
 
   @override
-  String get monthDecember => '十二月';
+  String get monthDecember => '12月';
 
   @override
-  String get monthFebruary => '二月';
+  String get monthFebruary => '2月';
 
   @override
-  String get monthJanuary => '一月';
+  String get monthJanuary => '1月';
 
   @override
-  String get monthJuly => '七月';
+  String get monthJuly => '7月';
 
   @override
-  String get monthJune => '六月';
+  String get monthJune => '6月';
 
   @override
-  String get monthMarch => '三月';
+  String get monthMarch => '3月';
 
   @override
-  String get monthMay => '五月';
+  String get monthMay => '5月';
 
   @override
-  String get monthNovember => '十一月';
+  String get monthNovember => '11月';
 
   @override
-  String get monthOctober => '十月';
+  String get monthOctober => '10月';
 
   @override
-  String get monthSeptember => '九月';
+  String get monthSeptember => '9月';
 
   @override
   String get moveToMonitor => '移到显示器';
