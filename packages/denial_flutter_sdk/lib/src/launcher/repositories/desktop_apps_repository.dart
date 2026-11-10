@@ -7,7 +7,7 @@ import '../runtime_paths.dart';
 import '../models/desktop_app.dart';
 
 class DesktopAppsRepository {
-  const DesktopAppsRepository({required this._paths});
+  DesktopAppsRepository({required this._paths});
 
   final RuntimePaths _paths;
 
@@ -289,21 +289,55 @@ class DesktopAppsRepository {
     if (name.isEmpty || name.contains('/') || name.contains(r'\')) {
       return null;
     }
-    final extensions = ['png', 'webp', 'jpg', 'jpeg', 'svg'];
+    return _resolveIconName(name);
+  }
 
-    for (final root in _paths.iconRoots()) {
-      for (final extension in extensions) {
-        final pixmap = p.join(root, 'pixmaps', '$name.$extension');
-        if (_isSafeIconFile(pixmap)) {
-          return pixmap;
-        }
+  /// Icon names to candidate files with their preference score, built on first
+  /// use. Building the index only lists directories; a candidate is validated
+  /// when its name is resolved, so loading the catalog stats at most one file
+  /// per application instead of every icon in every theme.
+  Map<String, List<(int, String)>>? _iconCandidates;
+
+  final Map<String, String?> _resolvedIcons = <String, String?>{};
+
+  String? _resolveIconName(String name) {
+    if (_resolvedIcons.containsKey(name)) {
+      return _resolvedIcons[name];
+    }
+    final candidates = _indexCandidates[name];
+    if (candidates == null) {
+      return _resolvedIcons[name] = null;
+    }
+    candidates.sort((first, second) => first.$1.compareTo(second.$1));
+    for (final candidate in candidates) {
+      if (_isSafeIconFile(candidate.$2)) {
+        return _resolvedIcons[name] = candidate.$2;
       }
+    }
+    return _resolvedIcons[name] = null;
+  }
 
+  Map<String, List<(int, String)>> get _indexCandidates {
+    final cached = _iconCandidates;
+    if (cached != null) {
+      return cached;
+    }
+    final candidates = <String, List<(int, String)>>{};
+    final roots = _paths.iconRoots();
+    for (var rootIndex = 0; rootIndex < roots.length; rootIndex++) {
+      final root = roots[rootIndex];
+      _indexIconDirectory(
+        Directory(p.join(root, 'pixmaps')),
+        rootIndex,
+        0,
+        0,
+        0,
+        candidates,
+      );
       final iconsDir = Directory(p.join(root, 'icons'));
       if (!iconsDir.existsSync()) {
         continue;
       }
-
       final themes = <String>[
         p.join(root, 'icons', 'hicolor'),
         p.join(root, 'icons', 'Adwaita'),
@@ -318,20 +352,132 @@ class DesktopAppsRepository {
       } on FileSystemException {
         continue;
       }
-
-      for (final theme in RuntimePaths.uniquePaths(themes)) {
-        for (final directory in _iconThemeDirectories(theme)) {
-          for (final extension in extensions) {
-            final path = p.join(theme, directory, '$name.$extension');
-            if (_isSafeIconFile(path)) {
-              return path;
-            }
-          }
-        }
+      final orderedThemes = RuntimePaths.uniquePaths(themes);
+      for (
+        var themeIndex = 0;
+        themeIndex < orderedThemes.length;
+        themeIndex++
+      ) {
+        _indexIconTheme(
+          Directory(orderedThemes[themeIndex]),
+          rootIndex,
+          themeIndex + 1,
+          candidates,
+        );
       }
     }
+    _iconCandidates = candidates;
+    return candidates;
+  }
 
-    return null;
+  void _indexIconTheme(
+    Directory theme,
+    int rootRank,
+    int themeRank,
+    Map<String, List<(int, String)>> candidates,
+  ) {
+    final List<FileSystemEntity> entries;
+    try {
+      entries = theme.listSync(recursive: true, followLinks: false);
+    } on FileSystemException {
+      return;
+    }
+    for (final entity in entries) {
+      if (entity is Directory) {
+        continue;
+      }
+      final path = entity.path;
+      final base = p.basename(path);
+      final dot = base.lastIndexOf('.');
+      if (dot <= 0) {
+        continue;
+      }
+      final extensionRank = _iconExtensions.indexOf(
+        base.substring(dot + 1).toLowerCase(),
+      );
+      if (extensionRank < 0) {
+        continue;
+      }
+      final components = p.split(p.relative(path, from: theme.path));
+      var sizeRank = _preferredIconSizes.length + 40;
+      var contextRank = _preferredIconContexts.length + 10;
+      if (components.length >= 3) {
+        final size = components[0];
+        final context = components[components.length - 2];
+        final contextIndex = _preferredIconContexts.indexOf(context);
+        if (contextIndex >= 0) {
+          contextRank = contextIndex;
+        }
+        final sizeIndex = _preferredIconSizes.indexOf(size);
+        if (sizeIndex >= 0) {
+          sizeRank = sizeIndex;
+        } else if (size == 'symbolic') {
+          sizeRank = _preferredIconSizes.length + 20;
+        }
+      }
+      _addIconCandidate(
+        candidates,
+        base.substring(0, dot),
+        path,
+        (rootRank << 24) |
+            (themeRank << 16) |
+            (sizeRank << 10) |
+            (contextRank << 5) |
+            extensionRank,
+      );
+    }
+  }
+
+  void _indexIconDirectory(
+    Directory directory,
+    int rootRank,
+    int themeRank,
+    int sizeRank,
+    int contextRank,
+    Map<String, List<(int, String)>> candidates,
+  ) {
+    final List<FileSystemEntity> entries;
+    try {
+      entries = directory.listSync(followLinks: false);
+    } on FileSystemException {
+      return;
+    }
+    for (final entity in entries) {
+      if (entity is! File) {
+        continue;
+      }
+      final path = entity.path;
+      final base = p.basename(path);
+      final dot = base.lastIndexOf('.');
+      if (dot <= 0) {
+        continue;
+      }
+      final extensionRank = _iconExtensions.indexOf(
+        base.substring(dot + 1).toLowerCase(),
+      );
+      if (extensionRank < 0) {
+        continue;
+      }
+      _addIconCandidate(
+        candidates,
+        base.substring(0, dot),
+        path,
+        (rootRank << 24) |
+            (themeRank << 16) |
+            (sizeRank << 10) |
+            (contextRank << 5) |
+            extensionRank,
+      );
+    }
+  }
+
+  void _addIconCandidate(
+    Map<String, List<(int, String)>> candidates,
+    String name,
+    String path,
+    int score,
+  ) {
+    (candidates[name] ??= <(int, String)>[]).add((score, path));
   }
 
   String? resolveTrayIcon({
@@ -530,6 +676,14 @@ bool _isDesktopApplicationEvent(FileSystemEvent event) {
       (event.destination?.endsWith('.desktop') ?? false);
 }
 
+const List<String> _iconExtensions = <String>[
+  'png',
+  'webp',
+  'jpg',
+  'jpeg',
+  'svg',
+];
+
 const List<String> _preferredIconSizes = <String>[
   'scalable',
   '512x512',
@@ -558,57 +712,6 @@ const List<String> _preferredIconContexts = <String>[
   'panel',
   'ui',
 ];
-
-List<String> _iconThemeDirectories(String theme) {
-  final directories = <String>[
-    for (final size in _preferredIconSizes)
-      for (final context in _preferredIconContexts) p.join(size, context),
-    for (final context in _preferredIconContexts) p.join('symbolic', context),
-  ];
-  final index = File(p.join(theme, 'index.theme'));
-  try {
-    var inIconTheme = false;
-    for (final rawLine in index.readAsLinesSync()) {
-      final line = rawLine.trim();
-      if (line.startsWith('[') && line.endsWith(']')) {
-        inIconTheme = line == '[Icon Theme]';
-        continue;
-      }
-      if (!inIconTheme) {
-        continue;
-      }
-      final equals = line.indexOf('=');
-      if (equals <= 0) {
-        continue;
-      }
-      final key = line.substring(0, equals);
-      if (key != 'Directories' && key != 'ScaledDirectories') {
-        continue;
-      }
-      for (final value in line.substring(equals + 1).split(',')) {
-        final directory = value.trim();
-        if (_isSafeRelativeIconDirectory(directory)) {
-          directories.add(directory);
-        }
-      }
-    }
-  } on FileSystemException {
-    // Themes without an index still get the conventional lookup paths above.
-  }
-  return RuntimePaths.uniquePaths(directories);
-}
-
-bool _isSafeRelativeIconDirectory(String value) {
-  if (value.isEmpty || p.isAbsolute(value)) {
-    return false;
-  }
-  return !p
-      .split(value)
-      .any(
-        (component) =>
-            component.isEmpty || component == '.' || component == '..',
-      );
-}
 
 String? _localIconPath(String value) {
   if (p.isAbsolute(value)) {

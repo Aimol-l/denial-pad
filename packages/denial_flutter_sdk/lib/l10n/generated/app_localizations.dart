@@ -5770,18 +5770,6 @@ abstract class AppLocalizations {
   /// **'Removed from child environment'**
   String get settingsEnvironmentRemovedValue;
 
-  /// Explains the scope and timing of application environment overrides.
-  ///
-  /// In en, this message translates to:
-  /// **'These overrides apply only to applications and shortcut commands started by Denial. They affect subsequent launches, not XDG autostart entries, systemd services, D-Bus services, or Denial itself.'**
-  String get settingsEnvironmentScopeDescription;
-
-  /// Title for the application environment scope explanation.
-  ///
-  /// In en, this message translates to:
-  /// **'Launch scope'**
-  String get settingsEnvironmentScopeTitle;
-
   /// Eyebrow label for the application environment page.
   ///
   /// In en, this message translates to:

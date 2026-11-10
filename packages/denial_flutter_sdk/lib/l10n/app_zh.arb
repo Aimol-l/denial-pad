@@ -958,8 +958,6 @@
   "settingsEnvironmentRemoveDescription": "Denial 会在启动应用前移除继承的这个变量。",
   "settingsEnvironmentRemoveLabel": "从启动的应用中移除",
   "settingsEnvironmentRemovedValue": "已从子进程环境中移除",
-  "settingsEnvironmentScopeDescription": "这些覆盖项仅应用于由 Denial 启动的应用和快捷键命令，并在之后的启动中生效；不会影响 XDG 自启动项、systemd 服务、D-Bus 服务或 Denial 本身。",
-  "settingsEnvironmentScopeTitle": "启动范围",
   "settingsEnvironmentSection": "应用",
   "settingsEnvironmentTitle": "自定义由 Denial 启动的应用环境。",
   "settingsEnvironmentUnavailableApplication": "不可用的应用",

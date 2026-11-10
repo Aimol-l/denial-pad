@@ -128,10 +128,7 @@ class _SettingsEnvironmentPageState extends State<SettingsEnvironmentPage> {
               widget.settings.applications.isEmpty
           ? null
           : widget.onReset,
-      children: [
-        _ScopeCard(description: l10n.settingsEnvironmentScopeDescription),
-        _buildWorkspace(context),
-      ],
+      children: [_buildWorkspace(context)],
     );
   }
 
@@ -1039,35 +1036,6 @@ class _EnvironmentModeTabState extends State<_EnvironmentModeTab> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _ScopeCard extends StatelessWidget {
-  const _ScopeCard({required this.description});
-
-  final String description;
-
-  @override
-  Widget build(BuildContext context) {
-    return SettingsCardGroup(
-      children: [
-        SettingsSection(
-          title: context.l10n.settingsEnvironmentScopeTitle,
-          leading: Icon(
-            Icons.info_outline_rounded,
-            size: 18,
-            color: ShellTheme.of(context).accent,
-          ),
-          child: Text(
-            description,
-            style: ShellText.base.copyWith(
-              color: context.applicationColors.secondary,
-              height: 1.45,
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

@@ -43,7 +43,6 @@ import 'widgets/settings_touchpad_page.dart';
 
 final settingsDesktopApplicationsProvider = FutureProvider<List<DesktopApp>>(
   (ref) => ref.watch(desktopAppsRepositoryProvider).loadApplications(),
-  isAutoDispose: true,
 );
 const denialSettingsApplicationId = 'dev.denial.settings';
 

@@ -3234,13 +3234,6 @@ class AppLocalizationsEn extends AppLocalizations {
       'Removed from child environment';
 
   @override
-  String get settingsEnvironmentScopeDescription =>
-      'These overrides apply only to applications and shortcut commands started by Denial. They affect subsequent launches, not XDG autostart entries, systemd services, D-Bus services, or Denial itself.';
-
-  @override
-  String get settingsEnvironmentScopeTitle => 'Launch scope';
-
-  @override
   String get settingsEnvironmentSection => 'Applications';
 
   @override

@@ -3084,13 +3084,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsEnvironmentRemovedValue => '已从子进程环境中移除';
 
   @override
-  String get settingsEnvironmentScopeDescription =>
-      '这些覆盖项仅应用于由 Denial 启动的应用和快捷键命令，并在之后的启动中生效；不会影响 XDG 自启动项、systemd 服务、D-Bus 服务或 Denial 本身。';
-
-  @override
-  String get settingsEnvironmentScopeTitle => '启动范围';
-
-  @override
   String get settingsEnvironmentSection => '应用';
 
   @override
