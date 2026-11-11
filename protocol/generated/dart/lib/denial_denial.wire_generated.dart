@@ -169,7 +169,10 @@ enum WindowRequestKind {
   MoveWindowToWorkspace(8),
   MinimizeWindow(9),
   NavigateBack(10),
-  MoveWindowToOutput(11);
+  MoveWindowToOutput(11),
+  SplitWindows(12),
+  UpdateSplitRatio(13),
+  EndSplit(14);
 
   final int value;
   const WindowRequestKind(this.value);
@@ -188,6 +191,9 @@ enum WindowRequestKind {
       case 9: return WindowRequestKind.MinimizeWindow;
       case 10: return WindowRequestKind.NavigateBack;
       case 11: return WindowRequestKind.MoveWindowToOutput;
+      case 12: return WindowRequestKind.SplitWindows;
+      case 13: return WindowRequestKind.UpdateSplitRatio;
+      case 14: return WindowRequestKind.EndSplit;
       default: throw StateError('Invalid value $value for bit flag enum');
     }
   }
@@ -196,7 +202,7 @@ enum WindowRequestKind {
       value == null ? null : WindowRequestKind.fromValue(value);
 
   static const int minValue = 0;
-  static const int maxValue = 11;
+  static const int maxValue = 14;
   static const fb.Reader<WindowRequestKind> reader = _WindowRequestKindReader();
 }
 
@@ -3121,10 +3127,13 @@ class WindowRequest {
   double get systemBarThickness => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 24, -1.0);
   double get maximizePadding => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 26, -1.0);
   bool get windowDeltas => const fb.BoolReader().vTableGet(_bc, _bcOffset, 28, false);
+  int get splitWindowId => const fb.Uint64Reader().vTableGet(_bc, _bcOffset, 30, 0);
+  bool get splitVertical => const fb.BoolReader().vTableGet(_bc, _bcOffset, 32, false);
+  double get splitRatio => const fb.Float32Reader().vTableGet(_bc, _bcOffset, 34, 0.53);
 
   @override
   String toString() {
-    return 'WindowRequest{kind: ${kind}, windowId: ${windowId}, geometry: ${geometry}, appId: ${appId}, title: ${title}, systemBarSide: ${systemBarSide}, systemBarMonitorIds: ${systemBarMonitorIds}, flags: ${flags}, monitorId: ${monitorId}, workspaceId: ${workspaceId}, systemBarThickness: ${systemBarThickness}, maximizePadding: ${maximizePadding}, windowDeltas: ${windowDeltas}}';
+    return 'WindowRequest{kind: ${kind}, windowId: ${windowId}, geometry: ${geometry}, appId: ${appId}, title: ${title}, systemBarSide: ${systemBarSide}, systemBarMonitorIds: ${systemBarMonitorIds}, flags: ${flags}, monitorId: ${monitorId}, workspaceId: ${workspaceId}, systemBarThickness: ${systemBarThickness}, maximizePadding: ${maximizePadding}, windowDeltas: ${windowDeltas}, splitWindowId: ${splitWindowId}, splitVertical: ${splitVertical}, splitRatio: ${splitRatio}}';
   }
 }
 
@@ -3142,7 +3151,7 @@ class WindowRequestBuilder {
   final fb.Builder fbBuilder;
 
   void begin() {
-    fbBuilder.startTable(13);
+    fbBuilder.startTable(16);
   }
 
   int addKind(WindowRequestKind? kind) {
@@ -3197,6 +3206,18 @@ class WindowRequestBuilder {
     fbBuilder.addBool(12, windowDeltas);
     return fbBuilder.offset;
   }
+  int addSplitWindowId(int? splitWindowId) {
+    fbBuilder.addUint64(13, splitWindowId);
+    return fbBuilder.offset;
+  }
+  int addSplitVertical(bool? splitVertical) {
+    fbBuilder.addBool(14, splitVertical);
+    return fbBuilder.offset;
+  }
+  int addSplitRatio(double? splitRatio) {
+    fbBuilder.addFloat32(15, splitRatio);
+    return fbBuilder.offset;
+  }
 
   int finish() {
     return fbBuilder.endTable();
@@ -3217,6 +3238,9 @@ class WindowRequestObjectBuilder extends fb.ObjectBuilder {
   final double? _systemBarThickness;
   final double? _maximizePadding;
   final bool? _windowDeltas;
+  final int? _splitWindowId;
+  final bool? _splitVertical;
+  final double? _splitRatio;
 
   WindowRequestObjectBuilder({
     WindowRequestKind? kind,
@@ -3232,6 +3256,9 @@ class WindowRequestObjectBuilder extends fb.ObjectBuilder {
     double? systemBarThickness,
     double? maximizePadding,
     bool? windowDeltas,
+    int? splitWindowId,
+    bool? splitVertical,
+    double? splitRatio,
   })
       : _kind = kind,
         _windowId = windowId,
@@ -3245,7 +3272,10 @@ class WindowRequestObjectBuilder extends fb.ObjectBuilder {
         _workspaceId = workspaceId,
         _systemBarThickness = systemBarThickness,
         _maximizePadding = maximizePadding,
-        _windowDeltas = windowDeltas;
+        _windowDeltas = windowDeltas,
+        _splitWindowId = splitWindowId,
+        _splitVertical = splitVertical,
+        _splitRatio = splitRatio;
 
   /// Finish building, and store into the [fbBuilder].
   @override
@@ -3256,7 +3286,7 @@ class WindowRequestObjectBuilder extends fb.ObjectBuilder {
         : fbBuilder.writeString(_title!);
     final int? systemBarMonitorIdsOffset = _systemBarMonitorIds == null ? null
         : fbBuilder.writeListInt64(_systemBarMonitorIds!);
-    fbBuilder.startTable(13);
+    fbBuilder.startTable(16);
     fbBuilder.addUint8(0, _kind?.value);
     fbBuilder.addUint64(1, _windowId);
     if (_geometry != null) {
@@ -3272,6 +3302,9 @@ class WindowRequestObjectBuilder extends fb.ObjectBuilder {
     fbBuilder.addFloat64(10, _systemBarThickness);
     fbBuilder.addFloat64(11, _maximizePadding);
     fbBuilder.addBool(12, _windowDeltas);
+    fbBuilder.addUint64(13, _splitWindowId);
+    fbBuilder.addBool(14, _splitVertical);
+    fbBuilder.addFloat32(15, _splitRatio);
     return fbBuilder.endTable();
   }
 

@@ -401,6 +401,48 @@ fn apply_window_command(state: &mut RuntimeState, command: WindowCommand) {
         } => {
             preview_window_drop_on_workspace(state, window_id, monitor_id, workspace_id, geometry);
         }
+        WindowCommand::Split {
+            first,
+            second,
+            vertical,
+            ratio,
+        } => {
+            let changed = state
+                .wayland
+                .as_mut()
+                .is_some_and(|frontend| {
+                    frontend.mobile_shell()
+                        && frontend.set_mobile_split(Some(super::mobile_split::MobileSplit {
+                            first,
+                            second,
+                            vertical,
+                            ratio,
+                        }))
+                });
+            if changed {
+                state.scene_sync.mark_dirty();
+            }
+        }
+        WindowCommand::UpdateSplitRatio { ratio } => {
+            let changed = state.wayland.as_mut().is_some_and(|frontend| {
+                frontend.mobile_split.is_some_and(|mut split| {
+                    split.ratio = ratio;
+                    frontend.set_mobile_split(Some(split))
+                })
+            });
+            if changed {
+                state.scene_sync.mark_dirty();
+            }
+        }
+        WindowCommand::EndSplit => {
+            let changed = state
+                .wayland
+                .as_mut()
+                .is_some_and(|frontend| frontend.set_mobile_split(None));
+            if changed {
+                state.scene_sync.mark_dirty();
+            }
+        }
         WindowCommand::HoldPet { pet_id, hold } => {
             if let Some(frontend) = state.wayland.as_mut()
                 && frontend.hold_pet(pet_id, hold)
@@ -503,6 +545,9 @@ fn apply_local_window_command(state: &mut RuntimeState, window_id: u64, command:
         | WindowCommand::SwitchWorkspace { .. }
         | WindowCommand::MoveToWorkspace { .. }
         | WindowCommand::MoveToOutput { .. }
+        | WindowCommand::Split { .. }
+        | WindowCommand::UpdateSplitRatio { .. }
+        | WindowCommand::EndSplit
         | WindowCommand::DropOnWorkspace { .. }
         | WindowCommand::PreviewWorkspaceDrop { .. }
         | WindowCommand::HoldPet { .. }
@@ -547,6 +592,9 @@ fn apply_client_window_command(
         | WindowCommand::SwitchWorkspace { .. }
         | WindowCommand::MoveToWorkspace { .. }
         | WindowCommand::MoveToOutput { .. }
+        | WindowCommand::Split { .. }
+        | WindowCommand::UpdateSplitRatio { .. }
+        | WindowCommand::EndSplit
         | WindowCommand::DropOnWorkspace { .. }
         | WindowCommand::PreviewWorkspaceDrop { .. }
         | WindowCommand::HoldPet { .. }

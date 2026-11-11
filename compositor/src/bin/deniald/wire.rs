@@ -167,6 +167,17 @@ pub enum WindowCommand {
         window_id: u64,
         monitor_id: i64,
     },
+    /// Starts (or replaces) a mobile split pair.
+    Split {
+        first: u64,
+        second: u64,
+        vertical: bool,
+        ratio: f32,
+    },
+    UpdateSplitRatio {
+        ratio: f32,
+    },
+    EndSplit,
     /// Overview drop onto one workspace of an output, which may be hidden.
     /// `geometry` is the dragged preview in that workspace's own coordinates;
     /// its centre resolves to a layout-owned tile operation.
@@ -335,6 +346,7 @@ impl WindowCommand {
             Self::CreateLocal { .. } => None,
             Self::SwitchWorkspace { .. } => None,
             Self::HoldPet { .. } | Self::CarryPet { .. } => None,
+            Self::Split { .. } | Self::UpdateSplitRatio { .. } | Self::EndSplit => None,
             Self::Close { window_id }
             | Self::Focus { window_id }
             | Self::Minimize { window_id }

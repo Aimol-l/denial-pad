@@ -231,6 +231,9 @@ mod surface_snapshot;
 #[path = "wayland_frontend/fcitx.rs"]
 mod fcitx;
 #[cfg(feature = "flutter")]
+#[path = "wayland_frontend/mobile_split.rs"]
+mod mobile_split;
+#[cfg(feature = "flutter")]
 pub(crate) use fcitx::Composition;
 #[path = "wayland_frontend/text_input.rs"]
 mod text_input;
@@ -685,6 +688,9 @@ pub(super) struct WaylandFrontend {
     /// The input method behind the shell keyboard's Chinese mode.
     #[cfg(feature = "flutter")]
     pub(crate) fcitx: fcitx::FcitxService,
+    /// The two panes the mobile output is split into, if any.
+    #[cfg(feature = "flutter")]
+    pub(super) mobile_split: Option<mobile_split::MobileSplit>,
     #[cfg(feature = "flutter")]
     keyboard_insets: insets::KeyboardInsets,
     input_method: InputMethodManager,

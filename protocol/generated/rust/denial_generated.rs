@@ -397,10 +397,10 @@ impl flatbuffers::SimpleToVerifyInSlice for WindowOpacityClass {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_WINDOW_REQUEST_KIND: u8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_WINDOW_REQUEST_KIND: u8 = 11;
+pub const ENUM_MAX_WINDOW_REQUEST_KIND: u8 = 14;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_WINDOW_REQUEST_KIND: [WindowRequestKind; 12] = [
+pub const ENUM_VALUES_WINDOW_REQUEST_KIND: [WindowRequestKind; 15] = [
   WindowRequestKind::ListWindows,
   WindowRequestKind::GetDisplayLayout,
   WindowRequestKind::CloseWindow,
@@ -413,6 +413,9 @@ pub const ENUM_VALUES_WINDOW_REQUEST_KIND: [WindowRequestKind; 12] = [
   WindowRequestKind::MinimizeWindow,
   WindowRequestKind::NavigateBack,
   WindowRequestKind::MoveWindowToOutput,
+  WindowRequestKind::SplitWindows,
+  WindowRequestKind::UpdateSplitRatio,
+  WindowRequestKind::EndSplit,
 ];
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
@@ -432,9 +435,12 @@ impl WindowRequestKind {
   pub const MinimizeWindow: Self = Self(9);
   pub const NavigateBack: Self = Self(10);
   pub const MoveWindowToOutput: Self = Self(11);
+  pub const SplitWindows: Self = Self(12);
+  pub const UpdateSplitRatio: Self = Self(13);
+  pub const EndSplit: Self = Self(14);
 
   pub const ENUM_MIN: u8 = 0;
-  pub const ENUM_MAX: u8 = 11;
+  pub const ENUM_MAX: u8 = 14;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::ListWindows,
     Self::GetDisplayLayout,
@@ -448,6 +454,9 @@ impl WindowRequestKind {
     Self::MinimizeWindow,
     Self::NavigateBack,
     Self::MoveWindowToOutput,
+    Self::SplitWindows,
+    Self::UpdateSplitRatio,
+    Self::EndSplit,
   ];
   /// Returns the variant's name or "" if unknown.
   pub fn variant_name(self) -> Option<&'static str> {
@@ -464,6 +473,9 @@ impl WindowRequestKind {
       Self::MinimizeWindow => Some("MinimizeWindow"),
       Self::NavigateBack => Some("NavigateBack"),
       Self::MoveWindowToOutput => Some("MoveWindowToOutput"),
+      Self::SplitWindows => Some("SplitWindows"),
+      Self::UpdateSplitRatio => Some("UpdateSplitRatio"),
+      Self::EndSplit => Some("EndSplit"),
       _ => None,
     }
   }
@@ -6237,6 +6249,9 @@ impl<'a> WindowRequest<'a> {
   pub const VT_SYSTEM_BAR_THICKNESS: flatbuffers::VOffsetT = 24;
   pub const VT_MAXIMIZE_PADDING: flatbuffers::VOffsetT = 26;
   pub const VT_WINDOW_DELTAS: flatbuffers::VOffsetT = 28;
+  pub const VT_SPLIT_WINDOW_ID: flatbuffers::VOffsetT = 30;
+  pub const VT_SPLIT_VERTICAL: flatbuffers::VOffsetT = 32;
+  pub const VT_SPLIT_RATIO: flatbuffers::VOffsetT = 34;
 
   #[inline]
   pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
@@ -6248,16 +6263,19 @@ impl<'a> WindowRequest<'a> {
     args: &'args WindowRequestArgs<'args>
   ) -> flatbuffers::WIPOffset<WindowRequest<'bldr>> {
     let mut builder = WindowRequestBuilder::new(_fbb);
+    builder.add_split_window_id(args.split_window_id);
     builder.add_maximize_padding(args.maximize_padding);
     builder.add_system_bar_thickness(args.system_bar_thickness);
     builder.add_monitor_id(args.monitor_id);
     builder.add_window_id(args.window_id);
+    builder.add_split_ratio(args.split_ratio);
     builder.add_workspace_id(args.workspace_id);
     builder.add_flags(args.flags);
     if let Some(x) = args.system_bar_monitor_ids { builder.add_system_bar_monitor_ids(x); }
     if let Some(x) = args.title { builder.add_title(x); }
     if let Some(x) = args.app_id { builder.add_app_id(x); }
     if let Some(x) = args.geometry { builder.add_geometry(x); }
+    builder.add_split_vertical(args.split_vertical);
     builder.add_window_deltas(args.window_deltas);
     builder.add_system_bar_side(args.system_bar_side);
     builder.add_kind(args.kind);
@@ -6356,6 +6374,27 @@ impl<'a> WindowRequest<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<bool>(WindowRequest::VT_WINDOW_DELTAS, Some(false)).unwrap()}
   }
+  #[inline]
+  pub fn split_window_id(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(WindowRequest::VT_SPLIT_WINDOW_ID, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn split_vertical(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(WindowRequest::VT_SPLIT_VERTICAL, Some(false)).unwrap()}
+  }
+  #[inline]
+  pub fn split_ratio(&self) -> f32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<f32>(WindowRequest::VT_SPLIT_RATIO, Some(0.53)).unwrap()}
+  }
 }
 
 impl flatbuffers::Verifiable for WindowRequest<'_> {
@@ -6378,6 +6417,9 @@ impl flatbuffers::Verifiable for WindowRequest<'_> {
      .visit_field::<f64>("system_bar_thickness", Self::VT_SYSTEM_BAR_THICKNESS, false)?
      .visit_field::<f64>("maximize_padding", Self::VT_MAXIMIZE_PADDING, false)?
      .visit_field::<bool>("window_deltas", Self::VT_WINDOW_DELTAS, false)?
+     .visit_field::<u64>("split_window_id", Self::VT_SPLIT_WINDOW_ID, false)?
+     .visit_field::<bool>("split_vertical", Self::VT_SPLIT_VERTICAL, false)?
+     .visit_field::<f32>("split_ratio", Self::VT_SPLIT_RATIO, false)?
      .finish();
     Ok(())
   }
@@ -6396,6 +6438,9 @@ pub struct WindowRequestArgs<'a> {
     pub system_bar_thickness: f64,
     pub maximize_padding: f64,
     pub window_deltas: bool,
+    pub split_window_id: u64,
+    pub split_vertical: bool,
+    pub split_ratio: f32,
 }
 impl<'a> Default for WindowRequestArgs<'a> {
   #[inline]
@@ -6414,6 +6459,9 @@ impl<'a> Default for WindowRequestArgs<'a> {
       system_bar_thickness: -1.0,
       maximize_padding: -1.0,
       window_deltas: false,
+      split_window_id: 0,
+      split_vertical: false,
+      split_ratio: 0.53,
     }
   }
 }
@@ -6476,6 +6524,18 @@ impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> WindowRequestBuilder<'a, 'b, A>
     self.fbb_.push_slot::<bool>(WindowRequest::VT_WINDOW_DELTAS, window_deltas, false);
   }
   #[inline]
+  pub fn add_split_window_id(&mut self, split_window_id: u64) {
+    self.fbb_.push_slot::<u64>(WindowRequest::VT_SPLIT_WINDOW_ID, split_window_id, 0);
+  }
+  #[inline]
+  pub fn add_split_vertical(&mut self, split_vertical: bool) {
+    self.fbb_.push_slot::<bool>(WindowRequest::VT_SPLIT_VERTICAL, split_vertical, false);
+  }
+  #[inline]
+  pub fn add_split_ratio(&mut self, split_ratio: f32) {
+    self.fbb_.push_slot::<f32>(WindowRequest::VT_SPLIT_RATIO, split_ratio, 0.53);
+  }
+  #[inline]
   pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>) -> WindowRequestBuilder<'a, 'b, A> {
     let start = _fbb.start_table();
     WindowRequestBuilder {
@@ -6506,6 +6566,9 @@ impl core::fmt::Debug for WindowRequest<'_> {
       ds.field("system_bar_thickness", &self.system_bar_thickness());
       ds.field("maximize_padding", &self.maximize_padding());
       ds.field("window_deltas", &self.window_deltas());
+      ds.field("split_window_id", &self.split_window_id());
+      ds.field("split_vertical", &self.split_vertical());
+      ds.field("split_ratio", &self.split_ratio());
       ds.finish()
   }
 }

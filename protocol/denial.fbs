@@ -59,7 +59,11 @@ enum WindowRequestKind : ubyte {
   // The system Back action for one client window.
   NavigateBack = 10,
   // Moves one window between the phone and a desk output (monitor_id).
-  MoveWindowToOutput = 11
+  MoveWindowToOutput = 11,
+  // Mobile split screen: start, resize or end a two-window pair.
+  SplitWindows = 12,
+  UpdateSplitRatio = 13,
+  EndSplit = 14
 }
 
 enum WindowResponseKind : ubyte {
@@ -566,6 +570,12 @@ table WindowRequest {
   // ListWindows only: accept incremental WindowSnapshot publications after
   // the full response. Older shells leave this false and receive full lists.
   window_deltas:bool;
+  // SplitWindows only: `window_id` is the left (landscape) or top (portrait)
+  // pane, `split_window_id` the other one. `split_ratio` is the first pane's
+  // share of the screen. UpdateSplitRatio only reads the ratio.
+  split_window_id:ulong;
+  split_vertical:bool;
+  split_ratio:float = 0.53;
 }
 
 table WindowResponse {

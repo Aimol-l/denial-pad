@@ -527,6 +527,8 @@ impl WaylandFrontend {
             #[cfg(feature = "flutter")]
             fcitx: fcitx::FcitxService::new(),
             #[cfg(feature = "flutter")]
+            mobile_split: None,
+            #[cfg(feature = "flutter")]
             keyboard_insets: Default::default(),
             input_method,
             outputs,

@@ -9,6 +9,7 @@ import '../models/denial_pet.dart';
 import '../models/denial_window.dart';
 import '../models/denial_window_event.dart';
 import '../models/denial_window_snapshot.dart';
+import '../models/split_pair.dart';
 import '../models/desktop_notification.dart';
 import '../models/display_layout.dart';
 import '../models/input_device_capabilities.dart';
@@ -325,6 +326,36 @@ class DenialBridge {
   void focusWindow(DenialWindow window) => _windows.focusWindow(window);
 
   void minimizeWindow(DenialWindow window) => _windows.minimizeWindow(window);
+
+  /// Starts (or replaces) a split pair; [first] is the left or top pane.
+  void splitWindows({
+    required DenialWindow first,
+    required DenialWindow second,
+    required bool vertical,
+    double ratio = splitDefaultFraction,
+  }) => _windows.splitWindows(
+    first: first.windowId,
+    second: second.windowId,
+    vertical: vertical,
+    ratio: ratio,
+  );
+
+  /// Splits by window ids; `second` is zero while the picker is open.
+  void splitWindowsByIds({
+    required int first,
+    required int second,
+    required bool vertical,
+    double ratio = splitDefaultFraction,
+  }) => _windows.splitWindows(
+    first: first,
+    second: second,
+    vertical: vertical,
+    ratio: ratio,
+  );
+
+  void updateSplitRatio(double ratio) => _windows.updateSplitRatio(ratio);
+
+  void endSplit() => _windows.endSplit();
 
   void switchWorkspace({required int monitorId, required int workspaceId}) =>
       _windows.switchWorkspace(monitorId: monitorId, workspaceId: workspaceId);

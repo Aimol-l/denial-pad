@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../config/startup_environment.dart';
 import '../models/denial_window.dart';
 import '../models/denial_window_snapshot.dart';
+import '../models/split_pair.dart';
 import '../platform/denial_bridge.dart';
 import '../platform/denial_bridge_provider.dart';
 import 'authentication.dart';
@@ -83,6 +84,34 @@ class ShellController extends Notifier<ShellState>
   }
 
   void closeWindow(DenialWindow window) => _bridge.closeWindow(window);
+
+  void splitWindows({
+    required DenialWindow first,
+    required DenialWindow second,
+    required bool vertical,
+    double ratio = splitDefaultFraction,
+  }) => _bridge.splitWindows(
+    first: first,
+    second: second,
+    vertical: vertical,
+    ratio: ratio,
+  );
+
+  void splitWindowsByIds({
+    required int first,
+    required int second,
+    required bool vertical,
+    double ratio = splitDefaultFraction,
+  }) => _bridge.splitWindowsByIds(
+    first: first,
+    second: second,
+    vertical: vertical,
+    ratio: ratio,
+  );
+
+  void updateSplitRatio(double ratio) => _bridge.updateSplitRatio(ratio);
+
+  void endSplit() => _bridge.endSplit();
 
   void navigateBack(DenialWindow window) => _bridge.navigateBack(window);
 

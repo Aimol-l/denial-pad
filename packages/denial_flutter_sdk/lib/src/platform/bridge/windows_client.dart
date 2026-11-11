@@ -133,6 +133,47 @@ final class BridgeWindowsClient {
     );
   }
 
+  /// Starts (or replaces) a split pair; [first] is the left or top pane.
+  void splitWindows({
+    required int first,
+    required int second,
+    required bool vertical,
+    double ratio = 0.53,
+  }) {
+    // A zero second side means the shell has fixed one pane and is still
+    // showing the picker for the other.
+    if (first <= 0 || first == second) {
+      return;
+    }
+    _context.sendWire(
+      _context.codec.encodeWindowRequest(
+        wire.WindowRequestKind.SplitWindows,
+        windowId: first,
+        splitWindowId: second,
+        splitVertical: vertical,
+        splitRatio: ratio,
+      ),
+    );
+  }
+
+  void updateSplitRatio(double ratio) {
+    if (!ratio.isFinite || ratio <= 0) {
+      return;
+    }
+    _context.sendWire(
+      _context.codec.encodeWindowRequest(
+        wire.WindowRequestKind.UpdateSplitRatio,
+        splitRatio: ratio,
+      ),
+    );
+  }
+
+  void endSplit() {
+    _context.sendWire(
+      _context.codec.encodeWindowRequest(wire.WindowRequestKind.EndSplit),
+    );
+  }
+
   void minimizeWindow(DenialWindow window) {
     if (window.windowId <= 0) return;
     _context.sendWire(

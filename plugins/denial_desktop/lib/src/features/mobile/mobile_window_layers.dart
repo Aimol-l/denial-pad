@@ -11,6 +11,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'mobile_primary_window_stage.dart';
+import 'mobile_split_stage.dart';
 import '../../state/phone_desk.dart';
 
 /// The app in front at rest. While the deck presents, it draws the apps.
@@ -23,12 +24,16 @@ class MobilePrimaryWindowLayer extends ConsumerWidget {
       referenceShellProvider.select(
         (state) => (
           window: state.primaryWindow,
+          split: state.splitPair,
           homeActive: state.homeTransitionActive,
         ),
       ),
     );
     final window = visual.window;
-    if (window == null) return const SizedBox.shrink();
+    final split = visual.split;
+    // An incomplete pair still shows: the first pane plus the picker.
+    final splitActive = split != null;
+    if (window == null && !splitActive) return const SizedBox.shrink();
     final deck = ref.read(referenceShellProvider.notifier).deck;
     final topInset = ref.watch(mobilePresentationTopInsetProvider);
     // The shade's frosted glass hides the app completely once established.
@@ -40,7 +45,7 @@ class MobilePrimaryWindowLayer extends ConsumerWidget {
       builder: (context, presenting, _) {
         final hidden = presenting || visual.homeActive;
         // An in-bundle app's widget tree can live in one place at a time.
-        if (window.isLocalFlutter && hidden) {
+        if (window != null && window.isLocalFlutter && hidden) {
           return const SizedBox.shrink();
         }
         return ValueListenableBuilder<bool>(
@@ -53,10 +58,15 @@ class MobilePrimaryWindowLayer extends ConsumerWidget {
           ),
           child: Padding(
             padding: EdgeInsets.only(top: topInset),
-            child: MobilePrimaryWindowStage(
-              currentWindow: window,
-              opacity: hidden ? 0.0 : 1.0,
-            ),
+            child: splitActive
+                ? Opacity(
+                    opacity: hidden ? 0.0 : 1.0,
+                    child: MobileSplitStage(pair: split),
+                  )
+                : MobilePrimaryWindowStage(
+                    currentWindow: window!,
+                    opacity: hidden ? 0.0 : 1.0,
+                  ),
           ),
         );
       },
@@ -98,6 +108,8 @@ class MobileAppDeckLayer extends ConsumerWidget {
       onDismissWindow: controller.dismissFromRecents,
       onOpenWindow: controller.openFromRecents,
       onMoveWindowToDesk: deskBeside ? controller.moveToDesk : null,
+      onSplitSide: (window, side) =>
+          controller.beginSingleSplit(window, vertical: side.vertical),
     );
   }
 }

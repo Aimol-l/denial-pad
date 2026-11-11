@@ -693,6 +693,8 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       );
       return;
     }
+    // Home is a single-app place for now: the pair ends with the app.
+    if (state.splitPair != null) endSplit();
     // The app in front flies into its icon from wherever the deck has it;
     // the rest of the deck settles away.
     final front = state.foregroundWindow?.objectId;
@@ -793,6 +795,129 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     focusWindow(window);
   }
 
+  /// Puts two apps on the phone screen, side by side or top and bottom.
+  void startSplit({
+    required DenialWindow first,
+    required DenialWindow second,
+    required bool vertical,
+  }) {
+    if (!first.isUserApp ||
+        !second.isUserApp ||
+        first.objectId == second.objectId) {
+      return;
+    }
+    final pair = SplitPair(
+      first: first.objectId,
+      second: second.objectId,
+      vertical: vertical,
+    );
+    _endFingerGesture();
+    state = state.copyWith(
+      splitPair: pair,
+      foregroundObjectId: first.objectId,
+      homeTransitionActive: false,
+      overviewVisible: false,
+      gesture: GestureDragPhase.idle,
+      quickSettingsVisible: false,
+      quickSettingsDragged: false,
+      quickSettingsDragActive: false,
+      edgePanelVisible: false,
+      edgePanelDrag: Offset.zero,
+      edgePanelDragActive: false,
+    );
+    _platform.splitWindows(
+      first: first,
+      second: second,
+      vertical: vertical,
+      ratio: pair.ratio,
+    );
+    _platform.focusWindow(first);
+  }
+
+  /// Fixes one app to a side; the other side shows the picker until a second
+  /// app is chosen.
+  void beginSingleSplit(DenialWindow window, {required bool vertical}) {
+    if (!window.isUserApp) return;
+    final pair = SplitPair(
+      first: window.objectId,
+      second: 0,
+      vertical: vertical,
+    );
+    _endFingerGesture();
+    state = state.copyWith(
+      splitPair: pair,
+      foregroundObjectId: window.objectId,
+      homeTransitionActive: false,
+      overviewVisible: false,
+      gesture: GestureDragPhase.idle,
+      quickSettingsVisible: false,
+      quickSettingsDragged: false,
+      quickSettingsDragActive: false,
+      edgePanelVisible: false,
+      edgePanelDrag: Offset.zero,
+      edgePanelDragActive: false,
+    );
+    _platform.splitWindowsByIds(
+      first: window.objectId,
+      second: 0,
+      vertical: vertical,
+      ratio: pair.ratio,
+    );
+    _platform.focusWindow(window);
+  }
+
+  /// The picker's choice: the second pane joins the first.
+  void pickSplitSecond(DenialWindow second) {
+    final pair = state.splitPair;
+    if (pair == null || !second.isUserApp || second.objectId == pair.first) {
+      return;
+    }
+    final first = state.windowByObjectId(pair.first);
+    if (first == null) return;
+    final next = pair.withSecond(second.objectId);
+    state = state.copyWith(
+      splitPair: next,
+      foregroundObjectId: next.activeWindow,
+    );
+    _platform.splitWindowsByIds(
+      first: next.first,
+      second: next.second,
+      vertical: next.vertical,
+      ratio: next.ratio,
+    );
+    _platform.focusWindow(first);
+  }
+
+  /// Leaving the picker without a second app returns to fullscreen.
+  void dismissSplitPicker() => endSplit();
+
+  void updateSplitRatio(double ratio) {
+    final pair = state.splitPair?.withRatio(ratio);
+    if (pair == null) return;
+    state = state.copyWith(splitPair: pair);
+    _platform.updateSplitRatio(pair.ratio);
+  }
+
+  void setSplitActive(SplitSide side) {
+    final pair = state.splitPair;
+    if (pair == null || pair.active == side) return;
+    final window = state.windowByObjectId(
+      side == SplitSide.first ? pair.first : pair.second,
+    );
+    if (window == null) return;
+    state = state.copyWith(
+      splitPair: pair.withActive(side),
+      foregroundObjectId: window.objectId,
+    );
+    _platform.focusWindow(window);
+  }
+
+  void endSplit() {
+    if (state.splitPair == null) return;
+    state = state.copyWith(clearSplitPair: true);
+    _platform.endSplit();
+  }
+
   void focusWindow(DenialWindow window) {
     if (!window.isUserApp) {
       return;
@@ -823,6 +948,11 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   void _activateWindowInShell(DenialWindow window) {
     _endFingerGesture();
+    final pair = state.splitPair;
+    if (pair != null && !pair.contains(window.objectId)) {
+      // Another app takes the screen; the pair is left behind.
+      endSplit();
+    }
     // A deck in motion brings the app to fill the screen from where it is.
     final index = _deck.indexOf(window.objectId);
     if (_deck.presenting.value && index != null) {

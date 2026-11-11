@@ -16,6 +16,7 @@ import 'package:denial_flutter_sdk/rendering.dart';
 import 'package:denial_flutter_sdk/shell_theme.dart';
 
 import 'overview_card_label.dart';
+import 'split_drop_zone.dart';
 import 'overview_chrome.dart';
 
 /// Draws the open apps wherever the [deck] has them, while it presents:
@@ -38,6 +39,7 @@ class AppDeckLayer extends StatefulWidget {
     required this.onDismissWindow,
     required this.onOpenWindow,
     this.onMoveWindowToDesk,
+    this.onSplitSide,
   });
 
   final AppDeck deck;
@@ -62,6 +64,10 @@ class AppDeckLayer extends StatefulWidget {
   /// Moves an app to the monitor beside the phone; none without a monitor.
   final ValueChanged<DenialWindow>? onMoveWindowToDesk;
 
+  /// A card picked up by a long press was dropped on a side: start a split
+  /// with that app fixed to the side.
+  final void Function(DenialWindow window, SplitDropSide side)? onSplitSide;
+
   @override
   State<AppDeckLayer> createState() => _AppDeckLayerState();
 }
@@ -77,6 +83,10 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
   static const double _longestGlide = 1.1;
 
   final _open = ValueNotifier(0.0);
+
+  /// The card being carried to a side, and the side under the finger.
+  DenialWindow? _splitPickup;
+  SplitDropSide? _splitSide;
   late final Animation<double> _openAnimation = Animation.fromValueListenable(
     _open,
   );
@@ -215,6 +225,40 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
     _rowDrag = 0;
   }
 
+  void _pickupStart(DenialWindow window, Offset global) {
+    setState(() {
+      _splitPickup = window;
+      _splitSide = _sideAt(global);
+    });
+  }
+
+  void _pickupMove(Offset global) {
+    final side = _sideAt(global);
+    if (side != _splitSide) setState(() => _splitSide = side);
+  }
+
+  void _pickupEnd(Offset global) {
+    final window = _splitPickup;
+    final side = _sideAt(global);
+    setState(() {
+      _splitPickup = null;
+      _splitSide = null;
+    });
+    if (window != null && side != null) widget.onSplitSide?.call(window, side);
+  }
+
+  SplitDropSide? _sideAt(Offset point) {
+    final size = MediaQuery.sizeOf(context);
+    if (size.height > size.width) {
+      if (point.dy < size.height * 0.25) return SplitDropSide.top;
+      if (point.dy > size.height * 0.75) return SplitDropSide.bottom;
+      return null;
+    }
+    if (point.dx < size.width * 0.28) return SplitDropSide.left;
+    if (point.dx > size.width * 0.72) return SplitDropSide.right;
+    return null;
+  }
+
   void _moveRow(DragUpdateDetails details) {
     if (!_rowDragging) return;
     final deck = widget.deck;
@@ -326,7 +370,25 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
                         onOpen: widget.onOpenWindow,
                         onDismissed: widget.onDismissWindow,
                         onMoveToDesk: widget.onMoveWindowToDesk,
+                        onPickupStart: widget.onSplitSide == null
+                            ? null
+                            : _pickupStart,
+                        onPickupMove: widget.onSplitSide == null
+                            ? null
+                            : _pickupMove,
+                        onPickupEnd: widget.onSplitSide == null
+                            ? null
+                            : _pickupEnd,
+                        dimmed:
+                            _splitPickup != null &&
+                            _splitPickup!.objectId != id,
                       ),
+                  if (_splitPickup != null)
+                    SplitDropOverlay(
+                      side: _splitSide,
+                      vertical: MediaQuery.sizeOf(context).height >
+                          MediaQuery.sizeOf(context).width,
+                    ),
                 ],
               ),
             ),
@@ -349,6 +411,10 @@ class _DeckCard extends StatefulWidget {
     required this.onOpen,
     required this.onDismissed,
     this.onMoveToDesk,
+    this.onPickupStart,
+    this.onPickupMove,
+    this.onPickupEnd,
+    this.dimmed = false,
   });
 
   final DenialWindow window;
@@ -360,6 +426,14 @@ class _DeckCard extends StatefulWidget {
   final ValueChanged<DenialWindow> onOpen;
   final ValueChanged<DenialWindow> onDismissed;
   final ValueChanged<DenialWindow>? onMoveToDesk;
+
+  /// Long-press pickup: the deck shows the drop sides and commits the drop.
+  final void Function(DenialWindow window, Offset global)? onPickupStart;
+  final ValueChanged<Offset>? onPickupMove;
+  final ValueChanged<Offset>? onPickupEnd;
+
+  /// Another card is being carried to a side.
+  final bool dimmed;
 
   @override
   State<_DeckCard> createState() => _DeckCardState();
@@ -380,6 +454,7 @@ class _DeckCardState extends State<_DeckCard>
   /// How far the card is thrown up, in logical pixels, negative upward.
   late final motor.SingleMotionController _throw;
   late final _CardPose _pose;
+  bool _picked = false;
   double _drag = 0;
   double _exit = -double.maxFinite;
   bool _leaving = false;
@@ -488,7 +563,9 @@ class _DeckCardState extends State<_DeckCard>
   Widget build(BuildContext context) {
     final labelOpacity = widget.labelOpacity;
     final onMoveToDesk = widget.onMoveToDesk;
-    return Stack(
+    return Opacity(
+      opacity: widget.dimmed ? 0.35 : 1,
+      child: Stack(
       fit: StackFit.expand,
       children: [
         IgnorePointer(
@@ -496,11 +573,21 @@ class _DeckCardState extends State<_DeckCard>
             motion: _pose,
             child: PosedWindow(
               pose: _pose,
-              child: WindowSurface(
-                window: widget.window,
-                contentPadding: EdgeInsets.only(
-                  top: ReferenceShellMetrics.appStatusInset(
-                    MediaQuery.sizeOf(context),
+              child: AnimatedScale(
+                scale: _picked ? 0.92 : 1,
+                duration: const Duration(milliseconds: 120),
+                curve: Curves.easeOut,
+                child: AnimatedRotation(
+                  turns: _picked ? -0.007 : 0,
+                  duration: const Duration(milliseconds: 120),
+                  curve: Curves.easeOut,
+                  child: WindowSurface(
+                    window: widget.window,
+                    contentPadding: EdgeInsets.only(
+                      top: ReferenceShellMetrics.appStatusInset(
+                        MediaQuery.sizeOf(context),
+                      ),
+                    ),
                   ),
                 ),
               ),
@@ -536,6 +623,22 @@ class _DeckCardState extends State<_DeckCard>
             onTap: () {
               if (!_leaving) widget.onOpen(widget.window);
             },
+            onLongPressStart: widget.onPickupStart == null
+                ? null
+                : (details) {
+                    if (_leaving) return;
+                    setState(() => _picked = true);
+                    widget.onPickupStart!(widget.window, details.globalPosition);
+                  },
+            onLongPressMoveUpdate: widget.onPickupMove == null
+                ? null
+                : (details) => widget.onPickupMove!(details.globalPosition),
+            onLongPressEnd: widget.onPickupEnd == null
+                ? null
+                : (details) {
+                    if (_picked) setState(() => _picked = false);
+                    widget.onPickupEnd!(details.globalPosition);
+                  },
             onVerticalDragStart: _startDrag,
             onVerticalDragUpdate: _moveDrag,
             onVerticalDragEnd: _endDrag,
@@ -573,6 +676,7 @@ class _DeckCardState extends State<_DeckCard>
             ),
           ),
       ],
+      ),
     );
   }
 }

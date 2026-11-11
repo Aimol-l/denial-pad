@@ -51,6 +51,7 @@ class ReferenceShellState {
     required this.foregroundObjectId,
     required this.launchingObjectId,
     required this.launchRequest,
+    required this.splitPair,
     required this.homeTransitionActive,
     required this.appSwitchOrder,
   });
@@ -72,6 +73,7 @@ class ReferenceShellState {
       foregroundObjectId: platform.foregroundObjectId,
       launchingObjectId: null,
       launchRequest: null,
+      splitPair: null,
       homeTransitionActive: false,
       appSwitchOrder: const <int>[],
     );
@@ -137,6 +139,9 @@ class ReferenceShellState {
   final int? launchingObjectId;
   final AppLaunchRequest? launchRequest;
 
+  /// The two apps sharing the screen, or null while the shell is fullscreen.
+  final SplitPair? splitPair;
+
   /// True while the foreground app is flying away to reveal home, so the
   /// fullscreen primary stage stays hidden until the transition resolves.
   final bool homeTransitionActive;
@@ -178,6 +183,8 @@ class ReferenceShellState {
     bool clearLaunchingObjectId = false,
     AppLaunchRequest? launchRequest,
     bool clearLaunchRequest = false,
+    SplitPair? splitPair,
+    bool clearSplitPair = false,
     bool? homeTransitionActive,
     List<int>? appSwitchOrder,
   }) {
@@ -205,6 +212,7 @@ class ReferenceShellState {
       launchRequest: clearLaunchRequest
           ? null
           : launchRequest ?? this.launchRequest,
+      splitPair: clearSplitPair ? null : splitPair ?? this.splitPair,
       homeTransitionActive: homeTransitionActive ?? this.homeTransitionActive,
       appSwitchOrder: appSwitchOrder ?? this.appSwitchOrder,
     );
@@ -223,7 +231,7 @@ class ReferenceShellState {
   bool get launchTransitionActive => launchRequest != null;
 
   DenialWindow? get primaryWindow {
-    if (launchTransitionActive) {
+    if (launchTransitionActive || splitPair != null) {
       return null;
     }
 
@@ -232,6 +240,10 @@ class ReferenceShellState {
 
   /// The foreground app lays itself out around the on-screen keyboard
   /// (denial-insets-v1 keyboard inset), so the shell does not lift it.
+  /// An app owns the screen: single fullscreen or a split pair (complete or
+  /// still picking its second side).
+  bool get appOnScreen => primaryWindow != null || splitPair != null;
+
   bool get primaryWindowHandlesKeyboard =>
       primaryWindow?.keyboardInset ?? false;
 

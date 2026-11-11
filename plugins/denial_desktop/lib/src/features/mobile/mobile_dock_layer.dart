@@ -182,7 +182,7 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
   Widget build(BuildContext context) {
     final state = ref.watch(referenceShellProvider);
     final visible =
-        state.primaryWindow == null &&
+        !state.appOnScreen &&
         !state.launchTransitionActive &&
         !state.overviewVisible &&
         !state.quickSettingsEngaged &&

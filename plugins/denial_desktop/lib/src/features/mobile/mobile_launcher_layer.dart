@@ -25,7 +25,7 @@ class MobileLauncherLayer extends ConsumerWidget {
     final flags = ref.watch(
       referenceShellProvider.select((state) {
         final active =
-            state.primaryWindow == null || state.homeTransitionActive;
+            !state.appOnScreen || state.homeTransitionActive;
         return (
           active: active,
           interactive:

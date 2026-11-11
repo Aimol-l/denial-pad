@@ -286,6 +286,9 @@ class DenialWireCodec {
     int flags = 0,
     int monitorId = -1,
     int workspaceId = 1,
+    int splitWindowId = 0,
+    bool splitVertical = false,
+    double splitRatio = 0.53,
   }) {
     return _encodeEnvelope(
       generated.PayloadTypeId.WindowRequest,
@@ -301,6 +304,9 @@ class DenialWireCodec {
         monitorId: monitorId,
         workspaceId: workspaceId,
         windowDeltas: kind == generated.WindowRequestKind.ListWindows,
+        splitWindowId: splitWindowId,
+        splitVertical: splitVertical,
+        splitRatio: splitRatio,
       ),
       requestId: requestId,
     );

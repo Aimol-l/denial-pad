@@ -8,6 +8,15 @@ export 'package:denial_sdk/windows.dart' show DenialWindowAction;
 
 export 'panels.dart' show PanelEdge;
 export 'src/models/app_launch_request.dart' show AppLaunchRequest;
+export 'src/models/split_pair.dart'
+    show
+        SplitPair,
+        SplitSide,
+        splitDefaultFraction,
+        splitFractions,
+        splitMaxFraction,
+        splitMinFraction,
+        splitSnapWindow;
 export 'src/models/audio.dart'
     show AppAudioStream, AudioLevelState, AudioOutputDevice;
 export 'src/models/clipboard_history.dart'

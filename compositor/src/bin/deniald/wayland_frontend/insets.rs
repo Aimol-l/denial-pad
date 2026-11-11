@@ -422,6 +422,13 @@ impl WaylandFrontend {
         };
         geometry.loc.y += top;
         geometry.size.h -= top;
+        // A split pair replaces the full rect with the pane each member owns.
+        if let Some(split) = self.mobile_split
+            && let Some(window_id) = self.surface_id(&root)
+            && let Some(pane) = split.pane(window_id, geometry)
+        {
+            return Some(pane);
+        }
         Some(geometry)
     }
 
@@ -442,6 +449,24 @@ impl WaylandFrontend {
             target,
             WindowGeometryAuthority::Exact,
         );
+    }
+
+    /// Starts, resizes or ends the mobile split, reconfiguring both panes.
+    #[cfg(feature = "flutter")]
+    pub(super) fn set_mobile_split(
+        &mut self,
+        split: Option<super::mobile_split::MobileSplit>,
+    ) -> bool {
+        let split = split.map(super::mobile_split::MobileSplit::clamped);
+        if self.mobile_split == split {
+            return false;
+        }
+        self.mobile_split = split;
+        let windows = self.space.elements().cloned().collect::<Vec<_>>();
+        for window in windows {
+            self.configure_mobile_window(&window);
+        }
+        true
     }
 
     pub(super) fn mobile_window_inset(&self, window: &Window) -> i32 {

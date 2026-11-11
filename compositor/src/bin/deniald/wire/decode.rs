@@ -366,6 +366,58 @@ impl WireBridge {
                 self.pending_window_commands.push_back(command);
                 Ok(None)
             }
+            fb::WindowRequestKind::SplitWindows => {
+                if request_id != 0 || request.flags() != 0 {
+                    return Err(WireError::RequestId);
+                }
+                if self.pending_window_commands.len() >= MAX_PENDING_WINDOW_COMMANDS {
+                    return Err(WireError::Count);
+                }
+                let first = request.window_id();
+                let second = request.split_window_id();
+                let ratio = request.split_ratio();
+                // Zero means the shell has fixed one side and is still picking
+                // the other; it sends both ids once the picker resolves.
+                if first == 0 || first == second {
+                    return Err(WireError::Identity);
+                }
+                if !ratio.is_finite() || ratio <= 0.0 {
+                    return Err(WireError::Payload);
+                }
+                self.pending_window_commands
+                    .push_back(WindowCommand::Split {
+                        first,
+                        second,
+                        vertical: request.split_vertical(),
+                        ratio,
+                    });
+                Ok(None)
+            }
+            fb::WindowRequestKind::UpdateSplitRatio => {
+                if request_id != 0 || request.flags() != 0 {
+                    return Err(WireError::RequestId);
+                }
+                if self.pending_window_commands.len() >= MAX_PENDING_WINDOW_COMMANDS {
+                    return Err(WireError::Count);
+                }
+                let ratio = request.split_ratio();
+                if !ratio.is_finite() || ratio <= 0.0 {
+                    return Err(WireError::Payload);
+                }
+                self.pending_window_commands
+                    .push_back(WindowCommand::UpdateSplitRatio { ratio });
+                Ok(None)
+            }
+            fb::WindowRequestKind::EndSplit => {
+                if request_id != 0 || request.flags() != 0 {
+                    return Err(WireError::RequestId);
+                }
+                if self.pending_window_commands.len() >= MAX_PENDING_WINDOW_COMMANDS {
+                    return Err(WireError::Count);
+                }
+                self.pending_window_commands.push_back(WindowCommand::EndSplit);
+                Ok(None)
+            }
             fb::WindowRequestKind::MoveWindowToOutput => {
                 if request_id != 0 {
                     return Err(WireError::RequestId);
