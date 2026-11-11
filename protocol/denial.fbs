@@ -634,6 +634,12 @@ table TextInputState {
   content_hint:uint;
   content_purpose:uint;
   activation_serial:ulong;
+  // Bumped on every touch inside an application window. The shell shows its
+  // keyboard only when this changes, so an app that focuses a field by itself
+  // opens no keyboard. Shell-owned editors (Flutter text fields) ignore it.
+  touch_epoch:ulong;
+  // True when the editor belongs to the shell itself, not to an application.
+  flutter_editor:bool;
 }
 
 // KeyboardCommand.flags: bit 0 means Ctrl is held; bit 1 is key press; bit 2

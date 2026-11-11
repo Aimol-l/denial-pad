@@ -179,6 +179,8 @@ final class BridgeEventsClient {
               contentHint: payload.contentHint,
               contentPurpose: payload.contentPurpose,
               activationSerial: payload.activationSerial,
+              touchEpoch: payload.touchEpoch,
+              flutterEditor: payload.flutterEditor,
             ),
           );
         }

@@ -1184,6 +1184,8 @@ fn encode_text_input_state(
         content_hint,
         content_purpose,
         activation_serial,
+        touch_epoch,
+        flutter_editor,
     } = state;
     let state = fb::TextInputState::create(
         builder,
@@ -1194,6 +1196,8 @@ fn encode_text_input_state(
             content_hint,
             content_purpose,
             activation_serial,
+            touch_epoch,
+            flutter_editor,
         },
     );
     let envelope = fb::Envelope::create(

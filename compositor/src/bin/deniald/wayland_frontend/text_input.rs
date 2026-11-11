@@ -473,6 +473,7 @@ struct FlutterEditor {
 #[derive(Debug, Default)]
 struct TextSessionBroker {
     last_panel_dismissal: Option<u64>,
+    touch_epoch: u64,
     seat_focus: SeatFocusKind,
     shell_capture: bool,
     flutter: Option<FlutterEditor>,
@@ -506,6 +507,7 @@ impl TextSessionBroker {
     }
 
     fn note_client_touch(&mut self, protocol_available: bool) {
+        self.touch_epoch = self.touch_epoch.wrapping_add(1);
         self.legacy_touch_keyboard = !protocol_available
             && matches!(
                 self.seat_focus,
@@ -520,6 +522,8 @@ impl TextSessionBroker {
     }
 
     fn note_flutter_touch(&mut self) {
+        // A shell touch (launcher, recents, the keyboard itself) must not count
+        // as "the user tapped an application's text field".
         self.legacy_touch_keyboard = false;
         self.flutter_touch_authorization_deadline =
             Some(Instant::now() + TOUCH_AUTHORIZATION_WINDOW);
@@ -586,6 +590,11 @@ pub(crate) struct SoftwareKeyboardState {
     pub content_hint: u32,
     pub content_purpose: u32,
     pub activation_serial: u64,
+    /// Counts touches inside application windows; the shell only opens its
+    /// keyboard on a change.
+    pub touch_epoch: u64,
+    /// The editor is one of the shell's own Flutter text fields.
+    pub flutter_editor: bool,
 }
 
 #[derive(Debug)]
@@ -770,6 +779,8 @@ impl TextInputManager {
             content_hint,
             content_purpose,
             activation_serial: self.keyboard_activation_serial(),
+            touch_epoch: self.broker.touch_epoch,
+            flutter_editor: false,
         }
     }
 
@@ -779,6 +790,8 @@ impl TextInputManager {
             input_panel_visible: self.broker.legacy_touch_keyboard,
             legacy: true,
             activation_serial: self.keyboard_activation_serial(),
+            touch_epoch: self.broker.touch_epoch,
+            flutter_editor: false,
             ..SoftwareKeyboardState::default()
         }
     }
@@ -797,6 +810,8 @@ impl TextInputManager {
             content_hint: editor.content_hint,
             content_purpose: editor.content_purpose,
             activation_serial: self.keyboard_activation_serial(),
+            touch_epoch: self.broker.touch_epoch,
+            flutter_editor: true,
         }
     }
 

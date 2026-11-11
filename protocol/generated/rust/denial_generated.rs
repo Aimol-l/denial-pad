@@ -7402,6 +7402,8 @@ impl<'a> TextInputState<'a> {
   pub const VT_CONTENT_HINT: flatbuffers::VOffsetT = 10;
   pub const VT_CONTENT_PURPOSE: flatbuffers::VOffsetT = 12;
   pub const VT_ACTIVATION_SERIAL: flatbuffers::VOffsetT = 14;
+  pub const VT_TOUCH_EPOCH: flatbuffers::VOffsetT = 16;
+  pub const VT_FLUTTER_EDITOR: flatbuffers::VOffsetT = 18;
 
   #[inline]
   pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
@@ -7413,9 +7415,11 @@ impl<'a> TextInputState<'a> {
     args: &'args TextInputStateArgs
   ) -> flatbuffers::WIPOffset<TextInputState<'bldr>> {
     let mut builder = TextInputStateBuilder::new(_fbb);
+    builder.add_touch_epoch(args.touch_epoch);
     builder.add_activation_serial(args.activation_serial);
     builder.add_content_purpose(args.content_purpose);
     builder.add_content_hint(args.content_hint);
+    builder.add_flutter_editor(args.flutter_editor);
     builder.add_legacy(args.legacy);
     builder.add_input_panel_visible(args.input_panel_visible);
     builder.add_active(args.active);
@@ -7465,6 +7469,20 @@ impl<'a> TextInputState<'a> {
     // which contains a valid value in this slot
     unsafe { self._tab.get::<u64>(TextInputState::VT_ACTIVATION_SERIAL, Some(0)).unwrap()}
   }
+  #[inline]
+  pub fn touch_epoch(&self) -> u64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<u64>(TextInputState::VT_TOUCH_EPOCH, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn flutter_editor(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(TextInputState::VT_FLUTTER_EDITOR, Some(false)).unwrap()}
+  }
 }
 
 impl flatbuffers::Verifiable for TextInputState<'_> {
@@ -7480,6 +7498,8 @@ impl flatbuffers::Verifiable for TextInputState<'_> {
      .visit_field::<u32>("content_hint", Self::VT_CONTENT_HINT, false)?
      .visit_field::<u32>("content_purpose", Self::VT_CONTENT_PURPOSE, false)?
      .visit_field::<u64>("activation_serial", Self::VT_ACTIVATION_SERIAL, false)?
+     .visit_field::<u64>("touch_epoch", Self::VT_TOUCH_EPOCH, false)?
+     .visit_field::<bool>("flutter_editor", Self::VT_FLUTTER_EDITOR, false)?
      .finish();
     Ok(())
   }
@@ -7491,6 +7511,8 @@ pub struct TextInputStateArgs {
     pub content_hint: u32,
     pub content_purpose: u32,
     pub activation_serial: u64,
+    pub touch_epoch: u64,
+    pub flutter_editor: bool,
 }
 impl<'a> Default for TextInputStateArgs {
   #[inline]
@@ -7502,6 +7524,8 @@ impl<'a> Default for TextInputStateArgs {
       content_hint: 0,
       content_purpose: 0,
       activation_serial: 0,
+      touch_epoch: 0,
+      flutter_editor: false,
     }
   }
 }
@@ -7536,6 +7560,14 @@ impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> TextInputStateBuilder<'a, 'b, A
     self.fbb_.push_slot::<u64>(TextInputState::VT_ACTIVATION_SERIAL, activation_serial, 0);
   }
   #[inline]
+  pub fn add_touch_epoch(&mut self, touch_epoch: u64) {
+    self.fbb_.push_slot::<u64>(TextInputState::VT_TOUCH_EPOCH, touch_epoch, 0);
+  }
+  #[inline]
+  pub fn add_flutter_editor(&mut self, flutter_editor: bool) {
+    self.fbb_.push_slot::<bool>(TextInputState::VT_FLUTTER_EDITOR, flutter_editor, false);
+  }
+  #[inline]
   pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>) -> TextInputStateBuilder<'a, 'b, A> {
     let start = _fbb.start_table();
     TextInputStateBuilder {
@@ -7559,6 +7591,8 @@ impl core::fmt::Debug for TextInputState<'_> {
       ds.field("content_hint", &self.content_hint());
       ds.field("content_purpose", &self.content_purpose());
       ds.field("activation_serial", &self.activation_serial());
+      ds.field("touch_epoch", &self.touch_epoch());
+      ds.field("flutter_editor", &self.flutter_editor());
       ds.finish()
   }
 }

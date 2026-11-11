@@ -3894,10 +3894,12 @@ class TextInputState {
   int get contentHint => const fb.Uint32Reader().vTableGet(_bc, _bcOffset, 10, 0);
   int get contentPurpose => const fb.Uint32Reader().vTableGet(_bc, _bcOffset, 12, 0);
   int get activationSerial => const fb.Uint64Reader().vTableGet(_bc, _bcOffset, 14, 0);
+  int get touchEpoch => const fb.Uint64Reader().vTableGet(_bc, _bcOffset, 16, 0);
+  bool get flutterEditor => const fb.BoolReader().vTableGet(_bc, _bcOffset, 18, false);
 
   @override
   String toString() {
-    return 'TextInputState{active: ${active}, inputPanelVisible: ${inputPanelVisible}, legacy: ${legacy}, contentHint: ${contentHint}, contentPurpose: ${contentPurpose}, activationSerial: ${activationSerial}}';
+    return 'TextInputState{active: ${active}, inputPanelVisible: ${inputPanelVisible}, legacy: ${legacy}, contentHint: ${contentHint}, contentPurpose: ${contentPurpose}, activationSerial: ${activationSerial}, touchEpoch: ${touchEpoch}, flutterEditor: ${flutterEditor}}';
   }
 }
 
@@ -3915,7 +3917,7 @@ class TextInputStateBuilder {
   final fb.Builder fbBuilder;
 
   void begin() {
-    fbBuilder.startTable(6);
+    fbBuilder.startTable(8);
   }
 
   int addActive(bool? active) {
@@ -3942,6 +3944,14 @@ class TextInputStateBuilder {
     fbBuilder.addUint64(5, activationSerial);
     return fbBuilder.offset;
   }
+  int addTouchEpoch(int? touchEpoch) {
+    fbBuilder.addUint64(6, touchEpoch);
+    return fbBuilder.offset;
+  }
+  int addFlutterEditor(bool? flutterEditor) {
+    fbBuilder.addBool(7, flutterEditor);
+    return fbBuilder.offset;
+  }
 
   int finish() {
     return fbBuilder.endTable();
@@ -3955,6 +3965,8 @@ class TextInputStateObjectBuilder extends fb.ObjectBuilder {
   final int? _contentHint;
   final int? _contentPurpose;
   final int? _activationSerial;
+  final int? _touchEpoch;
+  final bool? _flutterEditor;
 
   TextInputStateObjectBuilder({
     bool? active,
@@ -3963,24 +3975,30 @@ class TextInputStateObjectBuilder extends fb.ObjectBuilder {
     int? contentHint,
     int? contentPurpose,
     int? activationSerial,
+    int? touchEpoch,
+    bool? flutterEditor,
   })
       : _active = active,
         _inputPanelVisible = inputPanelVisible,
         _legacy = legacy,
         _contentHint = contentHint,
         _contentPurpose = contentPurpose,
-        _activationSerial = activationSerial;
+        _activationSerial = activationSerial,
+        _touchEpoch = touchEpoch,
+        _flutterEditor = flutterEditor;
 
   /// Finish building, and store into the [fbBuilder].
   @override
   int finish(fb.Builder fbBuilder) {
-    fbBuilder.startTable(6);
+    fbBuilder.startTable(8);
     fbBuilder.addBool(0, _active);
     fbBuilder.addBool(1, _inputPanelVisible);
     fbBuilder.addBool(2, _legacy);
     fbBuilder.addUint32(3, _contentHint);
     fbBuilder.addUint32(4, _contentPurpose);
     fbBuilder.addUint64(5, _activationSerial);
+    fbBuilder.addUint64(6, _touchEpoch);
+    fbBuilder.addBool(7, _flutterEditor);
     return fbBuilder.endTable();
   }
 

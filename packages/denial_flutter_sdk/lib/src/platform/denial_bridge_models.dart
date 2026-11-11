@@ -84,6 +84,8 @@ class DenialTextInputState {
     required this.contentHint,
     required this.contentPurpose,
     this.activationSerial = 0,
+    this.touchEpoch = 0,
+    this.flutterEditor = false,
   });
 
   final bool active;
@@ -92,6 +94,13 @@ class DenialTextInputState {
   final int contentHint;
   final int contentPurpose;
   final int activationSerial;
+
+  /// Counts touches inside application windows; the keyboard opens only when
+  /// this changes.
+  final int touchEpoch;
+
+  /// The editor is one of the shell's own Flutter text fields.
+  final bool flutterEditor;
 }
 
 /// The input method's composition, drawn by the shell keyboard.

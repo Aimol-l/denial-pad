@@ -10,6 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/floating_keyboard_state.dart';
+import '../state/reference_shell_controller.dart';
 
 /// Shows the floating keyboard while an application text field has focus.
 ///
@@ -60,15 +61,42 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
     unawaited(_restorePlacement());
   }
 
+  /// The touch count the panel last saw; null until the first state.
+  int? _touchEpoch;
+  int? _activationSerial;
+
+  /// When a touch landed while no editor was active: the tap that is about to
+  /// focus a field.
+  DateTime? _pendingTouch;
+
   void _onState(DenialTextInputState state) {
     if (!mounted) return;
-    if (state.active && !_visible) {
+    final touched = _touchEpoch != null && state.touchEpoch != _touchEpoch;
+    final activated =
+        _activationSerial != null &&
+        state.activationSerial != _activationSerial;
+    _touchEpoch = state.touchEpoch;
+    _activationSerial = state.activationSerial;
+    if (!state.active) {
+      if (touched) _pendingTouch = DateTime.now();
+      if (_visible && !_locked) setState(() => _visible = false);
+      return;
+    }
+    // A tap on a field usually arrives just before the app enables text-input.
+    final pending =
+        _pendingTouch != null &&
+        DateTime.now().difference(_pendingTouch!) < const Duration(seconds: 1);
+    if (pending) _pendingTouch = null;
+    // Applications only open the keyboard on a person's tap: focus alone is
+    // the app talking, not the user. Shell fields were tapped by definition.
+    final wants = state.flutterEditor
+        ? (!_dismissed || touched || activated)
+        : (touched || pending);
+    if (wants && !_visible) {
       setState(() {
         _visible = true;
         _dismissed = false;
       });
-    } else if (!state.active && _visible && !_locked) {
-      setState(() => _visible = false);
     }
   }
 
@@ -149,6 +177,21 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
 
   @override
   Widget build(BuildContext context) {
+    // The shell's home gesture takes the app away; the keyboard goes with it
+    // instead of floating over the home screen.
+    ref.listen<bool>(
+      referenceShellProvider.select((state) => state.homeTransitionActive),
+      (previous, next) {
+        if (next && _visible) setState(() => _visible = false);
+      },
+    );
+    // Recents is the same departure from the app, reached by the same swipe.
+    ref.listen<bool>(
+      referenceShellProvider.select((state) => state.overviewVisible),
+      (previous, next) {
+        if (next && _visible) setState(() => _visible = false);
+      },
+    );
     if (!_visible || _dismissed) {
       _publishRect(null);
       return const SizedBox.shrink();
