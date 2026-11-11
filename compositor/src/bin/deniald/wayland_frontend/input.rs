@@ -60,6 +60,7 @@ use super::super::wire::{
     InputLayoutSnapshot, InputWindowRegion, WindowPlacementChange, WindowPlacementPhase,
 };
 use super::super::{RuntimeState, logical_axis_scroll_delta};
+use super::fcitx::{self, KeyRouting};
 use super::ClientSurface;
 #[cfg(feature = "flutter")]
 use super::FlutterPointerPress;
@@ -532,15 +533,40 @@ pub(crate) fn dispatch_shell_keyboard(
             }
         }
         super::super::wire::KeyboardCommand::Text(text) => {
-            type_shell_text(state, &keyboard, text, time)
+            let Some((commit, remainder)) = input_text_via_ime(state.frontend_mut(), text) else {
+                return type_shell_text(state, &keyboard, text, time);
+            };
+            let mut delivered = commit_shell_text(state, &keyboard, &commit, time);
+            if !remainder.is_empty() {
+                delivered |= type_shell_text(state, &keyboard, &remainder, time);
+            }
+            delivered
         }
         super::super::wire::KeyboardCommand::Key { key, ctrl, phase } => {
+            // The keyboard's language key carries no keysym: it only asks the
+            // input method to take over, or to stand down.
+            if key == "LangSwitch" {
+                if *phase == super::super::wire::KeyboardKeyPhase::Tap {
+                    let frontend = state.frontend_mut();
+                    let enabled = !frontend.fcitx.enabled();
+                    frontend.fcitx.set_enabled(enabled);
+                    tracing::debug!(enabled, "shell keyboard language mode");
+                }
+                return true;
+            }
             let Some(stroke) = shell_named_key_stroke(key) else {
                 warn!(%key, "ignored unsupported shell keyboard key");
                 return false;
             };
             match phase {
                 super::super::wire::KeyboardKeyPhase::Tap => {
+                    // Backspace and Return edit a composition before they
+                    // reach the editor.
+                    if let Some(KeyRouting::Consumed { commit }) =
+                        input_key_via_ime(state.frontend_mut(), key, stroke)
+                    {
+                        return commit_shell_text(state, &keyboard, &commit, time);
+                    }
                     inject_shell_key_stroke(state, &keyboard, stroke, *ctrl, time)
                 }
                 super::super::wire::KeyboardKeyPhase::Pressed => {
@@ -570,6 +596,84 @@ fn type_shell_text(
         delivered |= inject_shell_key_stroke(state, keyboard, stroke, false, time);
     }
     delivered
+}
+
+/// Offers typed characters to the input method while Chinese mode is on.
+///
+/// Returns the text it committed and the part it left alone, or `None` when
+/// the input method is not in charge and the caller types the text itself.
+#[cfg(feature = "flutter")]
+fn input_text_via_ime(frontend: &mut WaylandFrontend, text: &str) -> Option<(String, String)> {
+    if !frontend.fcitx.enabled() {
+        return None;
+    }
+    let mut commit = String::new();
+    let mut consumed = 0;
+    for (offset, character) in text.char_indices() {
+        // The keymap decides what the input method even sees.
+        let Some(stroke) = shell_text_key_stroke(character) else {
+            break;
+        };
+        let keyval = u32::from(character);
+        match frontend
+            .fcitx
+            .key(keyval, stroke.evdev_keycode, stroke.shift)
+        {
+            Some(KeyRouting::Consumed { commit: text })
+                if text.is_empty() && fcitx::keep_key_when_nothing_committed(keyval) =>
+            {
+                break;
+            }
+            Some(KeyRouting::Consumed { commit: text }) => {
+                commit.push_str(&text);
+                consumed = offset + character.len_utf8();
+            }
+            Some(KeyRouting::Unhandled) | None => break,
+        }
+    }
+    Some((commit, text[consumed..].to_owned()))
+}
+
+/// Offers one named key to the input method; `None` when it is not in charge.
+#[cfg(feature = "flutter")]
+fn input_key_via_ime(
+    frontend: &mut WaylandFrontend,
+    key: &str,
+    stroke: ShellKeyStroke,
+) -> Option<KeyRouting> {
+    if !frontend.fcitx.enabled() {
+        return None;
+    }
+    let keysym = fcitx::keysym_for_named_key(key)?;
+    match frontend.fcitx.key(keysym, stroke.evdev_keycode, stroke.shift) {
+        // Space or Return with nothing to finish belongs to the editor;
+        // Backspace with nothing committed still belongs to the composition.
+        Some(KeyRouting::Consumed { commit })
+            if commit.is_empty() && fcitx::keep_key_when_nothing_committed(keysym) =>
+        {
+            None
+        }
+        routing => routing,
+    }
+}
+
+/// Delivers committed text the way an input method would, and types it when
+/// the focus does not speak text-input (terminals, X11).
+#[cfg(feature = "flutter")]
+fn commit_shell_text(
+    state: &mut RuntimeState,
+    keyboard: &KeyboardHandle<RuntimeState>,
+    text: &str,
+    time: InputTime,
+) -> bool {
+    if text.is_empty() {
+        return true;
+    }
+    let delivered = state.frontend_mut().commit_shell_keyboard_text(None, text);
+    match delivered {
+        Some(delivered) => delivered,
+        None => type_shell_text(state, keyboard, text, time),
+    }
 }
 
 #[cfg(feature = "flutter")]

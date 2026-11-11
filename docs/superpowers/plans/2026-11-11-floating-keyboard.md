@@ -316,11 +316,11 @@ testWidgets('resize respects the 40-80 / 25-45 range', (tester) async { /* ... *
   - `fn page(&mut self, forward: bool) -> Result<()>`
   - 事件：`FcitxEvent::Commit(String)`、`FcitxEvent::Candidates { preedit, items, page, pages }`
 
-- [ ] **Step 1: 写失败测试**：用 mock 对象断言 `keycode` 加 8 后发送、`SetSupportedCapability` 在建 context 后立即调用、`SelectCandidate` 透传索引。
-- [ ] **Step 2: 运行，确认失败**
-- [ ] **Step 3: 实现**（zbus 异步；`ProcessKeyEvent(u,u,u,b,u)`；订阅 `CommitString` / `UpdateClientSideUI`）
-- [ ] **Step 4: 运行，确认通过**
-- [ ] **Step 5: 设备验证**：复用 spike 脚本，确认 `nihao` → 候选 → `你好`
+- [x] **Step 1: 写失败测试**：用 mock 对象断言 `keycode` 加 8 后发送、`SetSupportedCapability` 在建 context 后立即调用、`SelectCandidate` 透传索引。
+- [x] **Step 2: 运行，确认失败**
+- [x] **Step 3: 实现**（zbus 异步；`ProcessKeyEvent(u,u,u,b,u)`；订阅 `CommitString` / `UpdateClientSideUI`）
+- [x] **Step 4: 运行，确认通过**
+- [x] **Step 5: 设备验证**：复用 spike 脚本，确认 `nihao` → 候选 → `你好`
 
 ---
 

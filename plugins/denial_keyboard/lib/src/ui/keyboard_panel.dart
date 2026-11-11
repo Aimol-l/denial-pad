@@ -49,6 +49,7 @@ class KeyboardPanel extends StatefulWidget {
 
 class _KeyboardPanelState extends State<KeyboardPanel> {
   ShiftState _shift = ShiftState.off;
+  InputMode _mode = InputMode.latin;
   int _layer = 0;
   DateTime? _lastSpace;
   Timer? _repeat;
@@ -104,8 +105,12 @@ class _KeyboardPanelState extends State<KeyboardPanel> {
           };
         });
         widget.onLayoutChanged?.call();
-      case KeyKind.emoji:
       case KeyKind.language:
+        // The compositor's input method owns the text; this tap only asks it
+        // to switch, and the label shows the mode a tap switches to.
+        setState(() => _mode = _mode.toggled);
+        widget.backend.pressKey('LangSwitch');
+      case KeyKind.emoji:
         break;
       case KeyKind.letter:
       case KeyKind.digit:
@@ -267,7 +272,9 @@ class _KeyboardPanelState extends State<KeyboardPanel> {
                 flex: (row.keys[i].flex * 1000).round(),
                 child: KeyCap(
                   spec: row.keys[i],
-                  label: row.keys[i].labelFor(shift: _shift != ShiftState.off),
+                  label: row.keys[i].kind == KeyKind.language
+                      ? _mode.keyLabel
+                      : row.keys[i].labelFor(shift: _shift != ShiftState.off),
                   colors: colors,
                   height: metrics.rowHeight,
                   fontSize: metrics.fontSize,

@@ -225,6 +225,9 @@ pub(crate) use surface_pipeline::canvas_rect_to_buffer;
 #[cfg(feature = "flutter")]
 #[path = "wayland_frontend/surface_snapshot.rs"]
 mod surface_snapshot;
+#[cfg(feature = "flutter")]
+#[path = "wayland_frontend/fcitx.rs"]
+mod fcitx;
 #[path = "wayland_frontend/text_input.rs"]
 mod text_input;
 #[path = "wayland_frontend/topology.rs"]
@@ -675,6 +678,9 @@ pub(super) struct WaylandFrontend {
     color_management: color_management::ColorManagement,
     screencopy: screencopy::ScreencopyManager,
     text_input: TextInputManager,
+    /// The input method behind the shell keyboard's Chinese mode.
+    #[cfg(feature = "flutter")]
+    fcitx: fcitx::FcitxService,
     #[cfg(feature = "flutter")]
     keyboard_insets: insets::KeyboardInsets,
     input_method: InputMethodManager,

@@ -525,6 +525,8 @@ impl WaylandFrontend {
             screencopy,
             text_input,
             #[cfg(feature = "flutter")]
+            fcitx: fcitx::FcitxService::new(),
+            #[cfg(feature = "flutter")]
             keyboard_insets: Default::default(),
             input_method,
             outputs,

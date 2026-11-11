@@ -462,7 +462,22 @@ fn deliver_flutter_input_method_transactions(
 #[cfg(feature = "flutter")]
 pub(super) fn publish_software_keyboard_state(
     runtime: &mut flutter_runtime::FlutterRuntime,
-    events: &RuntimeState,
+    events: &mut RuntimeState,
 ) -> Result<(), Box<dyn Error>> {
-    runtime.publish_text_input_state(events.frontend().software_keyboard_state())
+    let state = events.frontend().software_keyboard_state();
+    // While the mobile shell keyboard is up it is the input source: an
+    // external input method must not compose the same keystrokes, or ordinary
+    // typing turns into preedit the shell never renders. Desktop sessions
+    // keep their own input method, and the lock screen owns this boundary
+    // itself.
+    let shell_keyboard = state.active && events.frontend().mobile_shell();
+    if !events.session_lock_applied
+        && events
+            .wayland
+            .as_mut()
+            .is_some_and(|frontend| frontend.set_input_method_blocked(shell_keyboard))
+    {
+        events.scene_sync.mark_dirty();
+    }
+    runtime.publish_text_input_state(state)
 }
