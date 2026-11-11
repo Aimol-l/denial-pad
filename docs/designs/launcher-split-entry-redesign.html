@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Denial 分屏 · launcher 拖拽入口 — 设计稿</title>
+<style>
+  :root {
+    --accent: #6d5bd0;
+    --accent-soft: rgba(109, 91, 208, 0.14);
+    --accent-line: rgba(109, 91, 208, 0.55);
+    --ink: #1c1c1f;
+    --ink-muted: #5f6470;
+    --ink-faint: #9aa0aa;
+    --line: #e3e5e9;
+    --panel: #eef0f3;
+    --panel-border: #d3d6dc;
+    --status: 48px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f4f5f8;
+    color: #23242a;
+    font-family: "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+    padding: 48px 0 80px;
+    -webkit-user-select: none; user-select: none;
+  }
+  .doc { max-width: 1760px; margin: 0 auto; padding: 0 48px; }
+  h1 { font-size: 34px; font-weight: 650; }
+  .sub { margin-top: 10px; color: #6b7080; font-size: 15px; line-height: 1.7; max-width: 940px; }
+  .sub code { background: #eceaf6; border-radius: 5px; padding: 1px 6px; font-size: 13px; color: #5b4bb8; }
+  .sub b { color: #2a2b32; }
+
+  .steps { display: flex; gap: 14px; margin: 34px 0 12px; }
+  .step { flex: 1; background: #fff; border: 1px solid #e4e6ec; border-radius: 14px; padding: 16px 18px; box-shadow: 0 1px 2px rgba(20,22,28,.04); }
+  .step .n { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: .08em; }
+  .step .t { margin-top: 6px; font-size: 15px; font-weight: 600; }
+  .step .d { margin-top: 5px; font-size: 12.5px; color: #6b7080; line-height: 1.65; }
+
+  .board { margin-top: 56px; }
+  .board .cap { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .board .cap .tag { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 999px; padding: 3px 10px; }
+  .board .cap .t { font-size: 19px; font-weight: 620; }
+  .board .cap .n { margin-left: auto; font-size: 12px; color: #9aa0ad; }
+  .note { margin-top: 14px; font-size: 13px; color: #6b7080; line-height: 1.7; max-width: 1500px; }
+  .note b { color: #2a2b32; font-weight: 600; }
+  .note .k { color: #5b4bb8; }
+
+  /* ---------- 设备 ---------- */
+  .device {
+    position: relative; margin: 0 auto;
+    border-radius: 30px; overflow: hidden;
+    background: #fbfbfc;
+    box-shadow: 0 24px 70px rgba(20,22,28,.16), 0 0 0 1px #e0e2e8;
+  }
+  .device.land { width: 1707px; height: 1067px; }
+
+  .statusbar {
+    position: absolute; left: 0; right: 0; top: 0; height: var(--status); z-index: 30;
+    display: flex; align-items: center; padding: 0 26px;
+    font-size: 14px; color: #2b2b30;
+    background: linear-gradient(rgba(255,255,255,.86), rgba(255,255,255,0));
+  }
+  .statusbar .clock { font-weight: 600; }
+  .statusbar .dots { margin-left: auto; display: flex; gap: 7px; align-items: center; }
+  .statusbar .dot { width: 7px; height: 7px; border-radius: 50%; background: #2b2b30; opacity: .55; }
+  .statusbar .batt { width: 22px; height: 11px; border: 1.5px solid #2b2b30; border-radius: 3px; opacity: .55; position: relative; }
+  .statusbar .batt::after { content: ""; position: absolute; right: -4px; top: 3px; width: 2px; height: 5px; background: #2b2b30; border-radius: 0 2px 2px 0; }
+
+  /* ---------- 桌面（launcher） ---------- */
+  .launcher {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(120% 90% at 18% 8%, rgba(255,255,255,.55), transparent 60%),
+      linear-gradient(165deg, #cfd6f2 0%, #b6c0ea 46%, #93a2dd 100%);
+  }
+  .grid {
+    position: absolute; left: 90px; right: 90px; top: 120px;
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 44px 40px;
+  }
+  .ico { display: flex; flex-direction: column; align-items: center; gap: 10px; transition: opacity .18s, transform .18s; }
+  .ico .sq { width: 118px; height: 118px; border-radius: 26px; box-shadow: 0 10px 24px rgba(30,36,80,.22), inset 0 1px 0 rgba(255,255,255,.35); }
+  .ico .nm { font-size: 16px; color: #2f3866; font-weight: 550; }
+  .ico.dim { opacity: .32; }
+  .ico.pressed .sq { transform: scale(1.16); box-shadow: 0 18px 44px rgba(30,36,80,.34), 0 0 0 6px rgba(255,255,255,.5), inset 0 1px 0 rgba(255,255,255,.4); }
+
+  .dock {
+    position: absolute; left: 50%; bottom: 26px; transform: translateX(-50%);
+    display: flex; gap: 26px; padding: 16px 26px; border-radius: 30px;
+    background: rgba(255,255,255,.42); backdrop-filter: blur(20px);
+    border: 1px solid rgba(255,255,255,.6);
+  }
+  .dock .sq { width: 84px; height: 84px; border-radius: 20px; box-shadow: 0 6px 16px rgba(30,36,80,.2); }
+
+  /* 长按提示 */
+  .hintbar {
+    position: absolute; left: 50%; top: 74px; transform: translateX(-50%); z-index: 40;
+    display: flex; align-items: center; gap: 10px;
+    background: rgba(20,20,30,.78); color: #e9eaf0; backdrop-filter: blur(14px);
+    border-radius: 999px; padding: 10px 22px; font-size: 15px;
+    border: 1px solid rgba(255,255,255,.12);
+  }
+  .hintbar .k { color: #b9a6f0; font-weight: 600; }
+
+  /* 放置区 */
+  .gesture-zone {
+    position: absolute; z-index: 50; border-radius: 22px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+    text-align: center;
+  }
+  .gesture-zone .t { font-size: 17px; font-weight: 650; }
+  .gesture-zone .s { font-size: 13px; opacity: .75; }
+  .gesture-zone.split { border: 2px dashed var(--accent-line); background: var(--accent-soft); color: var(--accent); }
+
+  /* 比例预览缩略图 */
+  .ratio-prev {
+    border-radius: 12px; overflow: hidden; position: relative;
+    box-shadow: 0 12px 30px rgba(20,22,28,.28), 0 0 0 1px rgba(255,255,255,.5);
+  }
+  .ratio-prev .lb {
+    position: absolute; left: 10px; bottom: 8px; font-size: 12px; color: rgba(255,255,255,.95);
+    background: rgba(0,0,0,.34); border-radius: 6px; padding: 2px 8px;
+  }
+  .ratio-prev .lb.light { color: #3a4266; background: rgba(255,255,255,.62); }
+  .ratio-prev .cap2 {
+    position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 14px; font-weight: 600; color: rgba(255,255,255,.9); background: rgba(0,0,0,.1);
+  }
+  .ratio-prev .cap2.light { color: rgba(58,66,102,.9); background: rgba(255,255,255,.2); }
+
+  /* 另一侧当前应用提示 */
+  .other-side {
+    position: absolute; z-index: 48; border-radius: 20px;
+    background: rgba(255,255,255,.62); backdrop-filter: blur(16px);
+    border: 1px dashed rgba(0,0,0,.14);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    color: #3a4266; text-align: center;
+  }
+  .other-side .t { font-size: 16px; font-weight: 620; }
+  .other-side .s { font-size: 13px; color: #5f6470; }
+  .other-side .thumb { width: 120px; height: 190px; border-radius: 12px; box-shadow: 0 10px 26px rgba(20,22,28,.2); }
+
+  /* 跟手图标 */
+  .drag-ico { position: absolute; z-index: 60; width: 132px; height: 132px; border-radius: 30px; box-shadow: 0 28px 60px rgba(30,36,80,.4); }
+  .drag-ico .nm { position: absolute; left: 50%; bottom: -30px; transform: translateX(-50%); font-size: 14px; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.5); white-space: nowrap; }
+
+  .anno {
+    position: absolute; z-index: 70; pointer-events: none;
+    font-size: 13px; color: #4a4458; line-height: 1.5;
+    background: rgba(255,255,255,.94); border: 1px solid var(--accent-line);
+    border-radius: 10px; padding: 8px 12px; max-width: 270px;
+    box-shadow: 0 6px 20px rgba(20,22,28,.1);
+  }
+  .anno b { color: #1c1c1f; font-weight: 620; }
+  .anno::before { content: ""; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(109,91,208,.25); }
+
+  .app { position: absolute; overflow: hidden; background: #fff; }
+  .app .label { position: absolute; left: 18px; top: 14px; z-index: 5; font-size: 13px; font-weight: 600; color: rgba(255,255,255,.92); background: rgba(0,0,0,.28); border-radius: 8px; padding: 4px 10px; }
+  .app.a-weread { background: linear-gradient(160deg, #f4f1ea, #e7e0d2); }
+  .app.a-weread .label { color: #4a4436; background: rgba(255,255,255,.55); }
+  .app.a-cloudmusic { background: linear-gradient(160deg, #2a2136, #1b1626); }
+  .app.a-fushi { background: linear-gradient(160deg, #e8ecff, #d5dcf7); }
+  .app.a-fushi .label { color: #3a4266; background: rgba(255,255,255,.55); }
+  .fake-rows { position: absolute; left: 22px; right: 22px; top: 64px; display: flex; flex-direction: column; gap: 12px; }
+  .fake-rows i { display: block; height: 10px; border-radius: 999px; background: rgba(0,0,0,.08); }
+  .fake-rows i:nth-child(2) { width: 82%; } .fake-rows i:nth-child(3) { width: 64%; }
+  .fake-rows i:nth-child(4) { width: 91%; } .fake-rows i:nth-child(5) { width: 47%; }
+  .fake-rows.on-dark i { background: rgba(255,255,255,.14); }
+
+  .divider { position: relative; flex: 0 0 10px; z-index: 20; background: rgba(255,255,255,.5); display: grid; place-items: center; }
+  .divider .grip { width: 46px; height: 46px; border-radius: 50%; background: #fff; border: 1px solid var(--panel-border); box-shadow: 0 4px 14px rgba(20,22,28,.22); display: grid; place-items: center; color: #8a8fa0; font-size: 15px; letter-spacing: 1px; }
+  .split-root { position: absolute; inset: 0; display: flex; }
+  .split-root .app { position: relative; flex: 1; }
+  .homebar { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); width: 300px; height: 6px; border-radius: 999px; background: rgba(0,0,0,.22); z-index: 25; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13.5px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #e4e6ec; vertical-align: top; line-height: 1.65; }
+  th { color: #7a7f8d; font-weight: 560; font-size: 12.5px; }
+  td:first-child { color: #23242a; font-weight: 560; white-space: nowrap; }
+  td { color: #5a5f6d; }
+  .edge { margin-top: 70px; } .edge h2 { font-size: 22px; font-weight: 650; }
+  .foot { margin-top: 60px; padding-top: 22px; border-top: 1px solid #e4e6ec; color: #8a8f9c; font-size: 12.5px; line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <h1>Denial 分屏 · launcher 拖拽入口 — 设计稿</h1>
+  <p class="sub">
+    分屏的第二条入口：在桌面上<b>长按应用图标拖向屏幕一侧</b>，当前前台应用自动让位到另一侧，松手即成分屏。
+    与 recents 入口（<code>split-screen-redesign.html</code>）汇聚到同一状态机——放置区视觉、比例预览、
+    分界线判定完全复用，本稿只定义 launcher 侧特有的交互。规范见 <code>docs/SPLIT_SCREEN.md</code> §3.2。
+  </p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="n">STEP 1</div>
+      <div class="t">长按图标</div>
+      <div class="d">桌面图标放大高亮，其余元素淡出，顶部提示"拖向屏幕一侧可分屏"。此状态下上划仍是打开应用。</div>
+    </div>
+    <div class="step">
+      <div class="n">STEP 2</div>
+      <div class="t">拖向屏幕一侧</div>
+      <div class="d">图标跟手，目标侧出现放置区 + 比例预览；另一侧显示"当前应用将移到另一侧"的占位预览。</div>
+    </div>
+    <div class="step">
+      <div class="n">STEP 3</div>
+      <div class="t">松手形成分屏</div>
+      <div class="d">新应用落入拖入侧，原前台应用平滑滑入另一侧，分割条出现。前台无应用则形成单应用分屏态。</div>
+    </div>
+  </div>
+
+  <!-- ============ 画板 1：长按 ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">STEP 1</span><span class="t">长按图标：进入可分屏预备态</span><span class="n">横屏 · 1707×1067</span></div>
+    <div class="device land">
+      <div class="launcher">
+        <div class="grid">
+          <div class="ico pressed"><div class="sq" style="background:linear-gradient(160deg,#f4f1ea,#e7e0d2);"></div><div class="nm">微信读书</div></div>
+          <div class="ico dim"><div class="sq" style="background:linear-gradient(160deg,#2a2136,#1b1626);"></div><div class="nm">网易云音乐</div></div>
+          <div class="ico dim"><div class="sq" style="background:linear-gradient(160deg,#e8ecff,#d5dcf7);"></div><div class="nm">复逝</div></div>
+          <div class="ico dim"><div class="sq" style="background:linear-gradient(160deg,#d8f0e4,#b6e3cc);"></div><div class="nm">文件</div></div>
+          <div class="ico dim"><div class="sq" style="background:linear-gradient(160deg,#ffd9c9,#ffb59b);"></div><div class="nm">时钟</div></div>
+          <div class="ico dim"><div class="sq" style="background:linear-gradient(160deg,#cfe0ff,#a9c6ff);"></div><div class="nm">浏览器</div></div>
+          <div class="ico dim"><div class="sq" style="background:linear-gradient(160deg,#e6d6f5,#c9aeea);"></div><div class="nm">设置</div></div>
+          <div class="ico dim"><div class="sq" style="background:linear-gradient(160deg,#fbe3ef,#f4bdd6);"></div><div class="nm">相机</div></div>
+          <div class="ico dim"><div class="sq" style="background:linear-gradient(160deg,#d5e8f7,#a9d2ee);"></div><div class="nm">天气</div></div>
+          <div class="ico dim"><div class="sq" style="background:linear-gradient(160deg,#eef0c9,#d6dd9c);"></div><div class="nm">笔记</div></div>
+        </div>
+        <div class="dock">
+          <div class="sq" style="background:linear-gradient(160deg,#2a2136,#1b1626);"></div>
+          <div class="sq" style="background:linear-gradient(160deg,#f4f1ea,#e7e0d2);"></div>
+          <div class="sq" style="background:linear-gradient(160deg,#e8ecff,#d5dcf7);"></div>
+          <div class="sq" style="background:linear-gradient(160deg,#d8f0e4,#b6e3cc);"></div>
+        </div>
+      </div>
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+
+      <div class="hintbar">拖向屏幕一侧 <span class="k">可分屏</span> · 上划打开</div>
+
+      <div class="anno" style="left:820px; top:330px;">
+        <b>与"打开应用"共存</b><br>长按后上划 = 打开；水平拖动 = 进入分屏拖拽。两个意图在松开前都可反悔。
+      </div>
+    </div>
+    <p class="note">
+      长按预备态<b>不拦截上划</b>——打开应用是更高频的操作，分屏必须是"明确横向拖动"才触发。
+      其余图标淡出到 32% 既突出目标，也降低误触。
+    </p>
+  </div>
+
+  <!-- ============ 画板 2：拖拽中 ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">STEP 2</span><span class="t">拖向左侧：放置区 + 另一侧预览</span><span class="n">横屏 · 当前应用自动让位</span></div>
+    <div class="device land">
+      <div class="launcher">
+        <div class="grid">
+          <div class="ico dim" style="opacity:.14;"><div class="sq" style="background:linear-gradient(160deg,#f4f1ea,#e7e0d2);"></div><div class="nm">微信读书</div></div>
+          <div class="ico dim" style="opacity:.14;"><div class="sq" style="background:linear-gradient(160deg,#2a2136,#1b1626);"></div><div class="nm">网易云音乐</div></div>
+          <div class="ico dim" style="opacity:.14;"><div class="sq" style="background:linear-gradient(160deg,#e8ecff,#d5dcf7);"></div><div class="nm">复逝</div></div>
+          <div class="ico dim" style="opacity:.14;"><div class="sq" style="background:linear-gradient(160deg,#d8f0e4,#b6e3cc);"></div><div class="nm">文件</div></div>
+          <div class="ico dim" style="opacity:.14;"><div class="sq" style="background:linear-gradient(160deg,#ffd9c9,#ffb59b);"></div><div class="nm">时钟</div></div>
+        </div>
+      </div>
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+
+      <!-- 左侧放置区 + 比例预览 -->
+      <div class="gesture-zone split" style="left:24px; top:76px; bottom:24px; width:46%;">
+        <div class="ratio-prev" style="width:210px; height:330px; background:linear-gradient(160deg,#f4f1ea,#e7e0d2);">
+          <div class="cap2">微信读书</div>
+          <div class="lb light">约 820 × 1360</div>
+        </div>
+        <div class="t" style="margin-top:6px;">放到左侧</div>
+        <div class="s">松手固定到左半屏</div>
+      </div>
+
+      <!-- 右侧：当前应用让位预览 -->
+      <div class="other-side" style="right:24px; top:76px; bottom:24px; width:46%;">
+        <div class="thumb a-cloudmusic"></div>
+        <div class="t">当前应用 · 网易云音乐</div>
+        <div class="s">松手后平滑滑入右半屏</div>
+      </div>
+
+      <!-- 跟手图标 -->
+      <div class="drag-ico" style="left:190px; top:330px; background:linear-gradient(160deg,#f4f1ea,#e7e0d2);">
+        <span class="nm">微信读书</span>
+      </div>
+
+      <div class="anno" style="left:980px; bottom:300px;">
+        <b>让位可预期</b><br>另一侧实时显示当前前台应用及其去向，用户松手前就知道两侧分别是什么。
+      </div>
+      <div class="anno" style="left:190px; bottom:120px;">
+        <b>比例预览</b><br>放置区内按目标区域比例绘制缩略图并标注实际像素；客户端声明固定尺寸时按声明比例绘制（规范 §7）。
+      </div>
+    </div>
+    <p class="note">
+      launcher 入口与 recents 入口<b>共用同一套放置区组件</b>：虚线样式、28% 激活阈值、比例预览、
+      竖屏触发区与分界线全部一致。差异只在拖拽源的视觉（图标 vs 任务卡片）。
+    </p>
+  </div>
+
+  <!-- ============ 画板 3：分屏形成 ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">STEP 3</span><span class="t">松手：新应用落入，原应用滑入另一侧</span><span class="n">横屏 · 默认 53 : 47</span></div>
+    <div class="device land">
+      <div class="split-root">
+        <div class="app a-weread">
+          <div class="label">微信读书 · 新拖入</div>
+          <div class="fake-rows"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="divider"><div class="grip">⋮⋮</div></div>
+        <div class="app a-cloudmusic">
+          <div class="label">网易云音乐 · 原前台</div>
+          <div class="fake-rows on-dark"><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+      </div>
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+      <div class="homebar"></div>
+
+      <div class="anno" style="left:50%; top:120px; transform:translateX(-50%);">
+        <b>动画</b><br>原前台应用从全屏尺寸收缩滑入另一侧（280ms，liquid motion），新应用从图标位置展开。
+      </div>
+    </div>
+    <p class="note">
+      默认 <b>53 : 47</b>（拖入侧略大）。初始激活侧 = <b>新拖入侧</b>（用户刚操作的一侧获得焦点高亮，见规范 §8.8）。
+      此后所有操作与 recents 入口形成的分屏完全一致——同一状态机，无第二套逻辑。
+    </p>
+  </div>
+
+  <!-- ============ 画板 4：前台无应用 ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">EDGE</span><span class="t">边界：前台无应用（从桌面直接开始）</span><span class="n">横屏 · 形成单应用分屏态</span></div>
+    <div class="device land">
+      <div class="launcher"></div>
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+
+      <div class="gesture-zone split" style="left:24px; top:76px; bottom:24px; width:46%;">
+        <div class="ratio-prev" style="width:210px; height:330px; background:linear-gradient(160deg,#f4f1ea,#e7e0d2);">
+          <div class="cap2">微信读书</div>
+          <div class="lb light">约 820 × 1360</div>
+        </div>
+        <div class="t" style="margin-top:6px;">放到左侧</div>
+      </div>
+
+      <div class="other-side" style="right:24px; top:76px; bottom:24px; width:46%; border-style:solid; border-color:rgba(0,0,0,.08); background:rgba(255,255,255,.4);">
+        <div class="t">空</div>
+        <div class="s">松手后显示选择器<br>从 recents 挑第二个应用补齐</div>
+      </div>
+
+      <div class="drag-ico" style="left:190px; top:330px; background:linear-gradient(160deg,#f4f1ea,#e7e0d2);">
+        <span class="nm">微信读书</span>
+      </div>
+    </div>
+    <p class="note">
+      桌面本身就是"前台无应用"。此时松手形成<b>单应用分屏态</b>，右侧显示选择器——
+      与 recents 入口固定一侧后的状态一致，用户从 recents 补齐第二个应用即可。
+    </p>
+  </div>
+
+  <!-- ============ 边界表 ============ -->
+  <div class="edge">
+    <h2>边界与取舍</h2>
+    <table>
+      <tr><th>场景</th><th>行为</th></tr>
+      <tr>
+        <td>长按后未拖动，直接上划</td>
+        <td>正常打开应用，不分屏。长按预备态不拦截上划手势。</td>
+      </tr>
+      <tr>
+        <td>拖到非边缘区域松手</td>
+        <td>图标弹回原位，放置区淡出，不进入分屏。激活阈值与 recents 入口相同（28%）。</td>
+      </tr>
+      <tr>
+        <td>前台应用不支持目标比例</td>
+        <td>仅提示不拦截：另一侧预览上叠加弱提示"该应用在此比例下显示不佳"。物理放不下（最小尺寸超限）才拒绝。</td>
+      </tr>
+      <tr>
+        <td>分屏进行中长按图标拖拽</td>
+        <td><b>拒绝</b>并提示"请先退出当前分屏"（与 recents 主动拖入第三个应用一致，规范 §9.1）。</td>
+      </tr>
+      <tr>
+        <td>长按 dock 内图标</td>
+        <td>同样支持拖拽分屏，行为与网格图标一致。</td>
+      </tr>
+      <tr>
+        <td>竖屏使用 launcher 入口</td>
+        <td>拖到顶部/底部触发区即上下分屏；分界线、关闭消歧规则与 recents 入口完全相同（规范 §5.1）。</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="foot">
+    设计稿 · Denial 分屏 launcher 入口 · 2026-11-11<br>
+    与 split-screen-redesign.html（recents 入口）配套；两者共用放置区组件与状态机，规范见 docs/SPLIT_SCREEN.md §3.2 / §9。<br>
+    视觉约定：亮色画布 + 设备框架、accent #6d5bd0、48px 状态栏。
+  </div>
+
+</div>
+</body>
+</html>

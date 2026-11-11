@@ -62,3 +62,6 @@ MOTO_WIFI_DEPLOY.md
 /polkit_app/linux/
 /polkit_app/.flutter-plugins*
 __pycache__/
+
+# Agent session scratch (ledgers, briefs).
+/.superpowers/

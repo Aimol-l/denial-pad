@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Denial 应用商店 denial_appstore — 设计稿 v3</title>
+<style>
+  :root {
+    /* --accent 系列由 Denial settings 的全局色调驱动（用户选色或从壁纸取色）。
+       设计稿默认用 Denial 品牌紫示意；实际实现时这组变量由主题注入，
+       下方"全局色调"画板演示换色后的效果。 */
+    --accent: #6d5bd0;
+    --accent-soft: rgba(109, 91, 208, 0.12);
+    --accent-line: rgba(109, 91, 208, 0.5);
+    --c-arch: #1793d1;
+    --c-aur: #d97706;
+    --c-android: #1f9d55;
+    --ink: #1c1c1f;
+    --ink-muted: #5f6470;
+    --ink-faint: #9aa0ad;
+    --line: #e6e8ec;
+    --rail-w: 232px;
+    --status: 48px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: #f4f5f8; color: #23242a;
+    font-family: "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+    padding: 48px 0 80px;
+    -webkit-user-select: none; user-select: none;
+  }
+  .doc { max-width: 1760px; margin: 0 auto; padding: 0 48px; }
+  h1 { font-size: 34px; font-weight: 650; }
+  .sub { margin-top: 10px; color: #6b7080; font-size: 15px; line-height: 1.7; max-width: 980px; }
+  .sub code { background: #eceaf6; border-radius: 5px; padding: 1px 6px; font-size: 13px; color: #5b4bb8; }
+  .sub b { color: #2a2b32; }
+
+  .ref { display: flex; gap: 12px; margin: 22px 0 6px; flex-wrap: wrap; }
+  .ref .chip { font-size: 12.5px; color: var(--ink-muted); background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; }
+  .ref .chip b { color: var(--accent); font-weight: 620; }
+
+  .board { margin-top: 54px; }
+  .board .cap { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .board .cap .tag { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 999px; padding: 3px 10px; }
+  .board .cap .t { font-size: 19px; font-weight: 620; }
+  .board .cap .n { margin-left: auto; font-size: 12px; color: #9aa0ad; }
+  .note { margin-top: 14px; font-size: 13px; color: #6b7080; line-height: 1.7; max-width: 1560px; }
+  .note b { color: #2a2b32; font-weight: 600; }
+  .note .k { color: #5b4bb8; }
+
+  /* ---------- 设备 ---------- */
+  .device {
+    position: relative; margin: 0 auto;
+    border-radius: 30px; overflow: hidden;
+    background: #fbfbfc;
+    box-shadow: 0 24px 70px rgba(20,22,28,.16), 0 0 0 1px #e0e2e8;
+  }
+  .device.land { width: 1707px; height: 1067px; }
+
+  .statusbar {
+    position: absolute; left: 0; right: 0; top: 0; height: var(--status); z-index: 40;
+    display: flex; align-items: center; padding: 0 26px;
+    font-size: 14px; color: #2b2b30;
+    background: linear-gradient(rgba(255,255,255,.94), rgba(255,255,255,.78));
+    border-bottom: 1px solid rgba(0,0,0,.05);
+  }
+  .statusbar .clock { font-weight: 600; }
+  .statusbar .dots { margin-left: auto; display: flex; gap: 7px; align-items: center; }
+  .statusbar .dot { width: 7px; height: 7px; border-radius: 50%; background: #2b2b30; opacity: .55; }
+  .statusbar .batt { width: 22px; height: 11px; border: 1.5px solid #2b2b30; border-radius: 3px; opacity: .55; position: relative; }
+  .statusbar .batt::after { content: ""; position: absolute; right: -4px; top: 3px; width: 2px; height: 5px; background: #2b2b30; border-radius: 0 2px 2px 0; }
+
+  /* ---------- 布局 ---------- */
+  .shell { position: absolute; inset: 0; padding-top: var(--status); display: flex; background: #f6f7f9; }
+
+  /* 左栏：品牌 + 搜索 + 分类导航 + 底部管理（玲珑式） */
+  .rail {
+    width: var(--rail-w); flex: 0 0 var(--rail-w);
+    background: #fff; border-right: 1px solid var(--line);
+    padding: 20px 14px 16px; display: flex; flex-direction: column;
+  }
+  .rail .brand { display: flex; align-items: center; gap: 10px; padding: 0 10px 16px; }
+  .rail .brand .logo {
+    width: 36px; height: 36px; border-radius: 10px;
+    background: linear-gradient(150deg, color-mix(in srgb, var(--accent) 72%, white), var(--accent));
+    display: grid; place-items: center; color: #fff; font-size: 18px; font-weight: 800;
+    box-shadow: 0 4px 10px color-mix(in srgb, var(--accent) 35%, transparent);
+  }
+  .rail .brand .nm { font-size: 15.5px; font-weight: 700; line-height: 1.25; }
+  .rail .brand .nm .s { display: block; font-size: 11px; color: var(--ink-faint); font-weight: 500; }
+
+  .rail .search {
+    display: flex; align-items: center; gap: 9px;
+    background: #f0f1f4; border: 1px solid #e4e6ea; border-radius: 10px;
+    padding: 9px 13px; margin: 0 4px 16px; font-size: 13.5px; color: var(--ink-faint);
+  }
+  .rail .search .mag { font-size: 15px; }
+
+  .rail .nav { display: flex; flex-direction: column; gap: 2px; }
+  .rail .nav .it {
+    display: flex; align-items: center; gap: 11px;
+    border-radius: 10px; padding: 9px 12px;
+    font-size: 14px; font-weight: 550; color: var(--ink-muted);
+  }
+  .rail .nav .it .ic { font-size: 17px; width: 20px; text-align: center; }
+  .rail .nav .it.on { background: var(--accent-soft); color: var(--accent); font-weight: 650; }
+  .rail .nav .it .bdg { margin-left: auto; background: #e5484d; color: #fff; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 0 7px; line-height: 17px; }
+
+  .rail .sep { height: 1px; background: var(--line); margin: 12px 8px; }
+  .rail .bottom { display: flex; flex-direction: column; gap: 2px; }
+
+  /* 内容区 */
+  .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .content { flex: 1; overflow: hidden; padding: 24px 32px 36px; }
+
+  /* 来源徽标 */
+  .src { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+  .src.arch { color: var(--c-arch); background: rgba(23,147,209,.12); }
+  .src.aur { color: var(--c-aur); background: rgba(217,119,6,.13); }
+  .src.android { color: var(--c-android); background: rgba(31,157,85,.13); }
+
+  /* banner 轮播 */
+  .banner {
+    position: relative; border-radius: 18px; overflow: hidden; min-height: 236px;
+    box-shadow: 0 12px 32px rgba(20,22,28,.13); margin-bottom: 24px;
+  }
+  .banner .art { position: absolute; inset: 0; }
+  .banner .veil { position: absolute; inset: 0; background: linear-gradient(190deg, rgba(10,12,20,.02) 30%, rgba(10,12,20,.66)); }
+  .banner .ico { position: absolute; right: 96px; top: 50%; transform: translateY(-50%); width: 150px; height: 150px; border-radius: 34px; box-shadow: 0 16px 40px rgba(10,12,20,.32); }
+  .banner .info { position: absolute; left: 40px; bottom: 34px; color: #fff; max-width: 640px; }
+  .banner .info .nm { font-size: 30px; font-weight: 780; letter-spacing: .01em; display: flex; align-items: center; gap: 12px; }
+  .banner .info .ds { margin-top: 8px; font-size: 14.5px; opacity: .9; }
+  .banner .info .row { margin-top: 18px; display: flex; gap: 12px; }
+  .banner .nav-arrow {
+    position: absolute; top: 50%; transform: translateY(-50%);
+    width: 42px; height: 42px; border-radius: 50%;
+    background: rgba(255,255,255,.85); display: grid; place-items: center;
+    font-size: 17px; color: #333; box-shadow: 0 4px 14px rgba(10,12,20,.2);
+  }
+  .banner .nav-arrow.l { left: 14px; } .banner .nav-arrow.r { right: 14px; }
+  .banner .dots-nav { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); display: flex; gap: 7px; }
+  .banner .dots-nav i { width: 7px; height: 7px; border-radius: 999px; background: rgba(255,255,255,.5); }
+  .banner .dots-nav i.on { width: 22px; background: #fff; }
+
+  /* ---------- settings 色调面板（全局色调演示用） ---------- */
+  .theme-demo { display: flex; gap: 22px; height: 100%; }
+  .settings-win {
+    width: 470px; flex: 0 0 470px; background: #fff; border: 1px solid var(--line);
+    border-radius: 18px; overflow: hidden; box-shadow: 0 16px 44px rgba(20,22,28,.12);
+    display: flex; flex-direction: column;
+  }
+  .settings-win .tbar { display: flex; align-items: center; gap: 10px; padding: 14px 20px; border-bottom: 1px solid var(--line); font-size: 14px; font-weight: 650; }
+  .settings-win .tbar .dots { margin-left: auto; display: flex; gap: 6px; }
+  .settings-win .tbar .dots i { width: 11px; height: 11px; border-radius: 50%; background: #e0e2e8; }
+  .settings-win .body { padding: 20px 22px; }
+  .settings-win .grp { font-size: 13px; font-weight: 700; color: var(--ink-muted); margin-bottom: 12px; }
+  .swatches { display: flex; gap: 12px; margin-bottom: 18px; }
+  .sw { width: 46px; height: 46px; border-radius: 50%; position: relative; }
+  .sw.on::after { content: "✓"; position: absolute; inset: 0; display: grid; place-items: center; color: #fff; font-size: 17px; font-weight: 800; text-shadow: 0 1px 3px rgba(0,0,0,.3); }
+  .sw.pick { background: conic-gradient(from 210deg, #e5484d, #f0a030, #3fb950, #1793d1, #6d5bd0, #e5484d); display: grid; place-items: center; }
+  .sw.pick .in { width: 30px; height: 30px; border-radius: 50%; background: #fff; display: grid; place-items: center; font-size: 14px; }
+  .toggle-row { display: flex; align-items: center; gap: 12px; font-size: 14px; color: var(--ink); padding: 10px 0; }
+  .toggle { margin-left: auto; width: 46px; height: 26px; border-radius: 999px; background: #d5d8de; position: relative; }
+  .toggle.on { background: #1f9d55; }
+  .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .toggle.on::after { left: 23px; }
+  .preview-strip { margin-top: 16px; border-radius: 12px; padding: 14px 16px; background: #f6f7f9; font-size: 12.5px; color: var(--ink-muted); line-height: 1.7; }
+
+  .btn { border: none; cursor: pointer; font-family: inherit; border-radius: 999px; font-size: 14px; font-weight: 650; padding: 8px 22px; display: inline-flex; align-items: center; gap: 7px; }
+  .btn.primary { background: var(--accent); color: #fff; box-shadow: 0 5px 14px color-mix(in srgb, var(--accent) 35%, transparent); }
+  .btn.dark { background: rgba(20,22,30,.82); color: #fff; }
+  .btn.ghost { background: #fff; color: var(--ink-muted); border: 1px solid var(--line); }
+  .btn.danger { background: #fff; color: #c9483f; border: 1px solid rgba(203,72,63,.4); }
+  .btn.sm { font-size: 12.5px; padding: 7px 18px; }
+  .btn.wide { min-width: 76px; justify-content: center; }
+
+  /* 分区标题 */
+  .sect-h { display: flex; align-items: baseline; gap: 10px; margin: 22px 0 13px; }
+  .sect-h .t { font-size: 17px; font-weight: 700; }
+  .sect-h .n { font-size: 12.5px; color: var(--ink-faint); }
+  .sect-h .more { margin-left: auto; font-size: 13px; color: var(--accent); font-weight: 600; }
+
+  /* 两列紧凑卡（玲珑式） */
+  .cards2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .card {
+    background: #fff; border: 1px solid var(--line); border-radius: 16px;
+    padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+  }
+  .card .ico { width: 54px; height: 54px; border-radius: 13px; flex: 0 0 54px; box-shadow: 0 3px 10px rgba(20,22,28,.1); }
+  .card .meta { flex: 1; min-width: 0; }
+  .card .nm { font-size: 15px; font-weight: 640; display: flex; align-items: center; gap: 7px; }
+  .card .ds { margin-top: 3px; font-size: 12.5px; color: var(--ink-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .act { flex: 0 0 auto; }
+  .card .rate { font-size: 11.5px; color: var(--ink-muted); margin-top: 3px; }
+  .card .rate .stars { color: #f0a030; }
+
+  /* Android APK 卡 */
+  .apkcard {
+    border: 2px dashed rgba(31,157,85,.45); border-radius: 16px;
+    background: rgba(31,157,85,.06); padding: 15px 20px;
+    display: flex; align-items: center; gap: 16px; margin-bottom: 4px;
+  }
+  .apkcard .ic { font-size: 26px; }
+  .apkcard .t { font-size: 15px; font-weight: 700; color: var(--c-android); }
+  .apkcard .s { margin-top: 3px; font-size: 12.5px; color: var(--ink-muted); }
+
+  /* ---------- 搜索双栏 ---------- */
+  .split2 { display: flex; gap: 18px; height: 100%; }
+  .res-list { width: 480px; flex: 0 0 480px; overflow: hidden; }
+  .res-list .h { font-size: 12.5px; color: var(--ink-faint); margin: 2px 0 10px; }
+  .res-item { display: flex; gap: 13px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 11px 14px; margin-bottom: 9px; }
+  .res-item.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .res-item .ico { width: 48px; height: 48px; border-radius: 12px; flex: 0 0 48px; }
+  .res-item .nm { font-size: 14.5px; font-weight: 620; display: flex; align-items: center; gap: 7px; }
+  .res-item .sb { font-size: 12px; color: var(--ink-faint); margin-top: 2px; }
+  .res-item .go { margin-left: auto; }
+
+  .detail-pane { flex: 1; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; display: flex; flex-direction: column; }
+  .dp-hero { padding: 28px 32px 24px; display: flex; gap: 22px; align-items: center; }
+  .dp-hero .ico { width: 100px; height: 100px; border-radius: 24px; box-shadow: 0 8px 22px rgba(20,22,28,.15); }
+  .dp-hero .nm { font-size: 25px; font-weight: 730; display: flex; align-items: center; gap: 11px; }
+  .dp-hero .sub2 { margin-top: 7px; font-size: 13.5px; color: var(--ink-muted); display: flex; gap: 9px; align-items: center; }
+  .dp-hero .acts { margin-left: auto; display: flex; gap: 11px; }
+  .dp-body { flex: 1; padding: 0 32px 30px; overflow: hidden; }
+  .shots { display: flex; gap: 12px; }
+  .shots .sh { width: 200px; height: 118px; border-radius: 12px; flex: 0 0 200px; box-shadow: 0 5px 16px rgba(20,22,28,.13); }
+  .dp-body .desc { margin-top: 16px; font-size: 13.5px; color: var(--ink-muted); line-height: 1.75; }
+  .kv { margin-top: 16px; font-size: 13px; }
+  .kv .r { display: flex; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .kv .r:last-child { border: none; }
+  .kv .k { width: 140px; color: var(--ink-faint); }
+  .kv .v { font-weight: 540; }
+
+  /* ---------- 已装 ---------- */
+  .inst-item { display: flex; align-items: center; gap: 16px; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 12px 18px; margin-bottom: 9px; }
+  .inst-item .ico { width: 52px; height: 52px; border-radius: 13px; flex: 0 0 52px; }
+  .inst-item .meta { flex: 1; min-width: 0; }
+  .inst-item .nm { font-size: 15.5px; font-weight: 640; display: flex; align-items: center; gap: 8px; }
+  .inst-item .sb { margin-top: 3px; font-size: 12.5px; color: var(--ink-faint); }
+  .inst-item .acts { display: flex; gap: 9px; align-items: center; }
+  .upd-flag { font-size: 12px; color: var(--accent); font-weight: 650; background: var(--accent-soft); border-radius: 999px; padding: 2px 10px; }
+  .fold { display: flex; align-items: center; gap: 11px; background: #f1f2f5; border: 1px dashed #d8dbe1; border-radius: 14px; padding: 12px 18px; margin-bottom: 9px; font-size: 13.5px; color: var(--ink-muted); font-weight: 560; }
+  .fold .chev { margin-left: auto; color: var(--ink-faint); font-size: 12px; }
+
+  /* ---------- 对话框 ---------- */
+  .scrim { position: absolute; inset: 0; z-index: 60; background: rgba(18,18,26,.42); backdrop-filter: blur(6px); display: grid; place-items: center; }
+  .dialog { width: 760px; background: #fff; border-radius: 24px; overflow: hidden; box-shadow: 0 40px 110px rgba(10,12,20,.42); }
+  .dialog .hd { padding: 28px 34px 0; }
+  .dialog .hd .t { font-size: 22px; font-weight: 730; }
+  .dialog .bd { padding: 18px 34px 24px; }
+  .dialog .appline { display: flex; align-items: center; gap: 16px; background: #f6f7f9; border-radius: 14px; padding: 13px 18px; }
+  .dialog .appline .ico { width: 52px; height: 52px; border-radius: 13px; }
+  .dialog .appline .nm { font-size: 16.5px; font-weight: 660; display: flex; gap: 8px; align-items: center; }
+  .dialog .appline .sb { font-size: 12.5px; color: var(--ink-faint); margin-top: 2px; }
+  .dialog .rows { margin-top: 14px; font-size: 13.5px; }
+  .dialog .rows .r { display: flex; padding: 7px 0; border-bottom: 1px solid var(--line); }
+  .dialog .rows .r:last-child { border: none; }
+  .dialog .rows .r .k { width: 180px; color: var(--ink-faint); }
+  .dialog .rows .r .v { font-weight: 540; }
+  .polkit-note { margin-top: 16px; display: flex; gap: 12px; align-items: flex-start; background: rgba(217,119,6,.1); border: 1px solid rgba(217,119,6,.35); border-radius: 13px; padding: 13px 16px; font-size: 13px; color: #8a5a10; line-height: 1.65; }
+  .polkit-note .ic { font-size: 18px; }
+  .dialog .ft { display: flex; gap: 12px; justify-content: flex-end; padding: 20px 34px 28px; border-top: 1px solid var(--line); }
+
+  .anno { position: absolute; z-index: 70; pointer-events: none; font-size: 13px; color: #4a4458; line-height: 1.5; background: rgba(255,255,255,.94); border: 1px solid var(--accent-line); border-radius: 10px; padding: 8px 12px; max-width: 260px; box-shadow: 0 6px 20px rgba(20,22,28,.1); }
+  .anno b { color: #1c1c1f; font-weight: 620; }
+  .anno::before { content: ""; position: absolute; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 4px rgba(109,91,208,.25); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13.5px; }
+  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #e4e6ec; vertical-align: top; line-height: 1.65; }
+  th { color: #7a7f8d; font-weight: 560; font-size: 12.5px; }
+  td:first-child { color: #23242a; font-weight: 560; white-space: nowrap; }
+  td { color: #5a5f6d; }
+  .edge { margin-top: 66px; } .edge h2 { font-size: 22px; font-weight: 650; }
+  .foot { margin-top: 60px; padding-top: 22px; border-top: 1px solid #e4e6ec; color: #8a8f9c; font-size: 12.5px; line-height: 1.8; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <h1>Denial 应用商店 denial_appstore — 设计稿 v3</h1>
+  <p class="sub">
+    按玲珑商店社区版实际截图重调：<b>搜索框移到左栏顶部</b>、导航改为<b>内容分类</b>（推荐/全部/排行/更新 + 办公/系统/开发/娱乐）、
+    内容改为<b>单张 banner 轮播</b>与<b>两列紧凑卡</b>，"已装/设置"收到底部。保留我们特有的多后端设计：
+    来源徽标、双栏搜索、polkit 预告。规范见 <code>docs/APPSTORE.md</code>。
+  </p>
+  <div class="ref">
+    <span class="chip">对齐 <b>玲珑截图</b>：左栏搜索 / 分类导航 / banner 轮播 / 两列卡 + pill 按钮</span>
+    <span class="chip">保留 <b>Play 平板</b>：双栏搜索（玲珑没有）</span>
+    <span class="chip">保留 v1/v2：来源徽标 / Console 折叠 / polkit 预告</span>
+  </div>
+
+  <!-- ============ 画板 1：首页（推荐） ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">推荐</span><span class="t">左栏（品牌+搜索+分类） + banner 轮播 + 两列卡</span><span class="n">横屏 · 1707×1067</span></div>
+    <div class="device land">
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+      <div class="shell">
+        <!-- 左栏 -->
+        <div class="rail">
+          <div class="brand">
+            <div class="logo">D</div>
+            <div class="nm">应用商店<span class="s">denial_appstore</span></div>
+          </div>
+          <div class="search"><span class="mag">⌕</span><span>影院</span></div>
+          <div class="nav">
+            <div class="it on"><span class="ic">♥</span>推荐</div>
+            <div class="it"><span class="ic">▦</span>全部</div>
+            <div class="it"><span class="ic">▲</span>排行</div>
+            <div class="it"><span class="ic">↻</span>更新<span class="bdg">16</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="nav">
+            <div class="it"><span class="ic">▤</span>办公</div>
+            <div class="it"><span class="ic">▢</span>系统</div>
+            <div class="it"><span class="ic">⌨</span>开发</div>
+            <div class="it"><span class="ic">☺</span>娱乐</div>
+          </div>
+          <div class="spacer" style="flex:1;"></div>
+          <div class="sep"></div>
+          <div class="nav bottom">
+            <div class="it"><span class="ic">▣</span>已装<span class="bdg">68</span></div>
+            <div class="it"><span class="ic">⚙</span>设置</div>
+          </div>
+        </div>
+
+        <!-- 内容 -->
+        <div class="main">
+          <div class="content">
+            <!-- banner 轮播 -->
+            <div class="banner">
+              <div class="art" style="background:linear-gradient(150deg,#2a2136,#4a3560 55%,#7a68d8);"></div>
+              <div class="veil"></div>
+              <div class="ico" style="background:linear-gradient(160deg,#f4f1ea,#e7e0d2);"></div>
+              <div class="nav-arrow l">‹</div>
+              <div class="nav-arrow r">›</div>
+              <div class="info">
+                <div class="nm">微信读书 <span class="src android">android</span></div>
+                <div class="ds">编辑推荐 · 与桌面应用统一管理 · 昨天通过 APK 安装</div>
+                <div class="row">
+                  <button class="btn dark">查看详情 →</button>
+                  <button class="btn dark" style="background:rgba(255,255,255,.2);">打开</button>
+                </div>
+              </div>
+              <div class="dots-nav"><i></i><i></i><i class="on"></i><i></i><i></i></div>
+            </div>
+
+            <!-- Android 安装卡 -->
+            <div class="apkcard">
+              <div class="ic">📦</div>
+              <div>
+                <div class="t">安装 Android 应用</div>
+                <div class="s">拖入 APK 文件即可安装到 Droidloom · Android 侧没有在线商店</div>
+              </div>
+              <button class="btn ghost sm" style="margin-left:auto;">选择文件</button>
+            </div>
+
+            <!-- 两列推荐卡 -->
+            <div class="sect-h"><span class="t">为你推荐</span><span class="n">pacman + Android</span><span class="more">更多 →</span></div>
+            <div class="cards2">
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#2a2136,#1b1626);"></div>
+                <div class="meta">
+                  <div class="nm">网易云音乐 <span class="src aur">aur</span></div>
+                  <div class="ds">音乐播放与管理</div>
+                  <div class="rate"><span class="stars">★★★★</span> 4.5 · 96 MB</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#c9aeea,#9b6fd4);"></div>
+                <div class="meta">
+                  <div class="nm">krita <span class="src arch">extra</span></div>
+                  <div class="ds">专业数字绘画</div>
+                  <div class="rate"><span class="stars">★★★★★</span> 4.8 · 128 MB</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#7cc4ff,#3f8fe0);"></div>
+                <div class="meta">
+                  <div class="nm">复逝 <span class="src android">android</span></div>
+                  <div class="ds">语言学习工具 · 已安装</div>
+                  <div class="rate"><span class="stars">★★★★</span> 4.6 · 256 MB</div>
+                </div>
+                <div class="act"><button class="btn ghost sm wide">已装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#ffb59b,#ff8a65);"></div>
+                <div class="meta">
+                  <div class="nm">Firefox <span class="src arch">extra</span></div>
+                  <div class="ds">网页浏览器 · 可更新</div>
+                  <div class="rate"><span class="stars">★★★★★</span> 4.7 · 218 MB</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">更新</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#d8f0e4,#8fd4b2);"></div>
+                <div class="meta">
+                  <div class="nm">Audacity <span class="src arch">extra</span></div>
+                  <div class="ds">音频录制与编辑</div>
+                  <div class="rate"><span class="stars">★★★★</span> 4.6 · 78 MB</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#eef0c9,#d6dd9c);"></div>
+                <div class="meta">
+                  <div class="nm">MuseScore <span class="src arch">extra</span></div>
+                  <div class="ds">乐谱编辑与播放</div>
+                  <div class="rate"><span class="stars">★★★★★</span> 4.7 · 156 MB</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      布局对齐截图：<b>搜索框在左栏顶部</b>（横跨左栏）；导航分三组——内容分类（推荐/全部/排行/更新）、
+      主题分类（办公/系统/开发/娱乐）、底部管理（已装/设置）。banner 是<b>单卡轮播</b>（左右箭头 + 底部指示点），
+      比 v2 的双大卡更聚焦。卡片回到<b>两列紧凑 + 右侧 pill 按钮</b>（安装/更新/已装三态），信息密度贴近截图。
+    </p>
+  </div>
+
+  <!-- ============ 画板 2：搜索双栏 ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">搜索</span><span class="t">双栏：左结果列表 + 右实时详情</span><span class="n">横屏 · Play 平板式（玲珑没有）</span></div>
+    <div class="device land">
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+      <div class="shell">
+        <div class="rail">
+          <div class="brand"><div class="logo">D</div><div class="nm">应用商店<span class="s">denial_appstore</span></div></div>
+          <div class="search" style="border-color:var(--accent); background:#fff;"><span class="mag">⌕</span><span style="color:var(--ink);">krita</span></div>
+          <div class="nav">
+            <div class="it"><span class="ic">♥</span>推荐</div>
+            <div class="it on"><span class="ic">▦</span>全部</div>
+            <div class="it"><span class="ic">▲</span>排行</div>
+            <div class="it"><span class="ic">↻</span>更新<span class="bdg">16</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="nav">
+            <div class="it"><span class="ic">▤</span>办公</div>
+            <div class="it"><span class="ic">▢</span>系统</div>
+            <div class="it"><span class="ic">⌨</span>开发</div>
+            <div class="it"><span class="ic">☺</span>娱乐</div>
+          </div>
+          <div class="spacer" style="flex:1;"></div>
+          <div class="sep"></div>
+          <div class="nav bottom">
+            <div class="it"><span class="ic">▣</span>已装<span class="bdg">68</span></div>
+            <div class="it"><span class="ic">⚙</span>设置</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="content" style="padding-top:20px;">
+            <div class="split2">
+              <div class="res-list">
+                <div class="h">pacman · 2 个结果</div>
+                <div class="res-item sel">
+                  <div class="ico" style="background:linear-gradient(160deg,#c9aeea,#9b6fd4);"></div>
+                  <div><div class="nm">krita <span class="src arch">extra</span></div><div class="sb">6.0.3-1 · 专业数字绘画</div></div>
+                  <button class="btn primary sm go">安装</button>
+                </div>
+                <div class="res-item">
+                  <div class="ico" style="background:linear-gradient(160deg,#e6d6f5,#c9aeea);"></div>
+                  <div><div class="nm">krita-plugin-gmic <span class="src arch">extra</span></div><div class="sb">1.9.10-1 · G'MIC 插件</div></div>
+                  <button class="btn ghost sm go">安装</button>
+                </div>
+                <div class="h" style="margin-top:16px;">本地 AUR 仓库 · 1 个结果</div>
+                <div class="res-item">
+                  <div class="ico" style="background:linear-gradient(160deg,#f0d9b5,#d9a85c);"></div>
+                  <div><div class="nm">krita-mycustombuild <span class="src aur">aur</span></div><div class="sb">6.0.1-2 · 社区预编译</div></div>
+                  <button class="btn ghost sm go">安装</button>
+                </div>
+                <div class="h" style="margin-top:16px;">Android · 无在线仓库</div>
+                <div class="res-item" style="border-style:dashed;">
+                  <div class="ico" style="background:rgba(31,157,85,.12); display:grid; place-items:center; font-size:22px;">📦</div>
+                  <div><div class="nm" style="color:var(--c-android);">安装 APK</div><div class="sb">拖入或选择本地 APK 文件</div></div>
+                </div>
+              </div>
+              <div class="detail-pane">
+                <div class="dp-hero">
+                  <div class="ico" style="background:linear-gradient(160deg,#c9aeea,#9b6fd4);"></div>
+                  <div>
+                    <div class="nm">krita <span class="src arch">extra</span></div>
+                    <div class="sub2"><span>6.0.3-1</span> · <span>KDE 社区</span> · <span>★★★★★ 4.8</span></div>
+                  </div>
+                  <div class="acts"><button class="btn ghost">详情</button><button class="btn primary">安装</button></div>
+                </div>
+                <div class="dp-body">
+                  <div class="shots">
+                    <div class="sh" style="background:linear-gradient(150deg,#d9c9f2,#b39ae0);"></div>
+                    <div class="sh" style="background:linear-gradient(150deg,#c9d9f2,#9ab3e0);"></div>
+                    <div class="sh" style="background:linear-gradient(150deg,#f2d9c9,#e0b39a);"></div>
+                  </div>
+                  <div class="desc">Krita 是一款自由开源的位图图像编辑器，面向概念美术、插画、漫画、纹理与 matte painting 工作流，支持数位板与完整色彩管理。</div>
+                  <div class="kv">
+                    <div class="r"><span class="k">大小</span><span class="v">128 MB</span></div>
+                    <div class="r"><span class="k">版本</span><span class="v">6.0.3-1</span></div>
+                    <div class="r"><span class="k">架构</span><span class="v">aarch64</span></div>
+                    <div class="r"><span class="k">权限</span><span class="v">pacman 安装需提权（见确认框）</span></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      双栏搜索是<b>我们超越玲珑的一处</b>（玲珑搜索结果页仍是单栏跳详情）：点左侧结果右侧直接预览，
+      比较高枕多个候选不用来回跳。pacman 安装走 polkit（确认框见画板 6）；Android 源在搜索里固定给"安装 APK"入口。
+    </p>
+  </div>
+
+  <!-- ============ 画板 3：分类（全部/办公） ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">分类</span><span class="t">全部/主题分类：两列卡流 + 顶部分类胶囊</span><span class="n">横屏 · 玲珑式紧凑列表</span></div>
+    <div class="device land">
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+      <div class="shell">
+        <div class="rail">
+          <div class="brand"><div class="logo">D</div><div class="nm">应用商店<span class="s">denial_appstore</span></div></div>
+          <div class="search"><span class="mag">⌕</span><span>搜索应用或包…</span></div>
+          <div class="nav">
+            <div class="it"><span class="ic">♥</span>推荐</div>
+            <div class="it"><span class="ic">▦</span>全部</div>
+            <div class="it"><span class="ic">▲</span>排行</div>
+            <div class="it"><span class="ic">↻</span>更新<span class="bdg">16</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="nav">
+            <div class="it on"><span class="ic">▤</span>办公</div>
+            <div class="it"><span class="ic">▢</span>系统</div>
+            <div class="it"><span class="ic">⌨</span>开发</div>
+            <div class="it"><span class="ic">☺</span>娱乐</div>
+          </div>
+          <div class="spacer" style="flex:1;"></div>
+          <div class="sep"></div>
+          <div class="nav bottom">
+            <div class="it"><span class="ic">▣</span>已装<span class="bdg">68</span></div>
+            <div class="it"><span class="ic">⚙</span>设置</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="content">
+            <div style="display:flex; gap:10px; margin-bottom:18px;">
+              <span style="font-size:13px; font-weight:650; color:#fff; background:var(--accent); border-radius:999px; padding:6px 16px;">办公</span>
+              <span style="font-size:13px; color:var(--ink-muted); background:#fff; border:1px solid var(--line); border-radius:999px; padding:6px 16px;">系统</span>
+              <span style="font-size:13px; color:var(--ink-muted); background:#fff; border:1px solid var(--line); border-radius:999px; padding:6px 16px;">开发</span>
+              <span style="font-size:13px; color:var(--ink-muted); background:#fff; border:1px solid var(--line); border-radius:999px; padding:6px 16px;">娱乐</span>
+              <span style="font-size:13px; color:var(--ink-faint); margin-left:auto; align-self:center;">24 个应用</span>
+            </div>
+            <div class="cards2">
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#3a6ea5,#2b4f7a);"></div>
+                <div class="meta">
+                  <div class="nm">LibreOffice <span class="src arch">extra</span></div>
+                  <div class="ds">办公套件 · 文档/表格/演示</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#c9483f,#a03530);"></div>
+                <div class="meta">
+                  <div class="nm">WPS Office <span class="src aur">aur</span></div>
+                  <div class="ds">国产办公 · AUR 预编译仓库</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#2a8c5f,#1d6b47);"></div>
+                <div class="meta">
+                  <div class="nm">OnlyOffice <span class="src arch">extra</span></div>
+                  <div class="ds">协作文档 · 高度兼容 MS 格式</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#8a8f9c,#6b7080);"></div>
+                <div class="meta">
+                  <div class="nm">Xournal++ <span class="src arch">extra</span></div>
+                  <div class="ds">手写笔记 · PDF 批注</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#d9a85c,#b3863d);"></div>
+                <div class="meta">
+                  <div class="nm">Zotero <span class="src arch">extra</span></div>
+                  <div class="ds">文献管理</div>
+                </div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#5b8def,#3f6bc4);"></div>
+                <div class="meta">
+                  <div class="nm"> Drawboard 思维导图 <span class="src android">android</span></div>
+                  <div class="ds">已安装 · Android 应用</div>
+                </div>
+                <div class="act"><button class="btn ghost sm wide">已装</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      分类页用<b>顶部胶囊切换 + 两列卡流</b>（贴近截图的紧凑密度）。pacman 与 Android 结果混排，
+      仅徽标区分。WPS 这类 AUR 预编译包和官方库一样一键安装。
+    </p>
+  </div>
+
+  <!-- ============ 画板 4：已装 ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">已装</span><span class="t">我的应用：统一管理 + 更新提示 + Console 折叠</span><span class="n">横屏 · 左栏底部入口</span></div>
+    <div class="device land">
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+      <div class="shell">
+        <div class="rail">
+          <div class="brand"><div class="logo">D</div><div class="nm">应用商店<span class="s">denial_appstore</span></div></div>
+          <div class="search"><span class="mag">⌕</span><span>搜索应用或包…</span></div>
+          <div class="nav">
+            <div class="it"><span class="ic">♥</span>推荐</div>
+            <div class="it"><span class="ic">▦</span>全部</div>
+            <div class="it"><span class="ic">▲</span>排行</div>
+            <div class="it"><span class="ic">↻</span>更新<span class="bdg">16</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="nav">
+            <div class="it"><span class="ic">▤</span>办公</div>
+            <div class="it"><span class="ic">▢</span>系统</div>
+            <div class="it"><span class="ic">⌨</span>开发</div>
+            <div class="it"><span class="ic">☺</span>娱乐</div>
+          </div>
+          <div class="spacer" style="flex:1;"></div>
+          <div class="sep"></div>
+          <div class="nav bottom">
+            <div class="it on"><span class="ic">▣</span>已装<span class="bdg">68</span></div>
+            <div class="it"><span class="ic">⚙</span>设置</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="content">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+              <span style="font-size:19px; font-weight:730;">已装</span>
+              <span style="font-size:13px; color:var(--ink-faint);">68 项</span>
+              <div style="margin-left:auto; display:flex; gap:9px;">
+                <button class="btn ghost sm">来源 ▾</button>
+                <button class="btn ghost sm">排序 ▾</button>
+              </div>
+            </div>
+
+            <div class="sect-h" style="margin-top:0;"><span class="t">Android</span><span class="n">3 个 · droidloom</span></div>
+            <div class="inst-item">
+              <div class="ico" style="background:linear-gradient(160deg,#f4f1ea,#e7e0d2);"></div>
+              <div class="meta"><div class="nm">微信读书 <span class="src android">android</span></div><div class="sb">10.2.2 · 131 MB · 昨天安装</div></div>
+              <div class="acts"><button class="btn ghost sm">打开</button><button class="btn ghost sm">详情</button></div>
+            </div>
+            <div class="inst-item">
+              <div class="ico" style="background:linear-gradient(160deg,#7cc4ff,#3f8fe0);"></div>
+              <div class="meta"><div class="nm">复逝 <span class="src android">android</span></div><div class="sb">3.3.0 · 256 MB · 昨天安装</div></div>
+              <div class="acts"><button class="btn ghost sm">打开</button><button class="btn ghost sm">详情</button></div>
+            </div>
+            <div class="inst-item">
+              <div class="ico" style="background:linear-gradient(160deg,#2a2136,#1b1626);"></div>
+              <div class="meta"><div class="nm">网易云音乐 <span class="src android">android</span></div><div class="sb">9.1 · 148 MB</div></div>
+              <div class="acts"><button class="btn ghost sm">打开</button><button class="btn ghost sm">详情</button></div>
+            </div>
+
+            <div class="sect-h"><span class="t">pacman 应用</span><span class="n">24 个</span></div>
+            <div class="inst-item">
+              <div class="ico" style="background:linear-gradient(160deg,#ffb59b,#ff8a65);"></div>
+              <div class="meta"><div class="nm">Firefox <span class="src arch">extra</span></div><div class="sb">145.0-1 · 218 MB</div></div>
+              <div class="acts"><span class="upd-flag">可更新 145.0.2</span><button class="btn ghost sm">详情</button></div>
+            </div>
+            <div class="inst-item">
+              <div class="ico" style="background:linear-gradient(160deg,#d8f0e4,#8fd4b2);"></div>
+              <div class="meta"><div class="nm">GNOME 终端 <span class="src arch">extra</span></div><div class="sb">3.54-1 · 12 MB</div></div>
+              <div class="acts"><button class="btn ghost sm">详情</button></div>
+            </div>
+            <div class="inst-item">
+              <div class="ico" style="background:linear-gradient(160deg,#c9aeea,#9b6fd4);"></div>
+              <div class="meta"><div class="nm">Krita <span class="src arch">extra</span></div><div class="sb">6.0.3-1 · 128 MB</div></div>
+              <div class="acts"><button class="btn ghost sm">详情</button></div>
+            </div>
+            <div class="fold"><span>▸</span><span>命令行工具</span><span style="margin-left:2px;">41</span><span class="chev">无桌面入口的 pacman 包 · 点击展开</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      launcher 长按<b>不放管理动作</b>——所有安装/卸载/更新收拢到这里（左栏底部"已装"进入）。
+      行内显示"可更新"徽标；详情页卸载预告提权并列出受影响桌面入口。
+      settings 里只保留一个本地快捷卸载入口。
+    </p>
+  </div>
+
+  <!-- ============ 画板 5：更新 ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">更新</span><span class="t">按来源分组 + 批量操作 + 提权预告</span><span class="n">横屏 · rail 上带红色 badge</span></div>
+    <div class="device land">
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+      <div class="shell">
+        <div class="rail">
+          <div class="brand"><div class="logo">D</div><div class="nm">应用商店<span class="s">denial_appstore</span></div></div>
+          <div class="search"><span class="mag">⌕</span><span>搜索…</span></div>
+          <div class="nav">
+            <div class="it"><span class="ic">♥</span>推荐</div>
+            <div class="it"><span class="ic">▦</span>全部</div>
+            <div class="it"><span class="ic">▲</span>排行</div>
+            <div class="it on"><span class="ic">↻</span>更新<span class="bdg">16</span></div>
+          </div>
+          <div class="sep"></div>
+          <div class="nav">
+            <div class="it"><span class="ic">▤</span>办公</div>
+            <div class="it"><span class="ic">▢</span>系统</div>
+            <div class="it"><span class="ic">⌨</span>开发</div>
+            <div class="it"><span class="ic">☺</span>娱乐</div>
+          </div>
+          <div class="spacer" style="flex:1;"></div>
+          <div class="sep"></div>
+          <div class="nav bottom">
+            <div class="it"><span class="ic">▣</span>已装<span class="bdg">68</span></div>
+            <div class="it"><span class="ic">⚙</span>设置</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="content">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px;">
+              <span style="font-size:19px; font-weight:730;">更新</span>
+              <span style="font-size:13px; color:var(--ink-faint);">5 项可更新</span>
+              <button class="btn ghost sm" style="margin-left:auto;">全部刷新</button>
+            </div>
+
+            <div class="sect-h" style="margin-top:0;">
+              <span class="t">pacman</span>
+              <span class="n" style="color:#8a5a10;font-weight:600;">3 项 · 需要管理员权限</span>
+              <button class="btn primary sm" style="margin-left:auto;">全部更新 (3)</button>
+            </div>
+            <div class="inst-item">
+              <div class="ico" style="background:linear-gradient(160deg,#ffb59b,#ff8a65);"></div>
+              <div class="meta"><div class="nm">Firefox <span class="src arch">extra</span></div><div class="sb">145.0-1 → <b style="color:var(--accent);">145.0.2-1</b> · 218 MB</div></div>
+              <div class="acts"><button class="btn primary sm">更新</button></div>
+            </div>
+            <div class="inst-item">
+              <div class="ico" style="background:linear-gradient(160deg,#d8f0e4,#8fd4b2);"></div>
+              <div class="meta"><div class="nm">GNOME 终端 <span class="src arch">extra</span></div><div class="sb">3.54-1 → <b style="color:var(--accent);">3.54.2-1</b> · 12 MB</div></div>
+              <div class="acts"><button class="btn primary sm">更新</button></div>
+            </div>
+            <div class="inst-item">
+              <div class="ico" style="background:linear-gradient(160deg,#c9aeea,#9b6fd4);"></div>
+              <div class="meta"><div class="nm">Krita <span class="src arch">extra</span></div><div class="sb">6.0.2-1 → <b style="color:var(--accent);">6.0.3-1</b> · 128 MB</div></div>
+              <div class="acts"><button class="btn primary sm">更新</button></div>
+            </div>
+
+            <div class="sect-h">
+              <span class="t">Android</span>
+              <span class="n" style="color:var(--ink-faint);font-weight:600;">无在线更新 · 覆盖安装 APK</span>
+            </div>
+            <div class="inst-item" style="opacity:.78;">
+              <div class="ico" style="background:linear-gradient(160deg,#f4f1ea,#e7e0d2);"></div>
+              <div class="meta"><div class="nm">微信读书 <span class="src android">android</span></div><div class="sb">10.2.2 · 重新安装 APK 即可更新</div></div>
+              <div class="acts"><button class="btn ghost sm">选 APK</button></div>
+            </div>
+            <div class="inst-item" style="opacity:.78;">
+              <div class="ico" style="background:linear-gradient(160deg,#7cc4ff,#3f8fe0);"></div>
+              <div class="meta"><div class="nm">复逝 <span class="src android">android</span></div><div class="sb">3.3.0 · 重新安装 APK 即可更新</div></div>
+              <div class="acts"><button class="btn ghost sm">选 APK</button></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      rail 的"更新"项带<b>红色 badge</b>（对齐截图的 16）。分组标题写明是否需提权；
+      <b>pacman"全部更新"只弹一次认证</b>。Android 不做假版本比对，只给覆盖安装入口。
+    </p>
+  </div>
+
+  <!-- ============ 画板 6：安装确认 ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">确认</span><span class="t">pacman 安装确认：提权预告在点击之前</span><span class="n">横屏 · polkit</span></div>
+    <div class="device land">
+      <div class="shell" style="filter:saturate(.92);">
+        <div class="rail">
+          <div class="brand"><div class="logo">D</div><div class="nm">应用商店<span class="s">denial_appstore</span></div></div>
+          <div class="search"><span class="mag">⌕</span><span>搜索应用或包…</span></div>
+          <div class="nav">
+            <div class="it on"><span class="ic">♥</span>推荐</div>
+            <div class="it"><span class="ic">▦</span>全部</div>
+            <div class="it"><span class="ic">▲</span>排行</div>
+            <div class="it"><span class="ic">↻</span>更新<span class="bdg">16</span></div>
+          </div>
+          <div class="spacer" style="flex:1;"></div>
+          <div class="sep"></div>
+          <div class="nav bottom">
+            <div class="it"><span class="ic">▣</span>已装<span class="bdg">68</span></div>
+            <div class="it"><span class="ic">⚙</span>设置</div>
+          </div>
+        </div>
+        <div class="main">
+          <div class="content">
+            <div class="cards2">
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#ffb59b,#ff8a65);"></div>
+                <div class="meta"><div class="nm">Firefox <span class="src arch">extra</span></div><div class="ds">网页浏览器</div></div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#2a2136,#1b1626);"></div>
+                <div class="meta"><div class="nm">网易云音乐 <span class="src aur">aur</span></div><div class="ds">音乐播放</div></div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#7cc4ff,#3f8fe0);"></div>
+                <div class="meta"><div class="nm">复逝 <span class="src android">android</span></div><div class="ds">语言学习</div></div>
+                <div class="act"><button class="btn ghost sm wide">已装</button></div>
+              </div>
+              <div class="card">
+                <div class="ico" style="background:linear-gradient(160deg,#c9aeea,#9b6fd4);"></div>
+                <div class="meta"><div class="nm">krita <span class="src arch">extra</span></div><div class="ds">专业数字绘画</div></div>
+                <div class="act"><button class="btn primary sm wide">安装</button></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="scrim">
+        <div class="dialog">
+          <div class="hd"><div class="t">安装 Firefox？</div></div>
+          <div class="bd">
+            <div class="appline">
+              <div class="ico" style="background:linear-gradient(160deg,#ffb59b,#ff8a65);"></div>
+              <div><div class="nm">firefox <span class="src arch">extra</span></div><div class="sb">145.0.2-1 · 218 MB · 来自 extra 官方库</div></div>
+            </div>
+            <div class="rows">
+              <div class="r"><span class="k">将安装</span><span class="v">firefox 145.0.2-1</span></div>
+              <div class="r"><span class="k">额外依赖</span><span class="v">无（27 项依赖已满足）</span></div>
+              <div class="r"><span class="k">占用空间</span><span class="v">218 MB</span></div>
+            </div>
+            <div class="polkit-note">
+              <span class="ic">⚠</span>
+              <span><b>此操作需要管理员权限。</b>点击"安装"后将弹出系统认证窗口。pacman 安装会修改系统目录，需要提权；Android 应用安装（adb）与 flatpak 安装不需要。</span>
+            </div>
+          </div>
+          <div class="ft">
+            <button class="btn ghost">取消</button>
+            <button class="btn primary">安装</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      <b>Android 安装的确认框没有提权条</b>，只有包名/体积/签名提示——这是 pacman 与 Android 后端的核心差异，
+      UI 必须在用户点击前就说清楚。
+    </p>
+  </div>
+
+  <!-- ============ 画板 7：全局色调 ============ -->
+  <div class="board">
+    <div class="cap"><span class="tag">全局色调</span><span class="t">settings 选色 → 商店 UI 自动跟随</span><span class="n">横屏 · Denial 全局主题注入</span></div>
+    <div class="device land">
+      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
+      <div style="position:absolute; inset:var(--status) 0 0 0; padding:26px 32px; display:flex;">
+        <div class="theme-demo" style="flex:1;">
+          <!-- 左：settings 色调面板 -->
+          <div class="settings-win">
+            <div class="tbar"><span>⚙</span><span>设置 · 外观</span><span class="dots"><i></i><i></i><i></i></span></div>
+            <div class="body">
+              <div class="grp">全局色调</div>
+              <div class="swatches">
+                <div class="sw" style="background:#6d5bd0;"></div>
+                <div class="sw" style="background:#3b6ef5;"></div>
+                <div class="sw on" style="background:#e5484d;"></div>
+                <div class="sw" style="background:#f0a030;"></div>
+                <div class="sw" style="background:#1f9d55;"></div>
+                <div class="sw pick"><div class="in">🎨</div></div>
+              </div>
+              <div class="toggle-row"><span>从壁纸取色</span><span class="toggle on"></span></div>
+              <div class="toggle-row"><span>跟随系统深浅色</span><span class="toggle on"></span></div>
+              <div class="preview-strip">
+                预览：按钮、选中态、高亮、徽标背景等所有 accent 元素会立即换成所选色调；应用商店、分屏、键盘等所有 Denial 界面同步生效，无需重启。
+              </div>
+            </div>
+          </div>
+
+          <!-- 右：商店在该色调下的效果（红 accent） -->
+          <div style="flex:1; min-width:0; --accent:#e5484d; --accent-soft:rgba(229,72,77,.12); --accent-line:rgba(229,72,77,.5);">
+            <div class="shell" style="position:relative; inset:auto; padding-top:0; border-radius:18px; overflow:hidden; border:1px solid var(--line); box-shadow:0 16px 44px rgba(20,22,28,.12);">
+              <div class="rail" style="border-radius:18px 0 0 18px;">
+                <div class="brand"><div class="logo">D</div><div class="nm">应用商店<span class="s">denial_appstore</span></div></div>
+                <div class="search"><span class="mag">⌕</span><span>搜索…</span></div>
+                <div class="nav">
+                  <div class="it on"><span class="ic">♥</span>推荐</div>
+                  <div class="it"><span class="ic">▦</span>全部</div>
+                  <div class="it"><span class="ic">↻</span>更新<span class="bdg">16</span></div>
+                </div>
+                <div class="spacer" style="flex:1;"></div>
+                <div class="sep"></div>
+                <div class="nav bottom">
+                  <div class="it"><span class="ic">▣</span>已装<span class="bdg">68</span></div>
+                  <div class="it"><span class="ic">⚙</span>设置</div>
+                </div>
+              </div>
+              <div class="main">
+                <div class="content" style="padding:20px 24px;">
+                  <div class="banner" style="min-height:170px; margin-bottom:16px;">
+                    <div class="art" style="background:linear-gradient(150deg,#5c1f24,#8f2f33 55%,#c4483f);"></div>
+                    <div class="veil"></div>
+                    <div class="ico" style="width:96px; height:96px; border-radius:22px; right:60px; background:linear-gradient(160deg,#f4f1ea,#e7e0d2);"></div>
+                    <div class="info" style="left:28px; bottom:22px;">
+                      <div class="nm" style="font-size:22px;">微信读书 <span class="src android">android</span></div>
+                      <div class="ds" style="font-size:13px;">编辑推荐</div>
+                      <div class="row" style="margin-top:12px;"><button class="btn dark sm">查看详情 →</button></div>
+                    </div>
+                    <div class="dots-nav"><i></i><i class="on"></i><i></i></div>
+                  </div>
+                  <div class="cards2" style="grid-template-columns:1fr 1fr;">
+                    <div class="card">
+                      <div class="ico" style="background:linear-gradient(160deg,#c9aeea,#9b6fd4);"></div>
+                      <div class="meta"><div class="nm">krita <span class="src arch">extra</span></div><div class="ds">专业数字绘画</div></div>
+                      <div class="act"><button class="btn primary sm wide">安装</button></div>
+                    </div>
+                    <div class="card">
+                      <div class="ico" style="background:linear-gradient(160deg,#ffb59b,#ff8a65);"></div>
+                      <div class="meta"><div class="nm">Firefox <span class="src arch">extra</span></div><div class="ds">可更新 145.0.2</div></div>
+                      <div class="act"><button class="btn primary sm wide">更新</button></div>
+                    </div>
+                  </div>
+                  <div style="margin-top:14px; display:flex; gap:10px; align-items:center;">
+                    <span class="upd-flag">可更新</span>
+                    <span style="font-size:12.5px; color:var(--ink-faint);">← 徽标/高亮也跟随色调</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      <b>规则：商店内不出现任何硬编码主题色。</b>所有 accent 元素（按钮、rail 选中 pill、banner 按钮、
+      更新徽标、搜索聚焦边框）全部取自 Denial settings 的全局色调变量；用户在 settings 选色或开"从壁纸取色"后
+      立即生效。来源徽标三色（extra 蓝/aur 琥珀/android 绿）是<b>数据语义色，不随主题变</b>——
+      它们标识"软件来自哪里"，必须可区分。
+    </p>
+  </div>
+
+  <!-- ============ 边界表 ============ -->
+  <div class="edge">
+    <h2>边界与状态</h2>
+    <table>
+      <tr><th>场景</th><th>UI 行为</th></tr>
+      <tr><td>单个后端查询失败</td><td>该源区域显示"暂不可用"占位，其他源正常（adb 断了只影响 Android 区）</td></tr>
+      <tr><td>后端 CLI 不存在</td><td>该源整体隐藏（如未装 android-tools 时推荐页无 APK 卡）</td></tr>
+      <tr><td>pacman 依赖冲突</td><td>确认框展示冲突详情 + "查看完整输出"，不自动解决</td></tr>
+      <tr><td>APK 安装失败</td><td>解析原因：签名冲突 / ABI 不兼容（x86 包）/ 空间不足</td></tr>
+      <tr><td>卸载移除多个桌面入口</td><td>详情页"卸载影响"列出全部入口，确认框再列一次</td></tr>
+      <tr><td>提权被取消</td><td>反馈"未安装：认证被取消"，不静默重试</td></tr>
+      <tr><td>竖屏使用</td><td>rail 保持（玲珑截图即左栏结构，竖屏同样成立）</td></tr>
+      <tr><td>settings 卸载入口</td><td>settings 内仅本地快捷卸载（不搜仓库），完整管理来本插件</td></tr>
+    </table>
+  </div>
+
+  <div class="foot">
+    设计稿 v3 · Denial 应用商店 denial_appstore · 2026-11-11<br>
+    规范见 docs/APPSTORE.md · 与 SPLIT_SCREEN.md / split-screen-redesign.html / launcher-split-entry-redesign.html 同属 Denial 平板适配工程。<br>
+    v3 按玲珑商店社区版实机截图调整布局（左栏搜索 / 分类导航 / banner 轮播 / 两列紧凑卡）；保留双栏搜索、来源徽标、polkit 预告。<br>
+    主题：所有 accent 元素跟随 Denial settings 全局色调（画板 7），无硬编码品牌色；来源徽标三色为数据语义色，不随主题变化。
+  </div>
+
+</div>
+</body>
+</html>
