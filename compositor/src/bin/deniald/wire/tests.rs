@@ -958,6 +958,26 @@ fn keyboard_command(
     builder.finished_data().to_vec()
 }
 
+fn candidate_command(index: i32, page: i32) -> Vec<u8> {
+    let mut builder = FlatBufferBuilder::new();
+    let command = fb::KeyboardCandidatesCommand::create(
+        &mut builder,
+        &fb::KeyboardCandidatesCommandArgs { index, page },
+    );
+    let envelope = fb::Envelope::create(
+        &mut builder,
+        &fb::EnvelopeArgs {
+            protocol_version: PROTOCOL_VERSION,
+            sequence: 15,
+            payload_type: fb::Payload::KeyboardCandidatesCommand,
+            payload: Some(command.as_union_value()),
+            ..Default::default()
+        },
+    );
+    fb::finish_envelope_buffer(&mut builder, envelope);
+    builder.finished_data().to_vec()
+}
+
 fn notification_command(
     kind: fb::DesktopNotificationCommandKind,
     notification_id: u32,
@@ -1896,4 +1916,57 @@ fn text_prediction_encodes_suggestions() {
         .payload_as_text_prediction()
         .unwrap();
     assert_eq!(decoded.correction(), None);
+}
+
+#[test]
+fn a_candidate_command_picks_or_turns_the_page() {
+    let mut bridge = bridge();
+    bridge.handle(&candidate_command(3, 0)).unwrap();
+    bridge.handle(&candidate_command(-1, 1)).unwrap();
+    bridge.handle(&candidate_command(-1, -1)).unwrap();
+    assert_eq!(
+        bridge.drain_candidate_commands().collect::<Vec<_>>(),
+        vec![
+            KeyboardCandidateCommand::Pick(3),
+            KeyboardCandidateCommand::Page { forward: true },
+            KeyboardCandidateCommand::Page { forward: false },
+        ]
+    );
+
+    // A negative index without a direction is not a command, and a candidate
+    // outside one page is never shown.
+    assert!(matches!(
+        bridge.handle(&candidate_command(-1, 0)),
+        Err(WireError::Payload)
+    ));
+    assert!(matches!(
+        bridge.handle(&candidate_command(65, 0)),
+        Err(WireError::Count)
+    ));
+}
+
+#[test]
+fn the_shell_receives_the_input_method_panel() {
+    let mut bridge = bridge();
+    let composition = crate::wayland_frontend::Composition {
+        preedit: "ni hao".into(),
+        items: vec!["你好".into(), "拟好".into()],
+        highlighted: 1,
+        has_prev: false,
+        has_next: true,
+    };
+    let encoded = bridge
+        .encode_keyboard_candidates(&composition)
+        .unwrap()
+        .to_vec();
+    let envelope = fb::root_as_envelope(&encoded).unwrap();
+    assert_eq!(envelope.payload_type(), fb::Payload::KeyboardCandidates);
+    let panel = envelope.payload_as_keyboard_candidates().unwrap();
+    assert_eq!(panel.preedit(), Some("ni hao"));
+    let items = panel.items().unwrap();
+    assert_eq!(items.len(), 2);
+    assert_eq!(items.get(0), "你好");
+    assert_eq!(panel.highlighted(), 1);
+    assert!(!panel.has_prev());
+    assert!(panel.has_next());
 }

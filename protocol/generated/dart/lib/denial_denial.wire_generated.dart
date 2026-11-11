@@ -1172,21 +1172,23 @@ enum PayloadTypeId {
   ShellAction(7),
   CursorShape(8),
   KeyboardCommand(9),
-  CursorPosition(10),
-  DesktopNotificationEvent(11),
-  DesktopNotificationCommand(12),
-  SettingsRequest(13),
-  SettingsResponse(14),
-  TextInputState(15),
-  XEmbedTrayEvent(16),
-  XEmbedTrayCommand(17),
-  ThemeState(18),
-  CursorState(19),
-  PluginActionCatalog(20),
-  PluginActionInvocation(21),
-  PetRequest(22),
-  TextPredictionRequest(23),
-  TextPrediction(24);
+  KeyboardCandidates(10),
+  KeyboardCandidatesCommand(11),
+  CursorPosition(12),
+  DesktopNotificationEvent(13),
+  DesktopNotificationCommand(14),
+  SettingsRequest(15),
+  SettingsResponse(16),
+  TextInputState(17),
+  XEmbedTrayEvent(18),
+  XEmbedTrayCommand(19),
+  ThemeState(20),
+  CursorState(21),
+  PluginActionCatalog(22),
+  PluginActionInvocation(23),
+  PetRequest(24),
+  TextPredictionRequest(25),
+  TextPrediction(26);
 
   final int value;
   const PayloadTypeId(this.value);
@@ -1203,21 +1205,23 @@ enum PayloadTypeId {
       case 7: return PayloadTypeId.ShellAction;
       case 8: return PayloadTypeId.CursorShape;
       case 9: return PayloadTypeId.KeyboardCommand;
-      case 10: return PayloadTypeId.CursorPosition;
-      case 11: return PayloadTypeId.DesktopNotificationEvent;
-      case 12: return PayloadTypeId.DesktopNotificationCommand;
-      case 13: return PayloadTypeId.SettingsRequest;
-      case 14: return PayloadTypeId.SettingsResponse;
-      case 15: return PayloadTypeId.TextInputState;
-      case 16: return PayloadTypeId.XEmbedTrayEvent;
-      case 17: return PayloadTypeId.XEmbedTrayCommand;
-      case 18: return PayloadTypeId.ThemeState;
-      case 19: return PayloadTypeId.CursorState;
-      case 20: return PayloadTypeId.PluginActionCatalog;
-      case 21: return PayloadTypeId.PluginActionInvocation;
-      case 22: return PayloadTypeId.PetRequest;
-      case 23: return PayloadTypeId.TextPredictionRequest;
-      case 24: return PayloadTypeId.TextPrediction;
+      case 10: return PayloadTypeId.KeyboardCandidates;
+      case 11: return PayloadTypeId.KeyboardCandidatesCommand;
+      case 12: return PayloadTypeId.CursorPosition;
+      case 13: return PayloadTypeId.DesktopNotificationEvent;
+      case 14: return PayloadTypeId.DesktopNotificationCommand;
+      case 15: return PayloadTypeId.SettingsRequest;
+      case 16: return PayloadTypeId.SettingsResponse;
+      case 17: return PayloadTypeId.TextInputState;
+      case 18: return PayloadTypeId.XEmbedTrayEvent;
+      case 19: return PayloadTypeId.XEmbedTrayCommand;
+      case 20: return PayloadTypeId.ThemeState;
+      case 21: return PayloadTypeId.CursorState;
+      case 22: return PayloadTypeId.PluginActionCatalog;
+      case 23: return PayloadTypeId.PluginActionInvocation;
+      case 24: return PayloadTypeId.PetRequest;
+      case 25: return PayloadTypeId.TextPredictionRequest;
+      case 26: return PayloadTypeId.TextPrediction;
       default: throw StateError('Invalid value $value for bit flag enum');
     }
   }
@@ -1226,7 +1230,7 @@ enum PayloadTypeId {
       value == null ? null : PayloadTypeId.fromValue(value);
 
   static const int minValue = 0;
-  static const int maxValue = 24;
+  static const int maxValue = 26;
   static const fb.Reader<PayloadTypeId> reader = _PayloadTypeIdReader();
 }
 
@@ -4117,6 +4121,197 @@ class KeyboardCommandObjectBuilder extends fb.ObjectBuilder {
     fbBuilder.addUint32(5, _panelHeight);
     fbBuilder.addUint32(6, _panelDurationMs);
     fbBuilder.addOffset(7, replacedOffset);
+    return fbBuilder.endTable();
+  }
+
+  /// Convenience method to serialize to byte list.
+  @override
+  Uint8List toBytes([String? fileIdentifier]) {
+    final fbBuilder = fb.Builder(deduplicateTables: false);
+    fbBuilder.finish(finish(fbBuilder), fileIdentifier);
+    return fbBuilder.buffer;
+  }
+}
+class KeyboardCandidates {
+  KeyboardCandidates._(this._bc, this._bcOffset);
+  factory KeyboardCandidates(List<int> bytes) {
+    final rootRef = fb.BufferContext.fromBytes(bytes);
+    return reader.read(rootRef, 0);
+  }
+
+  static const fb.Reader<KeyboardCandidates> reader = _KeyboardCandidatesReader();
+
+  final fb.BufferContext _bc;
+  final int _bcOffset;
+
+  String? get preedit => const fb.StringReader().vTableGetNullable(_bc, _bcOffset, 4);
+  List<String>? get items => const fb.ListReader<String>(fb.StringReader()).vTableGetNullable(_bc, _bcOffset, 6);
+  int get highlighted => const fb.Int32Reader().vTableGet(_bc, _bcOffset, 8, 0);
+  bool get hasPrev => const fb.BoolReader().vTableGet(_bc, _bcOffset, 10, false);
+  bool get hasNext => const fb.BoolReader().vTableGet(_bc, _bcOffset, 12, false);
+
+  @override
+  String toString() {
+    return 'KeyboardCandidates{preedit: ${preedit}, items: ${items}, highlighted: ${highlighted}, hasPrev: ${hasPrev}, hasNext: ${hasNext}}';
+  }
+}
+
+class _KeyboardCandidatesReader extends fb.TableReader<KeyboardCandidates> {
+  const _KeyboardCandidatesReader();
+
+  @override
+  KeyboardCandidates createObject(fb.BufferContext bc, int offset) => 
+    KeyboardCandidates._(bc, offset);
+}
+
+class KeyboardCandidatesBuilder {
+  KeyboardCandidatesBuilder(this.fbBuilder);
+
+  final fb.Builder fbBuilder;
+
+  void begin() {
+    fbBuilder.startTable(5);
+  }
+
+  int addPreeditOffset(int? offset) {
+    fbBuilder.addOffset(0, offset);
+    return fbBuilder.offset;
+  }
+  int addItemsOffset(int? offset) {
+    fbBuilder.addOffset(1, offset);
+    return fbBuilder.offset;
+  }
+  int addHighlighted(int? highlighted) {
+    fbBuilder.addInt32(2, highlighted);
+    return fbBuilder.offset;
+  }
+  int addHasPrev(bool? hasPrev) {
+    fbBuilder.addBool(3, hasPrev);
+    return fbBuilder.offset;
+  }
+  int addHasNext(bool? hasNext) {
+    fbBuilder.addBool(4, hasNext);
+    return fbBuilder.offset;
+  }
+
+  int finish() {
+    return fbBuilder.endTable();
+  }
+}
+
+class KeyboardCandidatesObjectBuilder extends fb.ObjectBuilder {
+  final String? _preedit;
+  final List<String>? _items;
+  final int? _highlighted;
+  final bool? _hasPrev;
+  final bool? _hasNext;
+
+  KeyboardCandidatesObjectBuilder({
+    String? preedit,
+    List<String>? items,
+    int? highlighted,
+    bool? hasPrev,
+    bool? hasNext,
+  })
+      : _preedit = preedit,
+        _items = items,
+        _highlighted = highlighted,
+        _hasPrev = hasPrev,
+        _hasNext = hasNext;
+
+  /// Finish building, and store into the [fbBuilder].
+  @override
+  int finish(fb.Builder fbBuilder) {
+    final int? preeditOffset = _preedit == null ? null
+        : fbBuilder.writeString(_preedit!);
+    final int? itemsOffset = _items == null ? null
+        : fbBuilder.writeList(_items!.map(fbBuilder.writeString).toList());
+    fbBuilder.startTable(5);
+    fbBuilder.addOffset(0, preeditOffset);
+    fbBuilder.addOffset(1, itemsOffset);
+    fbBuilder.addInt32(2, _highlighted);
+    fbBuilder.addBool(3, _hasPrev);
+    fbBuilder.addBool(4, _hasNext);
+    return fbBuilder.endTable();
+  }
+
+  /// Convenience method to serialize to byte list.
+  @override
+  Uint8List toBytes([String? fileIdentifier]) {
+    final fbBuilder = fb.Builder(deduplicateTables: false);
+    fbBuilder.finish(finish(fbBuilder), fileIdentifier);
+    return fbBuilder.buffer;
+  }
+}
+class KeyboardCandidatesCommand {
+  KeyboardCandidatesCommand._(this._bc, this._bcOffset);
+  factory KeyboardCandidatesCommand(List<int> bytes) {
+    final rootRef = fb.BufferContext.fromBytes(bytes);
+    return reader.read(rootRef, 0);
+  }
+
+  static const fb.Reader<KeyboardCandidatesCommand> reader = _KeyboardCandidatesCommandReader();
+
+  final fb.BufferContext _bc;
+  final int _bcOffset;
+
+  int get index => const fb.Int32Reader().vTableGet(_bc, _bcOffset, 4, -1);
+  int get page => const fb.Int32Reader().vTableGet(_bc, _bcOffset, 6, 0);
+
+  @override
+  String toString() {
+    return 'KeyboardCandidatesCommand{index: ${index}, page: ${page}}';
+  }
+}
+
+class _KeyboardCandidatesCommandReader extends fb.TableReader<KeyboardCandidatesCommand> {
+  const _KeyboardCandidatesCommandReader();
+
+  @override
+  KeyboardCandidatesCommand createObject(fb.BufferContext bc, int offset) => 
+    KeyboardCandidatesCommand._(bc, offset);
+}
+
+class KeyboardCandidatesCommandBuilder {
+  KeyboardCandidatesCommandBuilder(this.fbBuilder);
+
+  final fb.Builder fbBuilder;
+
+  void begin() {
+    fbBuilder.startTable(2);
+  }
+
+  int addIndex(int? index) {
+    fbBuilder.addInt32(0, index);
+    return fbBuilder.offset;
+  }
+  int addPage(int? page) {
+    fbBuilder.addInt32(1, page);
+    return fbBuilder.offset;
+  }
+
+  int finish() {
+    return fbBuilder.endTable();
+  }
+}
+
+class KeyboardCandidatesCommandObjectBuilder extends fb.ObjectBuilder {
+  final int? _index;
+  final int? _page;
+
+  KeyboardCandidatesCommandObjectBuilder({
+    int? index,
+    int? page,
+  })
+      : _index = index,
+        _page = page;
+
+  /// Finish building, and store into the [fbBuilder].
+  @override
+  int finish(fb.Builder fbBuilder) {
+    fbBuilder.startTable(2);
+    fbBuilder.addInt32(0, _index);
+    fbBuilder.addInt32(1, _page);
     return fbBuilder.endTable();
   }
 
@@ -7393,21 +7588,23 @@ class Envelope {
       case 7: return ShellAction.reader.vTableGetNullable(_bc, _bcOffset, 12);
       case 8: return CursorShape.reader.vTableGetNullable(_bc, _bcOffset, 12);
       case 9: return KeyboardCommand.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 10: return CursorPosition.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 11: return DesktopNotificationEvent.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 12: return DesktopNotificationCommand.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 13: return SettingsRequest.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 14: return SettingsResponse.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 15: return TextInputState.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 16: return XembedTrayEvent.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 17: return XembedTrayCommand.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 18: return ThemeState.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 19: return CursorState.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 20: return PluginActionCatalog.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 21: return PluginActionInvocation.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 22: return PetRequest.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 23: return TextPredictionRequest.reader.vTableGetNullable(_bc, _bcOffset, 12);
-      case 24: return TextPrediction.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 10: return KeyboardCandidates.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 11: return KeyboardCandidatesCommand.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 12: return CursorPosition.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 13: return DesktopNotificationEvent.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 14: return DesktopNotificationCommand.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 15: return SettingsRequest.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 16: return SettingsResponse.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 17: return TextInputState.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 18: return XembedTrayEvent.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 19: return XembedTrayCommand.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 20: return ThemeState.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 21: return CursorState.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 22: return PluginActionCatalog.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 23: return PluginActionInvocation.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 24: return PetRequest.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 25: return TextPredictionRequest.reader.vTableGetNullable(_bc, _bcOffset, 12);
+      case 26: return TextPrediction.reader.vTableGetNullable(_bc, _bcOffset, 12);
       default: return null;
     }
   }

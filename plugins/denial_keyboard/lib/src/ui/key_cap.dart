@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/widgets.dart';
 
 import 'package:denial_keyboard_core/denial_keyboard_core.dart';
@@ -15,6 +17,7 @@ class KeyCap extends StatefulWidget {
     required this.fontSize,
     required this.radius,
     required this.onTap,
+    this.highlight = false,
     this.onLongPress,
     this.onLongPressUp,
     this.flexOverride,
@@ -27,6 +30,9 @@ class KeyCap extends StatefulWidget {
   final double fontSize;
   final double radius;
   final VoidCallback onTap;
+
+  /// Shown in the accent colour, for a toggle that is on.
+  final bool highlight;
   final VoidCallback? onLongPress;
   final VoidCallback? onLongPressUp;
   final double? flexOverride;
@@ -36,14 +42,37 @@ class KeyCap extends StatefulWidget {
 }
 
 class _KeyCapState extends State<KeyCap> {
+  /// A quick tap can begin and end within one frame; hold the darkened state
+  /// long enough to see it.
+  static const _pressFeedback = Duration(milliseconds: 50);
+
   bool _pressed = false;
+  DateTime? _pressedAt;
+  Timer? _releaseTimer;
 
   void _press() {
+    _releaseTimer?.cancel();
+    _pressedAt = DateTime.now();
     if (!_pressed) setState(() => _pressed = true);
   }
 
   void _release() {
-    if (_pressed) setState(() => _pressed = false);
+    _releaseTimer?.cancel();
+    final held = DateTime.now().difference(_pressedAt ?? DateTime.now());
+    final rest = _pressFeedback - held;
+    if (rest <= Duration.zero) {
+      if (_pressed) setState(() => _pressed = false);
+      return;
+    }
+    _releaseTimer = Timer(rest, () {
+      if (mounted && _pressed) setState(() => _pressed = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    _releaseTimer?.cancel();
+    super.dispose();
   }
 
   bool get _isSpecial => switch (widget.spec.kind) {
@@ -70,12 +99,16 @@ class _KeyCapState extends State<KeyCap> {
     // too; a single pressed colour looked wrong on the purple Enter key.
     final background = _pressed
         ? Color.alphaBlend(const Color(0x38000000), base)
-        : base;
+        : widget.highlight
+            ? colors.accentSoft
+            : base;
     final foreground = _isAccent
         ? const Color(0xFFFFFFFF)
-        : _isSpecial
-            ? colors.inkMuted
-            : colors.ink;
+        : widget.highlight
+            ? colors.accent
+            : _isSpecial
+                ? colors.inkMuted
+                : colors.ink;
     return GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTapDown: (_) => _press(),
@@ -110,11 +143,23 @@ class _KeyCapState extends State<KeyCap> {
                   ),
                 ),
               Center(
-                child: Text(
+                child: widget.spec.kind == KeyKind.space
+                    // A space bar reads best as a bar, not as a glyph.
+                    ? Container(
+                        width: 44,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: foreground,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      )
+                    : Text(
                   widget.label,
                   style: TextStyle(
                     color: foreground,
-                    fontSize: _isSpecial
+                    fontSize: widget.spec.kind == KeyKind.backspace
+                        ? widget.fontSize * 1.05
+                        : _isSpecial
                         ? widget.fontSize * 0.72
                         : widget.fontSize,
                     fontWeight: _isSpecial

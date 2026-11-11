@@ -2,19 +2,27 @@
 //!
 //! The shell keyboard is an input source like any other, so Chinese text takes
 //! the same route a desktop input method would: the key events go to fcitx5,
-//! and the strings it commits are handed to the focused editor.
+//! and the strings it commits are handed to the focused editor. The
+//! composition it reports — the pinyin line and its candidates — is sent back
+//! to the shell, which draws that panel itself instead of letting fcitx5 open
+//! its own window.
 //!
 //! Only values that need the daemon are reached here. While Chinese input is
 //! off, or while fcitx5 cannot be reached, every call returns `None` and the
 //! caller keeps its own key handling, so text never stalls behind the input
 //! method.
 
+use std::collections::VecDeque;
+use std::sync::{Arc, Mutex};
+use std::thread;
 use std::time::{Duration, Instant};
 
 use tracing::debug;
 use zbus::blocking::connection::Builder;
-use zbus::blocking::{Connection, Proxy};
+use zbus::blocking::{Connection, MessageIterator, Proxy};
+use zbus::message::Type as MessageType;
 use zbus::zvariant::{OwnedObjectPath, OwnedValue, Value};
+use zbus::MatchRule;
 
 pub(super) const SERVICE: &str = "org.fcitx.Fcitx5";
 pub(super) const MANAGER_PATH: &str = "/org/freedesktop/portal/inputmethod";
@@ -25,12 +33,20 @@ const CALL_TIMEOUT: Duration = Duration::from_secs(2);
 /// fcitx5 reports keys by the keycode its Wayland clients receive, which is
 /// the evdev code plus the XKB offset.
 const XKB_KEYCODE_OFFSET: u32 = 8;
-/// `UpdateClientSideUI` is what would need a capability; finished text arrives
-/// in the key replies, so this client declares that it renders nothing itself.
-const NO_CLIENT_UI: u64 = 0;
+/// The client draws the preedit and candidates, so fcitx5 keeps its own
+/// window closed. Without this bit it opens a separate UI window.
+const CLIENT_SIDE_INPUT_PANEL: u64 = 1 << 39;
+/// The client renders the preedit text itself.
+const PREEDIT: u64 = 1 << 0;
+const CAPABILITY: u64 = PREEDIT | CLIENT_SIDE_INPUT_PANEL;
 /// How long an unreachable daemon is left alone before the next attempt.
 const RETRY_INTERVAL: Duration = Duration::from_secs(30);
 const COMMIT_STRING_EVENT: u32 = 0;
+/// What one page of candidates may carry, and how long the preedit may be.
+const MAX_CANDIDATES: usize = 64;
+const MAX_PREEDIT_CHARS: usize = 128;
+/// Commits queued between two frames; the shell keyboard never produces more.
+const MAX_COMMITS: usize = 16;
 
 /// What happened to one key that was offered to the input method.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -39,6 +55,24 @@ pub(super) enum KeyRouting {
     Consumed { commit: String },
     /// The input method did not take the key; the caller keeps handling it.
     Unhandled,
+}
+
+/// The composition the shell draws: the pinyin line and its candidates.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub(crate) struct Composition {
+    pub(crate) preedit: String,
+    /// Candidate text in the input method's order, without its numeric labels.
+    pub(crate) items: Vec<String>,
+    /// Index in `items` that Space commits.
+    pub(crate) highlighted: i32,
+    pub(crate) has_prev: bool,
+    pub(crate) has_next: bool,
+}
+
+impl Composition {
+    pub(super) fn is_empty(&self) -> bool {
+        self.preedit.is_empty() && self.items.is_empty()
+    }
 }
 
 /// Keysyms for the named keys the shell keyboard sends without text.
@@ -79,8 +113,37 @@ fn commits_in_reply(reply: &[(u32, OwnedValue)]) -> Vec<String> {
         .collect()
 }
 
+/// Turns one `UpdateClientSideUI` report into a bounded composition.
+///
+/// fcitx5 sends the preedit as formatted segments and each candidate as a
+/// label and a text; the shell only shows the text.
+pub(super) fn composition_from(
+    preedit: Vec<(String, i32)>,
+    candidates: Vec<(String, String)>,
+    highlighted: i32,
+    has_prev: bool,
+    has_next: bool,
+) -> Composition {
+    let preedit = preedit
+        .into_iter()
+        .flat_map(|(text, _)| text.chars().collect::<Vec<_>>())
+        .take(MAX_PREEDIT_CHARS)
+        .collect();
+    Composition {
+        preedit,
+        items: candidates
+            .into_iter()
+            .take(MAX_CANDIDATES)
+            .map(|(_, text)| text)
+            .collect(),
+        highlighted,
+        has_prev,
+        has_next,
+    }
+}
+
 #[derive(Default)]
-pub(super) struct FcitxService {
+pub(crate) struct FcitxService {
     enabled: bool,
     session: Option<Session>,
     /// Set after a failed connection so a missing daemon is not retried on
@@ -104,11 +167,14 @@ impl FcitxService {
             return;
         }
         self.enabled = enabled;
-        if !enabled
-            && let Some(session) = self.session.as_ref()
-        {
-            let _ = session.context.call::<_, _, ()>("Reset", &());
+        let Some(session) = self.session.as_ref() else {
+            return;
+        };
+        if enabled {
+            return;
         }
+        let _ = session.context.call::<_, _, ()>("Reset", &());
+        session.clear_composition();
     }
 
     /// Offers one key press to the input method. `None` means the input method
@@ -137,10 +203,17 @@ impl FcitxService {
         }
     }
 
-    /// Candidate selection arrives with the shell's candidate strip; the
-    /// method exists so that path only has to call it.
-    #[allow(dead_code)]
-    pub(super) fn select_candidate(&mut self, index: u32) -> bool {
+    /// The newest composition the shell has not drawn yet.
+    pub(crate) fn take_composition(&mut self) -> Option<Composition> {
+        self.session.as_ref().and_then(Session::take_composition)
+    }
+
+    /// Text the daemon committed without answering a key, for the editor.
+    pub(crate) fn take_commit(&mut self) -> Option<String> {
+        self.session.as_ref().and_then(Session::take_commit)
+    }
+
+    pub(crate) fn select_candidate(&mut self, index: u32) -> bool {
         let Some(session) = self.session() else {
             return false;
         };
@@ -151,8 +224,7 @@ impl FcitxService {
             .is_ok()
     }
 
-    #[allow(dead_code)]
-    pub(super) fn next_page(&mut self, forward: bool) -> bool {
+    pub(crate) fn next_page(&mut self, forward: bool) -> bool {
         let Some(session) = self.session() else {
             return false;
         };
@@ -193,25 +265,52 @@ impl FcitxService {
 }
 
 struct Session {
-    /// Held for as long as the context: closing the connection destroys it.
-    _connection: Connection,
+    /// Closing the connection ends the signal thread as well.
+    connection: Option<Connection>,
     context: Proxy<'static>,
+    /// The newest composition the signal thread has read.
+    composition: Arc<Mutex<Option<Composition>>>,
+    /// Text the daemon committed outside a key reply, such as a candidate the
+    /// shell picked or a word it finished on its own.
+    commits: Arc<Mutex<VecDeque<String>>>,
+}
+
+impl Drop for Session {
+    fn drop(&mut self) {
+        if let Some(connection) = self.connection.take() {
+            // The signal thread blocks on this connection; closing it retires
+            // the thread with the session instead of leaking one per daemon
+            // restart.
+            let _ = connection.close();
+        }
+    }
 }
 
 impl Session {
     fn connect() -> zbus::Result<Self> {
         let connection = Builder::session()?.method_timeout(CALL_TIMEOUT).build()?;
         let manager = Proxy::new(&connection, SERVICE, MANAGER_PATH, MANAGER_INTERFACE)?;
-        let (path, _token): (OwnedObjectPath, Vec<u8>) = manager.call(
-            "CreateInputContext",
-            &(Vec::<(String, String)>::new(),),
-        )?;
-        let context = Proxy::new(&connection, SERVICE, path, CONTEXT_INTERFACE)?;
-        context.call::<_, _, ()>("SetSupportedCapability", &(NO_CLIENT_UI,))?;
+        let (path, _token): (OwnedObjectPath, Vec<u8>) =
+            manager.call("CreateInputContext", &(Vec::<(String, String)>::new(),))?;
+        let context = Proxy::new(&connection, SERVICE, path.clone(), CONTEXT_INTERFACE)?;
+        // Both calls are required: fcitx5 records the supported set first and
+        // only applies capabilities through the second.
+        context.call::<_, _, ()>("SetSupportedCapability", &(CAPABILITY,))?;
+        context.call::<_, _, ()>("SetCapability", &(CAPABILITY,))?;
         context.call::<_, _, ()>("FocusIn", &())?;
+        let composition = Arc::new(Mutex::new(None));
+        let commits = Arc::new(Mutex::new(VecDeque::new()));
+        watch_panel(
+            &connection,
+            path,
+            Arc::clone(&composition),
+            Arc::clone(&commits),
+        );
         Ok(Self {
-            _connection: connection,
+            connection: Some(connection),
             context,
+            composition,
+            commits,
         })
     }
 
@@ -227,10 +326,108 @@ impl Session {
         if !handled {
             return Ok(KeyRouting::Unhandled);
         }
-        Ok(KeyRouting::Consumed {
-            commit: commits_in_reply(&events).concat(),
-        })
+        let commit = commits_in_reply(&events).concat();
+        if !commit.is_empty() {
+            // The input method finished a word; its panel is empty again.
+            self.clear_composition();
+        }
+        Ok(KeyRouting::Consumed { commit })
     }
+
+    fn take_composition(&self) -> Option<Composition> {
+        lock(&self.composition).take()
+    }
+
+    fn take_commit(&self) -> Option<String> {
+        lock(&self.commits).pop_front()
+    }
+
+    fn clear_composition(&self) {
+        let mut slot = lock(&self.composition);
+        match slot.as_ref() {
+            // Nothing drawn yet, or already cleared.
+            None => {}
+            Some(composition) if composition.is_empty() => {}
+            Some(_) => *slot = Some(Composition::default()),
+        }
+    }
+}
+
+fn lock<T>(state: &Arc<Mutex<T>>) -> std::sync::MutexGuard<'_, T> {
+    state.lock().unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+/// Reads the input method's panel updates and unnudged commits on a thread of
+/// their own: the compositor only polls them between frames.
+fn watch_panel(
+    connection: &Connection,
+    path: OwnedObjectPath,
+    composition: Arc<Mutex<Option<Composition>>>,
+    commits: Arc<Mutex<VecDeque<String>>>,
+) {
+    let rule = MatchRule::builder()
+        .msg_type(MessageType::Signal)
+        .interface(CONTEXT_INTERFACE)
+        .and_then(|rule| rule.path(path.as_str().to_owned()));
+    let Ok(rule) = rule else {
+        return;
+    };
+    let rule = rule.build();
+    let connection = connection.clone();
+    let reader = thread::Builder::new()
+        .name("fcitx-signals".into())
+        .spawn(move || {
+            let Ok(iterator) = MessageIterator::for_match_rule(rule, &connection, Some(64)) else {
+                return;
+            };
+            for message in iterator {
+                let Ok(message) = message else {
+                    break;
+                };
+                match message.header().member().map(|member| member.as_str()) {
+                    Some("UpdateClientSideUI") => match composition_of(&message) {
+                        Ok(next) => *lock(&composition) = Some(next),
+                        Err(error) => debug!(%error, "fcitx5 panel update was unreadable"),
+                    },
+                    Some("CommitString") => {
+                        let Ok(text) = message.body().deserialize::<String>() else {
+                            continue;
+                        };
+                        let mut commits = lock(&commits);
+                        if commits.len() >= MAX_COMMITS {
+                            commits.pop_front();
+                        }
+                        commits.push_back(text);
+                    }
+                    _ => {}
+                }
+            }
+        });
+    if let Err(error) = reader {
+        debug!(%error, "fcitx5 panel updates are unavailable");
+    }
+}
+
+fn composition_of(message: &zbus::Message) -> zbus::Result<Composition> {
+    #[allow(clippy::type_complexity)]
+    let (preedit, _cursor, _aux_up, _aux_down, candidates, highlighted, _layout, has_prev, has_next): (
+        Vec<(String, i32)>,
+        i32,
+        Vec<(String, i32)>,
+        Vec<(String, i32)>,
+        Vec<(String, String)>,
+        i32,
+        i32,
+        bool,
+        bool,
+    ) = message.body().deserialize()?;
+    Ok(composition_from(
+        preedit,
+        candidates,
+        highlighted,
+        has_prev,
+        has_next,
+    ))
 }
 
 #[cfg(test)]

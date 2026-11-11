@@ -94,6 +94,57 @@ class DenialTextInputState {
   final int activationSerial;
 }
 
+/// The input method's composition, drawn by the shell keyboard.
+class DenialKeyboardCandidates {
+  const DenialKeyboardCandidates({
+    this.preedit = '',
+    this.items = const <String>[],
+    this.highlighted = 0,
+    this.hasPrev = false,
+    this.hasNext = false,
+  });
+
+  /// The pinyin (or other) line being composed.
+  final String preedit;
+
+  /// Candidate text in the input method's order.
+  final List<String> items;
+
+  /// Index in [items] that Space commits.
+  final int highlighted;
+
+  /// More candidates exist before or after this page.
+  final bool hasPrev;
+  final bool hasNext;
+
+  bool get isEmpty => preedit.isEmpty && items.isEmpty;
+
+  @override
+  bool operator ==(Object other) {
+    if (other is! DenialKeyboardCandidates ||
+        other.preedit != preedit ||
+        other.highlighted != highlighted ||
+        other.hasPrev != hasPrev ||
+        other.hasNext != hasNext ||
+        other.items.length != items.length) {
+      return false;
+    }
+    for (var index = 0; index < items.length; index += 1) {
+      if (items[index] != other.items[index]) return false;
+    }
+    return true;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    preedit,
+    Object.hashAll(items),
+    highlighted,
+    hasPrev,
+    hasNext,
+  );
+}
+
 /// Suggestions for the word the software keyboard is typing.
 class DenialTextPrediction {
   const DenialTextPrediction({

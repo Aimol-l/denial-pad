@@ -346,6 +346,7 @@ impl FlutterRuntime {
             lock_frame_gate: lock_frame::LockFrameGate::default(),
             fingerprint_scene: fingerprint_scene::FingerprintScene::default(),
             published_text_input_state: None,
+            published_keyboard_candidates: None,
             frame_ready_observed: false,
             first_frame_received: false,
             last_pointer_timestamp_micros: 0,

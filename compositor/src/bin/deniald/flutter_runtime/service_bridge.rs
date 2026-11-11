@@ -36,6 +36,12 @@ impl FlutterRuntime {
         self.wire.drain_keyboard_commands()
     }
 
+    pub fn drain_candidate_commands(
+        &mut self,
+    ) -> impl Iterator<Item = wire::KeyboardCandidateCommand> + '_ {
+        self.wire.drain_candidate_commands()
+    }
+
     pub fn take_text_prediction_request(&mut self) -> Option<wire::TextPredictionRequest> {
         self.wire.take_text_prediction_request()
     }
@@ -354,6 +360,24 @@ impl FlutterRuntime {
         let update = self.wire.encode_text_input_state(state)?;
         engine.send_platform_message(wire::TO_FLUTTER_CHANNEL, update)?;
         self.published_text_input_state = Some(state);
+        Ok(())
+    }
+
+    pub fn send_keyboard_candidates(
+        &mut self,
+        composition: &crate::wayland_frontend::Composition,
+    ) -> Result<(), Box<dyn Error>> {
+        if self.published_keyboard_candidates.as_ref() == Some(composition) {
+            return Ok(());
+        }
+        let engine = self
+            .host
+            .as_ref()
+            .expect("Flutter runtime is shutting down")
+            .engine();
+        let update = self.wire.encode_keyboard_candidates(composition)?;
+        engine.send_platform_message(wire::TO_FLUTTER_CHANNEL, update)?;
+        self.published_keyboard_candidates = Some(composition.clone());
         Ok(())
     }
 

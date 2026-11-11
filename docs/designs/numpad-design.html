@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Denial 键盘 · 数字页设计</title>
+<style>
+  :root {
+    --panel: #eef0f3;
+    --border: #d3d6dc;
+    --key: #ffffff;
+    --special: #dfe2e7;
+    --ink: #1c1c1f;
+    --muted: #5f6470;
+    --faint: #9aa0aa;
+    --accent: #6d5bd0;
+    --radius: 20px;
+    --key-radius: 14px;
+    --gap: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 48px;
+    background: #ffffff;
+    font-family: "Noto Sans CJK SC", "Noto Sans SC", Inter, system-ui, sans-serif;
+    color: var(--ink);
+  }
+  h1 { font-size: 24px; margin: 0 0 6px; font-weight: 600; }
+  p.sub { margin: 0 0 28px; color: var(--muted); font-size: 15px; }
+
+  .panel {
+    width: 1420px;
+    height: 700px;
+    padding: 24px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 34px;
+    box-shadow: 0 18px 40px #14161c2e;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+  }
+
+  .toolbar {
+    height: 60px;
+    display: flex;
+    align-items: center;
+    gap: 26px;
+    color: var(--faint);
+    padding: 0 8px;
+  }
+  .toolbar svg { width: 26px; height: 26px; }
+  .toolbar .spacer { flex: 1; }
+  .toolbar .chevron { color: var(--muted); width: 34px; height: 34px; }
+
+  /* five columns: narrow symbol rail, three wide digit columns, narrow
+     action column; every row keeps that grid */
+  .pad {
+    flex: 1;
+    min-height: 0;
+    display: grid;
+    grid-template-columns: 0.55fr 1fr 1fr 1fr 0.55fr;
+    grid-template-rows: repeat(4, 1fr);
+    gap: var(--gap);
+  }
+
+  .key {
+    background: var(--key);
+    border-radius: var(--key-radius);
+    box-shadow: 0 2px 0 #00000014, 0 0 0 1px #00000008;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 44px;
+    font-weight: 500;
+    color: var(--ink);
+    min-height: 0;
+  }
+  .key.fn {
+    background: var(--special);
+    color: var(--muted);
+    box-shadow: none;
+    font-size: 28px;
+  }
+  .key.accent { background: var(--accent); color: #fff; box-shadow: none; }
+  .key .spacebar { width: 96px; height: 8px; border-radius: 4px; background: var(--ink); }
+  .key .backspace svg { width: 44px; height: 44px; }
+
+  /* the symbol rail scrolls above the pinned 符 key */
+  .rail {
+    grid-column: 1;
+    grid-row: 1 / 4;
+    position: relative;
+    border-radius: var(--key-radius);
+    overflow: hidden;
+  }
+  .rail .scroller {
+    height: 100%;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: var(--gap);
+    scrollbar-width: none;
+  }
+  .rail .scroller::-webkit-scrollbar { display: none; }
+  .rail .scroller .key { flex: none; height: 118px; font-size: 36px; }
+  .rail .fade-top,
+  .rail .fade-bottom { position: absolute; left: 0; right: 0; pointer-events: none; }
+  .rail .fade-top { top: 0; height: 16px; background: linear-gradient(var(--panel), transparent); }
+  .rail .fade-bottom {
+    bottom: 0;
+    height: 46px;
+    background: linear-gradient(transparent, var(--panel));
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 6px;
+  }
+  .rail .grip { width: 40px; height: 4px; border-radius: 2px; background: var(--faint); opacity: .55; }
+
+  .caption {
+    margin-top: 34px;
+    display: flex;
+    gap: 40px;
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .caption b { color: var(--ink); font-weight: 600; }
+  .swatches { display: flex; gap: 10px; align-items: center; }
+  .swatch { width: 22px; height: 22px; border-radius: 6px; border: 1px solid #00000014; }
+</style>
+</head>
+<body>
+  <h1>数字页 · 九宫格 + 可滑动符号列</h1>
+  <p class="sub">左右两列比中间的数字键窄；左列上方是上下滑动的符号区，符号区下面是固定的「符」；中间 3×3 数字，右列删除 / 小数点 / @，底部 返回 · 0 · 空格 · 回车。</p>
+
+  <div class="panel">
+    <div class="toolbar">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M8.5 10h.01M15.5 10h.01M8.5 15c1.2 1 2.3 1.5 3.5 1.5s2.3-.5 3.5-1.5"/></svg>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg>
+      <div class="spacer"></div>
+      <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 9l7 7 7-7"/></svg>
+    </div>
+
+    <div class="pad">
+      <!-- scrollable symbols, above the pinned 符 key -->
+      <div class="rail">
+        <div class="scroller">
+          <div class="key">%</div>
+          <div class="key">/</div>
+          <div class="key">-</div>
+          <div class="key">+</div>
+          <div class="key">=</div>
+          <div class="key">*</div>
+          <div class="key">(</div>
+          <div class="key">)</div>
+          <div class="key">#</div>
+          <div class="key">&amp;</div>
+        </div>
+        <div class="fade-top"></div>
+        <div class="fade-bottom"><div class="grip"></div></div>
+      </div>
+
+      <div class="key">1</div>
+      <div class="key">2</div>
+      <div class="key">3</div>
+      <div class="key fn"><div class="backspace"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 5H9L3 12l6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><path d="M12 9l5 6M17 9l-5 6"/></svg></div></div>
+
+      <div class="key">4</div>
+      <div class="key">5</div>
+      <div class="key">6</div>
+      <div class="key fn">.</div>
+
+      <div class="key">7</div>
+      <div class="key">8</div>
+      <div class="key">9</div>
+      <div class="key fn">@</div>
+
+      <div class="key fn">符</div>
+      <div class="key fn">返回</div>
+      <div class="key">0</div>
+      <div class="key"><div class="spacebar"></div></div>
+      <div class="key accent">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6v6H7M12 17l-5-5 5-5"/></svg>
+      </div>
+    </div>
+  </div>
+
+  <div class="caption">
+    <div><b>左列</b>：符号上下滑动，「符」固定在它下面</div>
+    <div><b>列宽</b>：左右两列 0.55，中间数字列 1</div>
+    <div class="swatches">
+      <span>配色</span>
+      <span class="swatch" style="background:#eef0f3"></span>
+      <span class="swatch" style="background:#ffffff"></span>
+      <span class="swatch" style="background:#dfe2e7"></span>
+      <span class="swatch" style="background:#6d5bd0"></span>
+    </div>
+  </div>
+</body>
+</html>

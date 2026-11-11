@@ -21,15 +21,14 @@ void main() {
     expect(space.flex, greaterThan(3));
   });
 
-  test('digits and symbols layers stay at four rows', () {
-    expect(digitsLayout().length, 4);
-    expect(symbolsLayout().length, 4);
-  });
-
-  test('every layer has a backspace and an enter', () {
-    for (final rows in [lettersLayout(), digitsLayout(), symbolsLayout()]) {
-      final kinds = rows.expand((r) => r.keys).map((k) => k.kind).toSet();
-      expect(kinds, containsAll([KeyKind.backspace, KeyKind.enter]));
-    }
+  test('the letters layer has a backspace, enter and both layer keys', () {
+    final kinds = lettersLayout().expand((r) => r.keys).map((k) => k.kind);
+    expect(kinds, contains(KeyKind.backspace));
+    expect(kinds, contains(KeyKind.enter));
+    final layers = lettersLayout()
+        .expand((r) => r.keys)
+        .where((k) => k.kind == KeyKind.layer)
+        .map((k) => k.label);
+    expect(layers, containsAll(['符', '123']));
   });
 }

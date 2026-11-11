@@ -85,103 +85,10 @@ List<KeyRow> lettersLayout({bool numberRow = false}) {
       const KeySpec('符', kind: KeyKind.layer),
       const KeySpec('123', kind: KeyKind.layer),
       const KeySpec(',', kind: KeyKind.symbol),
-      const KeySpec('🎙', kind: KeyKind.space, flex: 3.4),
+      const KeySpec(' ', kind: KeyKind.space, flex: 3.4),
       const KeySpec('。', kind: KeyKind.period),
       const KeySpec('中/英', kind: KeyKind.language, flex: 1.3),
       const KeySpec('↵', kind: KeyKind.enter, flex: 1.4),
-    ]),
-  ];
-}
-
-/// Digits and punctuation, reached with the `123` key.
-List<KeyRow> digitsLayout() {
-  return const [
-    KeyRow([
-      KeySpec('1', kind: KeyKind.digit),
-      KeySpec('2', kind: KeyKind.digit),
-      KeySpec('3', kind: KeyKind.digit),
-      KeySpec('4', kind: KeyKind.digit),
-      KeySpec('5', kind: KeyKind.digit),
-      KeySpec('6', kind: KeyKind.digit),
-      KeySpec('7', kind: KeyKind.digit),
-      KeySpec('8', kind: KeyKind.digit),
-      KeySpec('9', kind: KeyKind.digit),
-      KeySpec('0', kind: KeyKind.digit),
-    ]),
-    KeyRow([
-      KeySpec('@', kind: KeyKind.symbol),
-      KeySpec('#', kind: KeyKind.symbol),
-      KeySpec(r'$', kind: KeyKind.symbol),
-      KeySpec('%', kind: KeyKind.symbol),
-      KeySpec('&', kind: KeyKind.symbol),
-      KeySpec('*', kind: KeyKind.symbol),
-      KeySpec('(', kind: KeyKind.symbol),
-      KeySpec(')', kind: KeyKind.symbol),
-      KeySpec('·', kind: KeyKind.symbol),
-    ], inset: 26),
-    KeyRow([
-      KeySpec('符', kind: KeyKind.layer),
-      KeySpec('/', kind: KeyKind.symbol),
-      KeySpec('"', kind: KeyKind.symbol),
-      KeySpec("'", kind: KeyKind.symbol),
-      KeySpec(':', kind: KeyKind.symbol),
-      KeySpec(';', kind: KeyKind.symbol),
-      KeySpec('!', kind: KeyKind.symbol),
-      KeySpec('?', kind: KeyKind.symbol),
-      KeySpec('⌫', kind: KeyKind.backspace, flex: 1.5),
-    ]),
-    KeyRow([
-      KeySpec('ABC', kind: KeyKind.layer),
-      KeySpec(',', kind: KeyKind.symbol),
-      KeySpec('🎙', kind: KeyKind.space, flex: 3.4),
-      KeySpec('。', kind: KeyKind.symbol),
-      KeySpec('↵', kind: KeyKind.enter, flex: 1.4),
-    ]),
-  ];
-}
-
-/// The extra symbols layer, reached with the `符` key.
-List<KeyRow> symbolsLayout() {
-  return const [
-    KeyRow([
-      KeySpec('¥', kind: KeyKind.symbol),
-      KeySpec('€', kind: KeyKind.symbol),
-      KeySpec('£', kind: KeyKind.symbol),
-      KeySpec('¢', kind: KeyKind.symbol),
-      KeySpec('©', kind: KeyKind.symbol),
-      KeySpec('®', kind: KeyKind.symbol),
-      KeySpec('™', kind: KeyKind.symbol),
-      KeySpec('°', kind: KeyKind.symbol),
-      KeySpec('±', kind: KeyKind.symbol),
-    ]),
-    KeyRow([
-      KeySpec('§', kind: KeyKind.symbol),
-      KeySpec('∆', kind: KeyKind.symbol),
-      KeySpec('∞', kind: KeyKind.symbol),
-      KeySpec('≈', kind: KeyKind.symbol),
-      KeySpec('≠', kind: KeyKind.symbol),
-      KeySpec('≤', kind: KeyKind.symbol),
-      KeySpec('≥', kind: KeyKind.symbol),
-      KeySpec('√', kind: KeyKind.symbol),
-      KeySpec('∑', kind: KeyKind.symbol),
-    ], inset: 26),
-    KeyRow([
-      KeySpec('123', kind: KeyKind.layer),
-      KeySpec('·', kind: KeyKind.symbol),
-      KeySpec('—', kind: KeyKind.symbol),
-      KeySpec('…', kind: KeyKind.symbol),
-      KeySpec('“', kind: KeyKind.symbol),
-      KeySpec('”', kind: KeyKind.symbol),
-      KeySpec('‘', kind: KeyKind.symbol),
-      KeySpec('’', kind: KeyKind.symbol),
-      KeySpec('⌫', kind: KeyKind.backspace, flex: 1.5),
-    ]),
-    KeyRow([
-      KeySpec('ABC', kind: KeyKind.layer),
-      KeySpec(',', kind: KeyKind.symbol),
-      KeySpec('🎙', kind: KeyKind.space, flex: 3.4),
-      KeySpec('。', kind: KeyKind.symbol),
-      KeySpec('↵', kind: KeyKind.enter, flex: 1.4),
     ]),
   ];
 }

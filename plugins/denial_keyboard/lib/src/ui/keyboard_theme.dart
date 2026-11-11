@@ -31,8 +31,8 @@ class KeyboardColors {
 }
 
 const kKeyboardRadius = 20.0;
-const kHeaderHeight = 64.0;
-const kCandidateStripHeight = 34.0;
+const kHeaderHeight = 82.0;
+const kCandidateStripHeight = 52.0;
 const kPanelPadding = 12.0;
 const kRowGap = 6.0;
 

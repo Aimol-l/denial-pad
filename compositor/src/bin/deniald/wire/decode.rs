@@ -57,6 +57,17 @@ impl WireBridge {
                 self.pending_keyboard_commands.push_back(command);
                 Ok(None)
             }
+            fb::Payload::KeyboardCandidatesCommand => {
+                let command = envelope
+                    .payload_as_keyboard_candidates_command()
+                    .ok_or(WireError::Payload)?;
+                if self.pending_candidate_commands.len() >= MAX_PENDING_CANDIDATE_COMMANDS {
+                    return Err(WireError::Count);
+                }
+                self.pending_candidate_commands
+                    .push_back(decode_candidate_command(command)?);
+                Ok(None)
+            }
             fb::Payload::TextPredictionRequest => {
                 if envelope.request_id() != 0 {
                     return Err(WireError::RequestId);
@@ -516,6 +527,24 @@ fn validate_required_string(value: Option<&str>) -> Result<(), WireError> {
     match value {
         Some(value) if !value.is_empty() && value.len() <= MAX_STRING_BYTES => Ok(()),
         _ => Err(WireError::String),
+    }
+}
+
+/// A tap chooses a shown candidate; anything else turns the page.
+fn decode_candidate_command(
+    command: fb::KeyboardCandidatesCommand<'_>,
+) -> Result<KeyboardCandidateCommand, WireError> {
+    let index = command.index();
+    if index >= 0 {
+        if index > 64 {
+            return Err(WireError::Count);
+        }
+        return Ok(KeyboardCandidateCommand::Pick(index as u32));
+    }
+    match command.page() {
+        page if page < 0 => Ok(KeyboardCandidateCommand::Page { forward: false }),
+        page if page > 0 => Ok(KeyboardCandidateCommand::Page { forward: true }),
+        _ => Err(WireError::Payload),
     }
 }
 

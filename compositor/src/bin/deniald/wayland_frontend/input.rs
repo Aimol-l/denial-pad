@@ -679,6 +679,19 @@ fn input_key_via_ime(
     }
 }
 
+/// Delivers text the input method committed outside a key reply, such as the
+/// candidate the shell picked.
+#[cfg(feature = "flutter")]
+pub(crate) fn deliver_ime_commit(state: &mut RuntimeState, text: &str) -> bool {
+    let keyboard = state
+        .frontend()
+        .seat
+        .get_keyboard()
+        .expect("seat has no keyboard");
+    let time = InputTime::now();
+    commit_shell_text(state, &keyboard, text, time)
+}
+
 /// Delivers committed text the way an input method would, and types it when
 /// the focus does not speak text-input (terminals, X11).
 #[cfg(feature = "flutter")]

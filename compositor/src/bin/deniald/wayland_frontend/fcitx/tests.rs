@@ -36,6 +36,40 @@ fn a_key_reply_commits_only_commit_events() {
 }
 
 #[test]
+fn a_panel_update_becomes_a_bounded_composition() {
+    let composition = composition_from(
+        vec![("ni hao".into(), 0)],
+        vec![("1. ".into(), "你好".into()), ("2. ".into(), "拟好".into())],
+        0,
+        false,
+        true,
+    );
+    assert_eq!(composition.preedit, "ni hao");
+    assert_eq!(composition.items, vec!["你好", "拟好"]);
+    assert_eq!(composition.highlighted, 0);
+    assert!(!composition.has_prev);
+    assert!(composition.has_next);
+
+    let oversized = composition_from(
+        vec![("x".repeat(4096), 0)],
+        (0..100)
+            .map(|index| (format!("{index}. "), format!("candidate {index}")))
+            .collect(),
+        0,
+        false,
+        false,
+    );
+    assert_eq!(oversized.preedit.chars().count(), 128);
+    assert_eq!(oversized.items.len(), 64);
+}
+
+#[test]
+fn the_client_draws_the_panel() {
+    // fcitx5 opens its own window unless the client claims this bit.
+    assert_eq!(CAPABILITY & CLIENT_SIDE_INPUT_PANEL, CLIENT_SIDE_INPUT_PANEL);
+}
+
+#[test]
 fn keys_that_type_by_themselves_survive_an_empty_commit() {
     // fcitx takes Space and Return to finish or cancel a composition. With no
     // composition at all they must still type, not vanish.
@@ -103,10 +137,11 @@ fn chinese_keys_run_through_a_fcitx_context() {
     drop(server);
     let calls = seen(&calls);
     assert_eq!(calls[0], "create");
-    assert_eq!(calls[1], "capability 0");
-    assert_eq!(calls[2], "focus-in");
-    assert_eq!(calls[3], "batch 110 57 0");
-    assert_eq!(calls[4], "select 2");
+    assert_eq!(calls[1], format!("capability {CAPABILITY}"));
+    assert_eq!(calls[2], format!("capability-set {CAPABILITY}"));
+    assert_eq!(calls[3], "focus-in");
+    assert_eq!(calls[4], "batch 110 57 0");
+    assert_eq!(calls[5], "select 2");
 }
 
 struct MockManager {
@@ -136,6 +171,13 @@ impl MockContext {
             .lock()
             .unwrap()
             .push(format!("capability {capability}"));
+    }
+
+    fn set_capability(&self, capability: u64) {
+        self.calls
+            .lock()
+            .unwrap()
+            .push(format!("capability-set {capability}"));
     }
 
     fn process_key_event_batch(

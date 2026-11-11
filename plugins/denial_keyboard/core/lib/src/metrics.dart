@@ -6,7 +6,7 @@ const double maxPanelHeightRatio = 0.45;
 
 /// Fixed height of the header block: the toolbar while idle, the preedit and
 /// candidate lines while typing.
-const double headerHeight = 64;
+const double headerHeight = 82;
 
 /// Height of the candidate line alone.
 const double candidateStripHeight = 34;

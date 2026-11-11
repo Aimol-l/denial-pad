@@ -654,6 +654,27 @@ table KeyboardCommand {
   replaced:string;
 }
 
+// The input method's composition while the shell keyboard drives it: the
+// preedit line, and the candidates a tap or Space picks from.
+table KeyboardCandidates {
+  preedit:string;
+  // Candidate text, in the input method's order.
+  items:[string];
+  // Index in `items` that Space commits.
+  highlighted:int;
+  // More candidates exist before or after this page.
+  has_prev:bool;
+  has_next:bool;
+}
+
+// A candidate tap or a page turn from the shell keyboard.
+table KeyboardCandidatesCommand {
+  // Candidate to commit; negative when this turns a page.
+  index:int = -1;
+  // Page turn: -1 previous, 1 next, 0 when this commits a candidate.
+  page:int;
+}
+
 // The word the software keyboard is typing, for suggestions. touch_x and
 // touch_y are empty or hold one entry per character: where its key was hit,
 // in key pitches right of and below the key's center, NaN without a touch.
@@ -960,6 +981,8 @@ union Payload {
   ShellAction,
   CursorShape,
   KeyboardCommand,
+  KeyboardCandidates,
+  KeyboardCandidatesCommand,
   CursorPosition,
   DesktopNotificationEvent,
   DesktopNotificationCommand,

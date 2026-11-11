@@ -187,7 +187,9 @@ mod managed_window;
 #[cfg(feature = "flutter")]
 pub(super) use focus::{restore_shell_keyboard_focus, suspend_keyboard_focus_for_shell};
 #[cfg(feature = "flutter")]
-pub(super) use input::{dispatch_shell_keyboard, reconcile_flutter_pointer_route};
+pub(super) use input::{
+    deliver_ime_commit, dispatch_shell_keyboard, reconcile_flutter_pointer_route,
+};
 #[path = "wayland_frontend/input_source.rs"]
 mod input_source;
 #[path = "wayland_frontend/layer_shell.rs"]
@@ -228,6 +230,8 @@ mod surface_snapshot;
 #[cfg(feature = "flutter")]
 #[path = "wayland_frontend/fcitx.rs"]
 mod fcitx;
+#[cfg(feature = "flutter")]
+pub(crate) use fcitx::Composition;
 #[path = "wayland_frontend/text_input.rs"]
 mod text_input;
 #[path = "wayland_frontend/topology.rs"]
@@ -680,7 +684,7 @@ pub(super) struct WaylandFrontend {
     text_input: TextInputManager,
     /// The input method behind the shell keyboard's Chinese mode.
     #[cfg(feature = "flutter")]
-    fcitx: fcitx::FcitxService,
+    pub(crate) fcitx: fcitx::FcitxService,
     #[cfg(feature = "flutter")]
     keyboard_insets: insets::KeyboardInsets,
     input_method: InputMethodManager,

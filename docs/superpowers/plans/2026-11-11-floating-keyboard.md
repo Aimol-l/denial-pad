@@ -336,11 +336,11 @@ testWidgets('resize respects the 40-80 / 25-45 range', (tester) async { /* ... *
 - Consumes: Task 4 的 `KeyboardBackend`、Task 6 的事件
 - Produces: `CandidatesModel { String preedit; List<String> items; int highlighted; int page; int pages; }`
 
-- [ ] **Step 1: 写失败测试**：候选条渲染 6 项、超出换页、点击回调索引、预编辑灰字。
-- [ ] **Step 2: 运行，确认失败**
-- [ ] **Step 3: 实现**（顶部预编辑行 + 候选行 34 高；首项淡紫底；右侧 `›` 点击翻页）
-- [ ] **Step 4: 运行，确认通过**
-- [ ] **Step 5: 设备验证**：拼音输入出候选、选词提交、翻页、焦点切换不丢预编辑
+- [x] **Step 1: 写失败测试**：候选条渲染 6 项、超出换页、点击回调索引、预编辑灰字。
+- [x] **Step 2: 运行，确认失败**
+- [x] **Step 3: 实现**（顶部预编辑行 + 候选行 34 高；首项淡紫底；右侧 `›` 点击翻页）
+- [x] **Step 4: 运行，确认通过**
+- [x] **Step 5: 设备验证**：拼音输入出候选、选词提交、翻页、焦点切换不丢预编辑
 
 ---
 

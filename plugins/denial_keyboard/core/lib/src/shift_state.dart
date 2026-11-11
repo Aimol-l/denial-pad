@@ -1,31 +1,8 @@
-/// Shift has three states: off, armed for one character, and locked.
-enum ShiftState { off, once, locked }
+/// Shift is a capitals switch: off, or locked until it is tapped again.
+enum ShiftState { off, locked }
 
-ShiftState nextOnTap(ShiftState current) {
-  switch (current) {
-    case ShiftState.off:
-      return ShiftState.once;
-    case ShiftState.once:
-      return ShiftState.locked;
-    case ShiftState.locked:
-      return ShiftState.off;
-  }
-}
-
-/// What shift becomes after [text] was produced.
-///
-/// A one-shot shift is consumed by a single character; a locked shift survives
-/// until the user taps it again. Sentence endings arm it again so the next
-/// letter starts a new sentence with a capital.
-ShiftState afterCharacter(ShiftState current, String text) {
-  if (text.isEmpty) return current;
-  if (current == ShiftState.locked) return ShiftState.locked;
-  const sentenceEnd = {'.', '!', '?', '。', '！', '？', '\n'};
-  if (text.runes.length == 1 && sentenceEnd.contains(text)) {
-    return ShiftState.once;
-  }
-  return ShiftState.off;
-}
+ShiftState nextOnTap(ShiftState current) =>
+    current == ShiftState.locked ? ShiftState.off : ShiftState.locked;
 
 /// Applies shift to a key label. Non-letters are returned unchanged.
 String applyCase(String label, ShiftState state) {

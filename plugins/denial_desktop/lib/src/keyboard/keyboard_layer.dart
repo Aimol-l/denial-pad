@@ -25,9 +25,14 @@ class KeyboardLayer extends ConsumerStatefulWidget {
 
 class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
   StreamSubscription<DenialTextInputState>? _states;
+  StreamSubscription<DenialKeyboardCandidates>? _candidates;
+  DenialKeyboardCandidates _composition = const DenialKeyboardCandidates();
   late final _BridgeBackend _backend;
   late final File _placementFile;
   bool _visible = false;
+
+  /// The symbol page's lock keeps the keyboard up when the editor loses focus.
+  bool _locked = false;
 
   /// Set when the user closes the panel by hand; cleared on the next focus.
   bool _dismissed = false;
@@ -45,6 +50,7 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
     final bridge = ref.read(denialBridgeProvider);
     _backend = _BridgeBackend(bridge);
     _states = bridge.textInputStates.listen(_onState);
+    _candidates = bridge.keyboardCandidates.listen(_onCandidates);
     // The Flutter process is not guaranteed to inherit HOME from the session,
     // so resolve the config directory through the shell's runtime paths.
     _placementFile = File(
@@ -61,13 +67,19 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
         _visible = true;
         _dismissed = false;
       });
-    } else if (!state.active && _visible) {
+    } else if (!state.active && _visible && !_locked) {
       setState(() => _visible = false);
     }
   }
 
+  void _onCandidates(DenialKeyboardCandidates composition) {
+    if (!mounted || composition == _composition) return;
+    setState(() => _composition = composition);
+  }
+
   @override
   void dispose() {
+    _candidates?.cancel();
     _saveTimer?.cancel();
     _storePlacement();
     _states?.cancel();
@@ -206,6 +218,17 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
               backend: _backend,
               width: size.width,
               height: size.height,
+              preedit: _composition.preedit.isEmpty
+                  ? null
+                  : _composition.preedit,
+              candidates: _composition.items,
+              highlighted: _composition.highlighted,
+              hasPrev: _composition.hasPrev,
+              hasNext: _composition.hasNext,
+              onSelectCandidate: _backend.selectCandidate,
+              onPageTurn: (forward) =>
+                  _backend.turnCandidatePage(forward: forward),
+              onLockChanged: (locked) => _locked = locked,
               onClose: () => setState(() {
                 _visible = false;
                 _dismissed = true;
@@ -263,4 +286,9 @@ class _BridgeBackend implements KeyboardBackend {
   @override
   void replaceText(String replaced, String text) =>
       _bridge.sendKeyboardReplace(replaced, text);
+
+  void selectCandidate(int index) => _bridge.sendKeyboardCandidate(index);
+
+  void turnCandidatePage({required bool forward}) =>
+      _bridge.sendKeyboardCandidatePage(forward: forward);
 }

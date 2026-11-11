@@ -15,6 +15,7 @@ export 'src/platform/denial_bridge_models.dart'
         DenialAudioState,
         DenialAudioStream,
         DenialBrightnessState,
+        DenialKeyboardCandidates,
         DenialSettingsDocument,
         DenialShellAction,
         DenialShellActionEvent,

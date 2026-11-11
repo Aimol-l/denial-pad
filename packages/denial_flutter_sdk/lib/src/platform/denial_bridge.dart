@@ -157,6 +157,10 @@ class DenialBridge {
 
   Stream<DenialTextInputState> get textInputStates => _events.textInputStates;
 
+  /// The input method's preedit and candidates, for the shell keyboard.
+  Stream<DenialKeyboardCandidates> get keyboardCandidates =>
+      _events.keyboardCandidates;
+
   Stream<DenialTextPrediction> get textPredictions => _events.textPredictions;
 
   Stream<DenialSettingsDocument> get settingsDocuments =>
@@ -419,6 +423,12 @@ class DenialBridge {
 
   void sendKeyboardKey(String key, {bool ctrl = false}) =>
       _input.sendKeyboardKey(key, ctrl: ctrl);
+
+  void sendKeyboardCandidate(int index) =>
+      _input.sendKeyboardCandidate(index);
+
+  void sendKeyboardCandidatePage({required bool forward}) =>
+      _input.sendKeyboardCandidatePage(forward: forward);
 
   /// Replaces [replaced], the text just before the cursor, with [text].
   void sendKeyboardReplace(String replaced, String text) =>

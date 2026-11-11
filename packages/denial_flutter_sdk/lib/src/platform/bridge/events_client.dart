@@ -51,6 +51,8 @@ final class BridgeEventsClient {
       StreamController<DenialTextInputState>.broadcast(sync: true);
   final StreamController<DenialTextPrediction> _textPredictions =
       StreamController<DenialTextPrediction>.broadcast(sync: true);
+  final StreamController<DenialKeyboardCandidates> _keyboardCandidates =
+      StreamController<DenialKeyboardCandidates>.broadcast(sync: true);
 
   Future<ByteData?> handleMessage(ByteData? data) async {
     if (wire.isDenialPlacementPacket(data)) {
@@ -177,6 +179,20 @@ final class BridgeEventsClient {
               contentHint: payload.contentHint,
               contentPurpose: payload.contentPurpose,
               activationSerial: payload.activationSerial,
+            ),
+          );
+        }
+      } else if (payload is wire.KeyboardCandidates) {
+        if (!_keyboardCandidates.isClosed) {
+          _keyboardCandidates.add(
+            DenialKeyboardCandidates(
+              preedit: payload.preedit ?? '',
+              items: List<String>.unmodifiable(
+                payload.items ?? const <String>[],
+              ),
+              highlighted: payload.highlighted,
+              hasPrev: payload.hasPrev,
+              hasNext: payload.hasNext,
             ),
           );
         }
@@ -339,6 +355,9 @@ final class BridgeEventsClient {
   Stream<DenialTextInputState> get textInputStates => _textInputStates.stream;
 
   Stream<DenialTextPrediction> get textPredictions => _textPredictions.stream;
+
+  Stream<DenialKeyboardCandidates> get keyboardCandidates =>
+      _keyboardCandidates.stream;
   void dispose() {
     unawaited(_shellActions.close());
     unawaited(_pluginActions.close());
@@ -350,5 +369,6 @@ final class BridgeEventsClient {
     unawaited(_xembedTrayEvents.close());
     unawaited(_textInputStates.close());
     unawaited(_textPredictions.close());
+    unawaited(_keyboardCandidates.close());
   }
 }

@@ -584,6 +584,7 @@ pub struct FlutterRuntime {
     lock_frame_gate: lock_frame::LockFrameGate,
     fingerprint_scene: fingerprint_scene::FingerprintScene,
     published_text_input_state: Option<crate::wayland_frontend::SoftwareKeyboardState>,
+    published_keyboard_candidates: Option<crate::wayland_frontend::Composition>,
     frame_ready_observed: bool,
     first_frame_received: bool,
     last_pointer_timestamp_micros: usize,

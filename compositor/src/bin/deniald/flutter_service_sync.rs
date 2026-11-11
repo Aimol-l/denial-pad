@@ -409,11 +409,39 @@ pub(super) fn synchronize_shell_keyboard(
     if let Some(prediction) = events.pending_text_prediction.take() {
         runtime.send_text_prediction(&prediction)?;
     }
+    let mut flush_wayland_clients = false;
+    // A candidate tap applies to the input method before the keys that follow
+    // it, so it is drained first.
+    for command in runtime.drain_candidate_commands().collect::<Vec<_>>() {
+        let frontend = events.frontend_mut();
+        let applied = match command {
+            wire::KeyboardCandidateCommand::Pick(index) => {
+                frontend.fcitx.select_candidate(index)
+            }
+            wire::KeyboardCandidateCommand::Page { forward } => {
+                frontend.fcitx.next_page(forward)
+            }
+        };
+        if !applied {
+            warn!(?command, "candidate command had no input method");
+        }
+    }
+    // A picked candidate commits without answering a key.
+    let commits = {
+        let fcitx = &mut events.frontend_mut().fcitx;
+        let mut commits = Vec::new();
+        while let Some(text) = fcitx.take_commit() {
+            commits.push(text);
+        }
+        commits
+    };
+    for text in commits {
+        flush_wayland_clients |= wayland_frontend::deliver_ime_commit(events, &text);
+    }
     let commands = runtime.drain_keyboard_commands().collect::<Vec<_>>();
     // The OSK is a virtual keyboard source. Rust converts each intent into
     // complete key transitions and feeds the same focus/XKB/seat-or-Flutter
     // router used by libinput; there is no separate text-delivery path.
-    let mut flush_wayland_clients = false;
     for command in commands {
         let delivered = wayland_frontend::dispatch_shell_keyboard(events, &command);
         flush_wayland_clients |= delivered;
@@ -479,5 +507,19 @@ pub(super) fn publish_software_keyboard_state(
     {
         events.scene_sync.mark_dirty();
     }
-    runtime.publish_text_input_state(state)
+    runtime.publish_text_input_state(state)?;
+    publish_keyboard_candidates(runtime, events)
+}
+
+/// Forwards the input method's newest panel to the shell keyboard, which draws
+/// the preedit line and the candidates itself.
+#[cfg(feature = "flutter")]
+fn publish_keyboard_candidates(
+    runtime: &mut flutter_runtime::FlutterRuntime,
+    events: &mut RuntimeState,
+) -> Result<(), Box<dyn Error>> {
+    if let Some(composition) = events.frontend_mut().fcitx.take_composition() {
+        runtime.send_keyboard_candidates(&composition)?;
+    }
+    Ok(())
 }

@@ -63,6 +63,22 @@ final class BridgeInputClient {
     );
   }
 
+  /// Commits the shown candidate at [index].
+  void sendKeyboardCandidate(int index) {
+    if (index < 0) {
+      return;
+    }
+    _context.sendWire(
+      _context.codec.encodeKeyboardCandidateCommand(index: index),
+    );
+  }
+
+  void sendKeyboardCandidatePage({required bool forward}) {
+    _context.sendWire(
+      _context.codec.encodeKeyboardCandidateCommand(page: forward ? 1 : -1),
+    );
+  }
+
   void sendKeyboardKey(String key, {bool ctrl = false}) {
     if (key.isEmpty) {
       return;

@@ -383,6 +383,55 @@ impl WireBridge {
         Ok(self.outbound_builder.finished_data())
     }
 
+    /// The input method's preedit and candidates, for the shell keyboard.
+    pub fn encode_keyboard_candidates(
+        &mut self,
+        composition: &crate::wayland_frontend::Composition,
+    ) -> Result<&[u8], WireError> {
+        if composition.items.len() > 64
+            || composition.preedit.len() > MAX_STRING_BYTES
+            || composition
+                .items
+                .iter()
+                .any(|item| item.len() > MAX_STRING_BYTES)
+        {
+            return Err(WireError::Payload);
+        }
+        let sequence = self.take_sequence();
+        let builder = &mut self.outbound_builder;
+        builder.reset();
+        let preedit = builder.create_string(&composition.preedit);
+        let items: Vec<_> = composition
+            .items
+            .iter()
+            .map(|item| builder.create_string(item))
+            .collect();
+        let items = builder.create_vector(&items);
+        let payload = fb::KeyboardCandidates::create(
+            builder,
+            &fb::KeyboardCandidatesArgs {
+                preedit: Some(preedit),
+                items: Some(items),
+                highlighted: composition.highlighted.max(0),
+                has_prev: composition.has_prev,
+                has_next: composition.has_next,
+            },
+        );
+        let envelope = fb::Envelope::create(
+            builder,
+            &fb::EnvelopeArgs {
+                protocol_version: PROTOCOL_VERSION,
+                sequence,
+                request_id: 0,
+                payload_type: fb::Payload::KeyboardCandidates,
+                payload: Some(payload.as_union_value()),
+            },
+        );
+        fb::finish_envelope_buffer(builder, envelope);
+        validate_finished_message(builder)?;
+        Ok(self.outbound_builder.finished_data())
+    }
+
     pub fn encode_notification_event(
         &mut self,
         event: &NotificationEvent,

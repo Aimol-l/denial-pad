@@ -5,3 +5,4 @@ export 'src/input_mode.dart';
 export 'src/key_layout.dart';
 export 'src/metrics.dart';
 export 'src/shift_state.dart';
+export 'src/symbol_pages.dart';

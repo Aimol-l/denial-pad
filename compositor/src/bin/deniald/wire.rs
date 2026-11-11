@@ -81,6 +81,7 @@ const MAX_REGIONS: usize = 8192;
 const MAX_SURFACES: usize = 32768;
 const MAX_PENDING_WINDOW_COMMANDS: usize = 4096;
 const MAX_PENDING_KEYBOARD_COMMANDS: usize = 256;
+const MAX_PENDING_CANDIDATE_COMMANDS: usize = 64;
 const MAX_PENDING_NOTIFICATION_COMMANDS: usize = 256;
 const MAX_PENDING_XEMBED_TRAY_COMMANDS: usize = 256;
 const MAX_PENDING_SETTINGS_COMMANDS: usize = 64;
@@ -227,6 +228,14 @@ pub enum KeyboardCommand {
         replaced: String,
         text: String,
     },
+}
+
+/// A choice the shell keyboard makes in the input method's candidate panel.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum KeyboardCandidateCommand {
+    /// Commit the candidate at this index of the shown page.
+    Pick(u32),
+    Page { forward: bool },
 }
 
 /// Pointer settings the shell edits, and whether a device of each kind exists.
@@ -870,6 +879,7 @@ pub struct WireBridge {
     input_layout_identities_scratch: HashSet<u64>,
     pending_window_commands: VecDeque<WindowCommand>,
     pending_keyboard_commands: VecDeque<KeyboardCommand>,
+    pending_candidate_commands: VecDeque<KeyboardCandidateCommand>,
     pending_text_prediction: Option<TextPredictionRequest>,
     pending_notification_commands: VecDeque<NotificationCommand>,
     pending_xembed_tray_commands: VecDeque<XEmbedTrayCommand>,
@@ -911,6 +921,7 @@ impl WireBridge {
             input_layout_identities_scratch: HashSet::new(),
             pending_window_commands: VecDeque::new(),
             pending_keyboard_commands: VecDeque::new(),
+            pending_candidate_commands: VecDeque::new(),
             pending_text_prediction: None,
             pending_notification_commands: VecDeque::new(),
             pending_xembed_tray_commands: VecDeque::new(),
@@ -947,6 +958,12 @@ impl WireBridge {
 
     pub fn drain_keyboard_commands(&mut self) -> impl Iterator<Item = KeyboardCommand> + '_ {
         self.pending_keyboard_commands.drain(..)
+    }
+
+    pub fn drain_candidate_commands(
+        &mut self,
+    ) -> impl Iterator<Item = KeyboardCandidateCommand> + '_ {
+        self.pending_candidate_commands.drain(..)
     }
 
     /// The newest suggestion request; older ones are superseded.

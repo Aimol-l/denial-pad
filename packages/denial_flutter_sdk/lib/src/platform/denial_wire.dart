@@ -453,6 +453,17 @@ class DenialWireCodec {
     );
   }
 
+  /// Picks the shown candidate at [index], or turns the page.
+  Uint8List encodeKeyboardCandidateCommand({int index = -1, int page = 0}) {
+    return _encodeEnvelope(
+      generated.PayloadTypeId.KeyboardCandidatesCommand,
+      generated.KeyboardCandidatesCommandObjectBuilder(
+        index: index,
+        page: page,
+      ),
+    );
+  }
+
   Uint8List encodeSettingsRead(
     generated.SettingsRequestKind kind, {
     required int requestId,

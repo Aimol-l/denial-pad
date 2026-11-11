@@ -2781,10 +2781,10 @@ impl flatbuffers::SimpleToVerifyInSlice for PetRequestKind {}
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 pub const ENUM_MIN_PAYLOAD: u8 = 0;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
-pub const ENUM_MAX_PAYLOAD: u8 = 24;
+pub const ENUM_MAX_PAYLOAD: u8 = 26;
 #[deprecated(since = "2.0.0", note = "Use associated constants instead. This will no longer be generated in 2021.")]
 #[allow(non_camel_case_types)]
-pub const ENUM_VALUES_PAYLOAD: [Payload; 25] = [
+pub const ENUM_VALUES_PAYLOAD: [Payload; 27] = [
   Payload::NONE,
   Payload::InputLayout,
   Payload::WindowSnapshot,
@@ -2795,6 +2795,8 @@ pub const ENUM_VALUES_PAYLOAD: [Payload; 25] = [
   Payload::ShellAction,
   Payload::CursorShape,
   Payload::KeyboardCommand,
+  Payload::KeyboardCandidates,
+  Payload::KeyboardCandidatesCommand,
   Payload::CursorPosition,
   Payload::DesktopNotificationEvent,
   Payload::DesktopNotificationCommand,
@@ -2827,24 +2829,26 @@ impl Payload {
   pub const ShellAction: Self = Self(7);
   pub const CursorShape: Self = Self(8);
   pub const KeyboardCommand: Self = Self(9);
-  pub const CursorPosition: Self = Self(10);
-  pub const DesktopNotificationEvent: Self = Self(11);
-  pub const DesktopNotificationCommand: Self = Self(12);
-  pub const SettingsRequest: Self = Self(13);
-  pub const SettingsResponse: Self = Self(14);
-  pub const TextInputState: Self = Self(15);
-  pub const XEmbedTrayEvent: Self = Self(16);
-  pub const XEmbedTrayCommand: Self = Self(17);
-  pub const ThemeState: Self = Self(18);
-  pub const CursorState: Self = Self(19);
-  pub const PluginActionCatalog: Self = Self(20);
-  pub const PluginActionInvocation: Self = Self(21);
-  pub const PetRequest: Self = Self(22);
-  pub const TextPredictionRequest: Self = Self(23);
-  pub const TextPrediction: Self = Self(24);
+  pub const KeyboardCandidates: Self = Self(10);
+  pub const KeyboardCandidatesCommand: Self = Self(11);
+  pub const CursorPosition: Self = Self(12);
+  pub const DesktopNotificationEvent: Self = Self(13);
+  pub const DesktopNotificationCommand: Self = Self(14);
+  pub const SettingsRequest: Self = Self(15);
+  pub const SettingsResponse: Self = Self(16);
+  pub const TextInputState: Self = Self(17);
+  pub const XEmbedTrayEvent: Self = Self(18);
+  pub const XEmbedTrayCommand: Self = Self(19);
+  pub const ThemeState: Self = Self(20);
+  pub const CursorState: Self = Self(21);
+  pub const PluginActionCatalog: Self = Self(22);
+  pub const PluginActionInvocation: Self = Self(23);
+  pub const PetRequest: Self = Self(24);
+  pub const TextPredictionRequest: Self = Self(25);
+  pub const TextPrediction: Self = Self(26);
 
   pub const ENUM_MIN: u8 = 0;
-  pub const ENUM_MAX: u8 = 24;
+  pub const ENUM_MAX: u8 = 26;
   pub const ENUM_VALUES: &'static [Self] = &[
     Self::NONE,
     Self::InputLayout,
@@ -2856,6 +2860,8 @@ impl Payload {
     Self::ShellAction,
     Self::CursorShape,
     Self::KeyboardCommand,
+    Self::KeyboardCandidates,
+    Self::KeyboardCandidatesCommand,
     Self::CursorPosition,
     Self::DesktopNotificationEvent,
     Self::DesktopNotificationCommand,
@@ -2885,6 +2891,8 @@ impl Payload {
       Self::ShellAction => Some("ShellAction"),
       Self::CursorShape => Some("CursorShape"),
       Self::KeyboardCommand => Some("KeyboardCommand"),
+      Self::KeyboardCandidates => Some("KeyboardCandidates"),
+      Self::KeyboardCandidatesCommand => Some("KeyboardCandidatesCommand"),
       Self::CursorPosition => Some("CursorPosition"),
       Self::DesktopNotificationEvent => Some("DesktopNotificationEvent"),
       Self::DesktopNotificationCommand => Some("DesktopNotificationCommand"),
@@ -7767,6 +7775,285 @@ impl core::fmt::Debug for KeyboardCommand<'_> {
       ds.field("panel_height", &self.panel_height());
       ds.field("panel_duration_ms", &self.panel_duration_ms());
       ds.field("replaced", &self.replaced());
+      ds.finish()
+  }
+}
+pub enum KeyboardCandidatesOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct KeyboardCandidates<'a> {
+  pub _tab: flatbuffers::Table<'a>,
+}
+
+impl<'a> flatbuffers::Follow<'a> for KeyboardCandidates<'a> {
+  type Inner = KeyboardCandidates<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> KeyboardCandidates<'a> {
+  pub const VT_PREEDIT: flatbuffers::VOffsetT = 4;
+  pub const VT_ITEMS: flatbuffers::VOffsetT = 6;
+  pub const VT_HIGHLIGHTED: flatbuffers::VOffsetT = 8;
+  pub const VT_HAS_PREV: flatbuffers::VOffsetT = 10;
+  pub const VT_HAS_NEXT: flatbuffers::VOffsetT = 12;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+    KeyboardCandidates { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args KeyboardCandidatesArgs<'args>
+  ) -> flatbuffers::WIPOffset<KeyboardCandidates<'bldr>> {
+    let mut builder = KeyboardCandidatesBuilder::new(_fbb);
+    builder.add_highlighted(args.highlighted);
+    if let Some(x) = args.items { builder.add_items(x); }
+    if let Some(x) = args.preedit { builder.add_preedit(x); }
+    builder.add_has_next(args.has_next);
+    builder.add_has_prev(args.has_prev);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn preedit(&self) -> Option<&'a str> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<flatbuffers::ForwardsUOffset<&str>>(KeyboardCandidates::VT_PREEDIT, None)}
+  }
+  #[inline]
+  pub fn items(&self) -> Option<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>> {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<flatbuffers::ForwardsUOffset<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>>>(KeyboardCandidates::VT_ITEMS, None)}
+  }
+  #[inline]
+  pub fn highlighted(&self) -> i32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<i32>(KeyboardCandidates::VT_HIGHLIGHTED, Some(0)).unwrap()}
+  }
+  #[inline]
+  pub fn has_prev(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(KeyboardCandidates::VT_HAS_PREV, Some(false)).unwrap()}
+  }
+  #[inline]
+  pub fn has_next(&self) -> bool {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<bool>(KeyboardCandidates::VT_HAS_NEXT, Some(false)).unwrap()}
+  }
+}
+
+impl flatbuffers::Verifiable for KeyboardCandidates<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut flatbuffers::Verifier, pos: usize
+  ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+    use self::flatbuffers::Verifiable;
+    v.visit_table(pos)?
+     .visit_field::<flatbuffers::ForwardsUOffset<&str>>("preedit", Self::VT_PREEDIT, false)?
+     .visit_field::<flatbuffers::ForwardsUOffset<flatbuffers::Vector<'_, flatbuffers::ForwardsUOffset<&'_ str>>>>("items", Self::VT_ITEMS, false)?
+     .visit_field::<i32>("highlighted", Self::VT_HIGHLIGHTED, false)?
+     .visit_field::<bool>("has_prev", Self::VT_HAS_PREV, false)?
+     .visit_field::<bool>("has_next", Self::VT_HAS_NEXT, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct KeyboardCandidatesArgs<'a> {
+    pub preedit: Option<flatbuffers::WIPOffset<&'a str>>,
+    pub items: Option<flatbuffers::WIPOffset<flatbuffers::Vector<'a, flatbuffers::ForwardsUOffset<&'a str>>>>,
+    pub highlighted: i32,
+    pub has_prev: bool,
+    pub has_next: bool,
+}
+impl<'a> Default for KeyboardCandidatesArgs<'a> {
+  #[inline]
+  fn default() -> Self {
+    KeyboardCandidatesArgs {
+      preedit: None,
+      items: None,
+      highlighted: 0,
+      has_prev: false,
+      has_next: false,
+    }
+  }
+}
+
+pub struct KeyboardCandidatesBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> KeyboardCandidatesBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_preedit(&mut self, preedit: flatbuffers::WIPOffset<&'b  str>) {
+    self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(KeyboardCandidates::VT_PREEDIT, preedit);
+  }
+  #[inline]
+  pub fn add_items(&mut self, items: flatbuffers::WIPOffset<flatbuffers::Vector<'b , flatbuffers::ForwardsUOffset<&'b  str>>>) {
+    self.fbb_.push_slot_always::<flatbuffers::WIPOffset<_>>(KeyboardCandidates::VT_ITEMS, items);
+  }
+  #[inline]
+  pub fn add_highlighted(&mut self, highlighted: i32) {
+    self.fbb_.push_slot::<i32>(KeyboardCandidates::VT_HIGHLIGHTED, highlighted, 0);
+  }
+  #[inline]
+  pub fn add_has_prev(&mut self, has_prev: bool) {
+    self.fbb_.push_slot::<bool>(KeyboardCandidates::VT_HAS_PREV, has_prev, false);
+  }
+  #[inline]
+  pub fn add_has_next(&mut self, has_next: bool) {
+    self.fbb_.push_slot::<bool>(KeyboardCandidates::VT_HAS_NEXT, has_next, false);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>) -> KeyboardCandidatesBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    KeyboardCandidatesBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> flatbuffers::WIPOffset<KeyboardCandidates<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl core::fmt::Debug for KeyboardCandidates<'_> {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    let mut ds = f.debug_struct("KeyboardCandidates");
+      ds.field("preedit", &self.preedit());
+      ds.field("items", &self.items());
+      ds.field("highlighted", &self.highlighted());
+      ds.field("has_prev", &self.has_prev());
+      ds.field("has_next", &self.has_next());
+      ds.finish()
+  }
+}
+pub enum KeyboardCandidatesCommandOffset {}
+#[derive(Copy, Clone, PartialEq)]
+
+pub struct KeyboardCandidatesCommand<'a> {
+  pub _tab: flatbuffers::Table<'a>,
+}
+
+impl<'a> flatbuffers::Follow<'a> for KeyboardCandidatesCommand<'a> {
+  type Inner = KeyboardCandidatesCommand<'a>;
+  #[inline]
+  unsafe fn follow(buf: &'a [u8], loc: usize) -> Self::Inner {
+    Self { _tab: unsafe { flatbuffers::Table::new(buf, loc) } }
+  }
+}
+
+impl<'a> KeyboardCandidatesCommand<'a> {
+  pub const VT_INDEX: flatbuffers::VOffsetT = 4;
+  pub const VT_PAGE: flatbuffers::VOffsetT = 6;
+
+  #[inline]
+  pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
+    KeyboardCandidatesCommand { _tab: table }
+  }
+  #[allow(unused_mut)]
+  pub fn create<'bldr: 'args, 'args: 'mut_bldr, 'mut_bldr, A: flatbuffers::Allocator + 'bldr>(
+    _fbb: &'mut_bldr mut flatbuffers::FlatBufferBuilder<'bldr, A>,
+    args: &'args KeyboardCandidatesCommandArgs
+  ) -> flatbuffers::WIPOffset<KeyboardCandidatesCommand<'bldr>> {
+    let mut builder = KeyboardCandidatesCommandBuilder::new(_fbb);
+    builder.add_page(args.page);
+    builder.add_index(args.index);
+    builder.finish()
+  }
+
+
+  #[inline]
+  pub fn index(&self) -> i32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<i32>(KeyboardCandidatesCommand::VT_INDEX, Some(-1)).unwrap()}
+  }
+  #[inline]
+  pub fn page(&self) -> i32 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<i32>(KeyboardCandidatesCommand::VT_PAGE, Some(0)).unwrap()}
+  }
+}
+
+impl flatbuffers::Verifiable for KeyboardCandidatesCommand<'_> {
+  #[inline]
+  fn run_verifier(
+    v: &mut flatbuffers::Verifier, pos: usize
+  ) -> Result<(), flatbuffers::InvalidFlatbuffer> {
+    use self::flatbuffers::Verifiable;
+    v.visit_table(pos)?
+     .visit_field::<i32>("index", Self::VT_INDEX, false)?
+     .visit_field::<i32>("page", Self::VT_PAGE, false)?
+     .finish();
+    Ok(())
+  }
+}
+pub struct KeyboardCandidatesCommandArgs {
+    pub index: i32,
+    pub page: i32,
+}
+impl<'a> Default for KeyboardCandidatesCommandArgs {
+  #[inline]
+  fn default() -> Self {
+    KeyboardCandidatesCommandArgs {
+      index: -1,
+      page: 0,
+    }
+  }
+}
+
+pub struct KeyboardCandidatesCommandBuilder<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> {
+  fbb_: &'b mut flatbuffers::FlatBufferBuilder<'a, A>,
+  start_: flatbuffers::WIPOffset<flatbuffers::TableUnfinishedWIPOffset>,
+}
+impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> KeyboardCandidatesCommandBuilder<'a, 'b, A> {
+  #[inline]
+  pub fn add_index(&mut self, index: i32) {
+    self.fbb_.push_slot::<i32>(KeyboardCandidatesCommand::VT_INDEX, index, -1);
+  }
+  #[inline]
+  pub fn add_page(&mut self, page: i32) {
+    self.fbb_.push_slot::<i32>(KeyboardCandidatesCommand::VT_PAGE, page, 0);
+  }
+  #[inline]
+  pub fn new(_fbb: &'b mut flatbuffers::FlatBufferBuilder<'a, A>) -> KeyboardCandidatesCommandBuilder<'a, 'b, A> {
+    let start = _fbb.start_table();
+    KeyboardCandidatesCommandBuilder {
+      fbb_: _fbb,
+      start_: start,
+    }
+  }
+  #[inline]
+  pub fn finish(self) -> flatbuffers::WIPOffset<KeyboardCandidatesCommand<'a>> {
+    let o = self.fbb_.end_table(self.start_);
+    flatbuffers::WIPOffset::new(o.value())
+  }
+}
+
+impl core::fmt::Debug for KeyboardCandidatesCommand<'_> {
+  fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+    let mut ds = f.debug_struct("KeyboardCandidatesCommand");
+      ds.field("index", &self.index());
+      ds.field("page", &self.page());
       ds.finish()
   }
 }
@@ -12846,6 +13133,36 @@ impl<'a> Envelope<'a> {
 
   #[inline]
   #[allow(non_snake_case)]
+  pub fn payload_as_keyboard_candidates(&self) -> Option<KeyboardCandidates<'a>> {
+    if self.payload_type() == Payload::KeyboardCandidates {
+      self.payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { KeyboardCandidates::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
+  pub fn payload_as_keyboard_candidates_command(&self) -> Option<KeyboardCandidatesCommand<'a>> {
+    if self.payload_type() == Payload::KeyboardCandidatesCommand {
+      self.payload().map(|t| {
+       // Safety:
+       // Created from a valid Table for this object
+       // Which contains a valid union in this slot
+       unsafe { KeyboardCandidatesCommand::init_from_table(t) }
+     })
+    } else {
+      None
+    }
+  }
+
+  #[inline]
+  #[allow(non_snake_case)]
   pub fn payload_as_cursor_position(&self) -> Option<CursorPosition<'a>> {
     if self.payload_type() == Payload::CursorPosition {
       self.payload().map(|t| {
@@ -13092,6 +13409,8 @@ impl flatbuffers::Verifiable for Envelope<'_> {
           Payload::ShellAction => v.verify_union_variant::<flatbuffers::ForwardsUOffset<ShellAction>>("Payload::ShellAction", pos),
           Payload::CursorShape => v.verify_union_variant::<flatbuffers::ForwardsUOffset<CursorShape>>("Payload::CursorShape", pos),
           Payload::KeyboardCommand => v.verify_union_variant::<flatbuffers::ForwardsUOffset<KeyboardCommand>>("Payload::KeyboardCommand", pos),
+          Payload::KeyboardCandidates => v.verify_union_variant::<flatbuffers::ForwardsUOffset<KeyboardCandidates>>("Payload::KeyboardCandidates", pos),
+          Payload::KeyboardCandidatesCommand => v.verify_union_variant::<flatbuffers::ForwardsUOffset<KeyboardCandidatesCommand>>("Payload::KeyboardCandidatesCommand", pos),
           Payload::CursorPosition => v.verify_union_variant::<flatbuffers::ForwardsUOffset<CursorPosition>>("Payload::CursorPosition", pos),
           Payload::DesktopNotificationEvent => v.verify_union_variant::<flatbuffers::ForwardsUOffset<DesktopNotificationEvent>>("Payload::DesktopNotificationEvent", pos),
           Payload::DesktopNotificationCommand => v.verify_union_variant::<flatbuffers::ForwardsUOffset<DesktopNotificationCommand>>("Payload::DesktopNotificationCommand", pos),
@@ -13240,6 +13559,20 @@ impl core::fmt::Debug for Envelope<'_> {
         },
         Payload::KeyboardCommand => {
           if let Some(x) = self.payload_as_keyboard_command() {
+            ds.field("payload", &x)
+          } else {
+            ds.field("payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        Payload::KeyboardCandidates => {
+          if let Some(x) = self.payload_as_keyboard_candidates() {
+            ds.field("payload", &x)
+          } else {
+            ds.field("payload", &"InvalidFlatbuffer: Union discriminant does not match value.")
+          }
+        },
+        Payload::KeyboardCandidatesCommand => {
+          if let Some(x) = self.payload_as_keyboard_candidates_command() {
             ds.field("payload", &x)
           } else {
             ds.field("payload", &"InvalidFlatbuffer: Union discriminant does not match value.")

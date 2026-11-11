@@ -570,6 +570,7 @@ bool _nativePayloadType(generated.PayloadTypeId type) {
       type == generated.PayloadTypeId.CursorPosition ||
       type == generated.PayloadTypeId.TextInputState ||
       type == generated.PayloadTypeId.TextPrediction ||
+      type == generated.PayloadTypeId.KeyboardCandidates ||
       type == generated.PayloadTypeId.DesktopNotificationEvent ||
       type == generated.PayloadTypeId.SettingsResponse ||
       type == generated.PayloadTypeId.XEmbedTrayEvent;
