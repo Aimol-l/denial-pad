@@ -8,6 +8,8 @@ environment:
 dependencies:
   denial_clock_ui:
     path: ../denial_clock/ui
+  denial_keyboard:
+    path: ../denial_keyboard
   denial_flutter_sdk:
     path: ../../packages/denial_flutter_sdk
   denial_sdk:

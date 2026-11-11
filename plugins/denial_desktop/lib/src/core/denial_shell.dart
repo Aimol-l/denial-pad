@@ -13,6 +13,7 @@ import 'package:denial_flutter_sdk/input.dart';
 
 import '../desktop/desktop_input_layout_publisher.dart';
 import '../diagnostics/desktop_benchmark_binding.dart';
+import '../keyboard/keyboard_layer.dart';
 import '../desktop/desktop_pet_holds.dart';
 import '../features/mobile/mobile_system_overlay_layer.dart';
 import '../state/phone_desk.dart';
@@ -329,6 +330,7 @@ class _ProfileScene extends StatelessWidget {
             const MobileVolumeHud(),
             // Above everything, the lock screen included.
             const MobileScreenshotFlash(),
+            const KeyboardLayer(),
           ],
         ),
       ),
@@ -358,6 +360,7 @@ class _ProfileScene extends StatelessWidget {
                     ),
                     const InputDeckLayer(),
                     const ScreenshotSelectionLayer(),
+                    const KeyboardLayer(),
                   ],
                 ),
               ),

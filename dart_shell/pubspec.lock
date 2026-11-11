@@ -149,6 +149,20 @@ packages:
       relative: true
     source: path
     version: "0.0.0"
+  denial_keyboard:
+    dependency: transitive
+    description:
+      path: "../plugins/denial_keyboard"
+      relative: true
+    source: path
+    version: "0.1.0"
+  denial_keyboard_core:
+    dependency: transitive
+    description:
+      path: "../plugins/denial_keyboard/core"
+      relative: true
+    source: path
+    version: "0.1.0"
   denial_launcher:
     dependency: "direct main"
     description:

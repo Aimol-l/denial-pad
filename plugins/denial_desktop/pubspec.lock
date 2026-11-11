@@ -127,6 +127,20 @@ packages:
       relative: true
     source: path
     version: "0.0.0"
+  denial_keyboard:
+    dependency: "direct main"
+    description:
+      path: "../denial_keyboard"
+      relative: true
+    source: path
+    version: "0.1.0"
+  denial_keyboard_core:
+    dependency: transitive
+    description:
+      path: "../denial_keyboard/core"
+      relative: true
+    source: path
+    version: "0.1.0"
   denial_sdk:
     dependency: "direct main"
     description:

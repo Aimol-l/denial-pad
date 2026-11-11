@@ -12,6 +12,7 @@ import 'package:denial_flutter_sdk/platform.dart';
 import 'package:denial_flutter_sdk/state.dart';
 
 import 'app_deck.dart';
+import 'floating_keyboard_state.dart';
 import 'reference_shell_state.dart';
 import 'input_deck.dart';
 import 'phone_desk.dart';
@@ -1511,6 +1512,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       appsMoving: _deck.presenting.value,
       sceneOrigin: split?.phoneRect.topLeft ?? Offset.zero,
       composer: split == null ? null : ref.read(phoneDeskInputComposerProvider),
+      keyboardRect: ref.read(floatingKeyboardRectProvider),
     );
   }
 }

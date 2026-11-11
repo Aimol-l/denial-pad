@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Denial 悬浮键盘 — 设计稿（亮色 · 紧凑）</title>
+<style>
+  :root {
+    --accent: #6d5bd0;
+    --accent-soft: rgba(109, 91, 208, 0.14);
+    --panel: #eef0f3;
+    --panel-border: #d3d6dc;
+    --key: #ffffff;
+    --key-special: #dfe2e7;
+    --key-shadow: 0 1px 0 rgba(0, 0, 0, .16);
+    --ink: #1c1c1f;
+    --ink-muted: #5f6470;
+    --ink-faint: #9aa0aa;
+    --line: #e3e5e9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    display: block;
+    padding: 44px 0 64px;
+    background: #0c0c12;
+    color: #1c1c1f;
+    font-family: "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+    -webkit-user-select: none; user-select: none;
+  }
+
+  /* ---------- device ---------- */
+  .device {
+    position: relative;
+    margin: 0 auto;
+    width: 1707px; height: 1067px;
+    border-radius: 30px;
+    overflow: hidden;
+    background: #fbfbfc;
+    box-shadow: 0 40px 120px rgba(0, 0, 0, .55);
+  }
+  .app {
+    position: absolute; inset: 0;
+    padding: 96px 150px 0;
+    background: #fff;
+  }
+  .app .back { position: absolute; left: 64px; top: 56px; font-size: 34px; color: #2b2b30; }
+  .app .tools { position: absolute; right: 74px; top: 58px; display: flex; gap: 46px; color: #b9bdc6; font-size: 34px; }
+  .app h1 { font-size: 46px; color: #c9ccd2; font-weight: 600; }
+  .app .meta { margin-top: 16px; font-size: 21px; color: #b6bac2; }
+  .app .body { margin-top: 54px; font-size: 24px; color: #cfd2d8; }
+  .app .chip {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 16px; border-radius: 10px;
+    background: #fdf6e3; color: #c99a2e; font-size: 20px;
+  }
+  .app .homebar {
+    position: absolute; left: 50%; bottom: 12px; transform: translateX(-50%);
+    width: 300px; height: 6px; border-radius: 999px; background: #d9dbe0;
+  }
+
+  /* ---------- keyboard ---------- */
+  .kb {
+    position: absolute;
+    left: 358px; top: 727px; width: 990px; height: 320px;
+    border-radius: 20px;
+    background: var(--panel);
+    border: 1px solid var(--panel-border);
+    box-shadow: 0 18px 40px rgba(20, 22, 28, .18), 0 2px 6px rgba(20, 22, 28, .10);
+    padding: 8px 12px 12px;
+    display: flex; flex-direction: column;
+  }
+  .handle {
+    position: absolute; left: 50%; top: 6px; transform: translateX(-50%);
+    width: 56px; height: 4px; border-radius: 999px; background: #c2c6cd;
+  }
+  .resize {
+    position: absolute; right: 5px; bottom: 5px;
+    width: 24px; height: 24px;
+    border-right: 2px solid #b9bec7;
+    border-bottom: 2px solid #b9bec7;
+    border-radius: 0 0 10px 0;
+  }
+
+  /* top bar: pinyin preedit on the left, two small actions on the right */
+  .topbar {
+    height: 30px; display: flex; align-items: center;
+    padding: 0 10px;
+  }
+  .topbar .preedit {
+    font-size: 18px; color: #3d424c; letter-spacing: .02em;
+  }
+  .topbar .actions { margin-left: auto; display: flex; gap: 18px; color: #9aa0aa; font-size: 15px; }
+  .topbar .actions .accent { color: var(--accent); }
+
+  /* candidate strip */
+  .candidates {
+    height: 34px; display: flex; align-items: center; gap: 4px;
+    margin: 0 4px 6px; padding-bottom: 5px;
+    border-bottom: 1px solid var(--line);
+  }
+  .cand { padding: 3px 12px; border-radius: 7px; font-size: 15px; color: var(--ink); }
+  .cand.preedit { color: var(--ink-faint); letter-spacing: .05em; }
+  .cand.first { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .cand .idx { font-size: 9px; color: var(--ink-faint); margin-right: 4px; }
+  .page { margin-left: auto; color: var(--ink-faint); font-size: 12px; }
+
+  .rows { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+  .row { flex: 1; display: flex; gap: 6px; }
+  .key {
+    position: relative; flex: 1;
+    display: grid; place-items: center;
+    border-radius: 8px;
+    background: var(--key);
+    box-shadow: var(--key-shadow);
+    font-size: 22px; font-weight: 500; color: var(--ink);
+  }
+  .key .num {
+    position: absolute; left: 5px; top: 3px;
+    font-size: 10px; font-weight: 400; color: var(--ink-faint);
+  }
+  .key.special { background: var(--key-special); box-shadow: none; font-size: 16px; color: var(--ink-muted); }
+  .key.accent { background: var(--accent); box-shadow: none; color: #fff; }
+  .key.space { flex: 3.4; font-size: 13px; color: var(--ink-faint); font-weight: 400; }
+  .key .sym { font-size: 18px; }
+
+  /* annotations */
+  .dim { position: absolute; font-size: 13px; color: #8f949e; font-family: "JetBrains Mono", ui-monospace, monospace; }
+  .dim.w { left: 358px; top: 699px; width: 990px; text-align: center; }
+  .dim.h { left: 1354px; top: 727px; height: 320px; display: flex; align-items: center; }
+  .dim.h span { transform: rotate(90deg); white-space: nowrap; }
+  .tickline { position: absolute; background: rgba(0, 0, 0, .12); }
+  .tick.w { left: 358px; top: 713px; width: 990px; height: 1px; }
+  .tick.h { left: 1346px; top: 727px; width: 1px; height: 320px; }
+
+  /* ---------- spec sheets ---------- */
+  .specs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; width: 1707px; margin: 26px auto 0; }
+  .spec { border-radius: 22px; padding: 22px 24px 24px; background: rgba(255, 255, 255, .045); border: 1px solid rgba(255,255,255,.10); color: #e8e9ee; }
+  .spec h2 { font-size: 15px; font-weight: 600; }
+  .spec h2 span { display: block; margin-top: 6px; font-size: 12px; font-weight: 400; color: rgba(232,233,238,.45); }
+  .stage { position: relative; margin: 18px 0 10px; height: 210px; border-radius: 16px; background: #f4f5f7; overflow: hidden; }
+  .stage .mini { position: absolute; border-radius: 8px; background: var(--panel); border: 1px solid var(--panel-border); display: flex; flex-direction: column; gap: 2px; padding: 4px; }
+  .stage .mini .r { flex: 1; display: flex; gap: 2px; }
+  .stage .mini .k { flex: 1; border-radius: 2px; background: #fff; box-shadow: 0 1px 0 rgba(0,0,0,.12); }
+  .stage .mini .k.s { background: var(--key-special); box-shadow: none; }
+  .spec p { font-size: 12.5px; line-height: 1.65; color: rgba(232,233,238,.62); }
+  .spec p + p { margin-top: 8px; }
+  .spec code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 11.5px; color: #cfc6ff; }
+
+  .states {
+    width: 1707px; margin: 22px auto 0; border-radius: 22px; padding: 24px 28px;
+    background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.10);
+    display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+  }
+  .states h3 { font-size: 13px; font-weight: 600; color: #e8e9ee; margin-bottom: 4px; }
+  .states h3 span { font-weight: 400; color: rgba(232,233,238,.45); margin-left: 8px; font-size: 12px; }
+  .states .demo {
+    margin-top: 12px; border-radius: 12px; background: var(--panel);
+    border: 1px solid var(--panel-border); padding: 8px 10px;
+  }
+  .states .demo .bar { display: flex; align-items: center; gap: 26px; height: 26px; color: #9aa0aa; font-size: 15px; }
+  .states .demo .bar .grow { margin-left: auto; }
+  .states .demo .pre { display: flex; align-items: center; height: 26px; font-size: 16px; color: #3d424c; }
+  .states .demo .pre .act { margin-left: auto; display: flex; gap: 16px; color: #9aa0aa; font-size: 14px; }
+  .states .demo .cands { display: flex; align-items: center; gap: 6px; height: 30px; }
+  .states .demo .cands .c { font-size: 15px; color: var(--ink); padding: 3px 10px; border-radius: 6px; }
+  .states .demo .cands .c.first { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+  .states p { font-size: 12.5px; line-height: 1.6; color: rgba(232,233,238,.62); margin-top: 10px; }
+
+  .numbers {
+    width: 1707px; margin: 22px auto 0; border-radius: 22px; padding: 24px 28px;
+    background: rgba(255,255,255,.045); border: 1px solid rgba(255,255,255,.10);
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px 28px; color: rgba(232,233,238,.62);
+  }
+  .numbers div { font-size: 12.5px; }
+  .numbers b { display: block; margin-bottom: 4px; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: rgba(232,233,238,.36); }
+  .numbers code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 12px; color: #cfc6ff; }
+</style>
+</head>
+<body>
+
+<div>
+  <div class="device">
+    <div class="app">
+      <div class="back">←</div>
+      <div class="tools"><span>↶</span><span>↷</span><span>✓</span></div>
+      <h1>标题</h1>
+      <div class="meta">11月11日 10:13 &nbsp;|&nbsp; 0 字</div>
+      <div class="body">开始书写或 <span class="chip">≡ 创建思维笔记</span></div>
+      <div class="homebar"></div>
+    </div>
+
+    <div class="kb">
+      <div class="handle"></div>
+
+      <div class="topbar">
+        <span class="preedit">ni'h'l'b</span>
+        <span class="actions"><span>☁</span><span class="accent">⌨</span></span>
+      </div>
+
+      <div class="candidates">
+        <div class="cand first">你回来吧</div>
+        <div class="cand">你回不来</div>
+        <div class="cand">你还来不</div>
+        <div class="cand">你</div>
+        <div class="page" style="font-size:16px">›</div>
+      </div>
+
+      <div class="rows">
+        <div class="row">
+          <div class="key"><span class="num">1</span>q</div>
+          <div class="key"><span class="num">2</span>w</div>
+          <div class="key"><span class="num">3</span>e</div>
+          <div class="key"><span class="num">4</span>r</div>
+          <div class="key"><span class="num">5</span>t</div>
+          <div class="key"><span class="num">6</span>y</div>
+          <div class="key"><span class="num">7</span>u</div>
+          <div class="key"><span class="num">8</span>i</div>
+          <div class="key"><span class="num">9</span>o</div>
+          <div class="key"><span class="num">0</span>p</div>
+        </div>
+        <div class="row" style="padding: 0 26px">
+          <div class="key">a</div><div class="key">s</div><div class="key">d</div>
+          <div class="key">f</div><div class="key">g</div><div class="key">h</div>
+          <div class="key">j</div><div class="key">k</div><div class="key">l</div>
+        </div>
+        <div class="row">
+          <div class="key special"><span class="sym">⇧</span></div>
+          <div class="key">z</div><div class="key">x</div><div class="key">c</div>
+          <div class="key">v</div><div class="key">b</div><div class="key">n</div>
+          <div class="key">m</div>
+          <div class="key special"><span class="sym">⌫</span></div>
+        </div>
+        <div class="row">
+          <div class="key special"><span class="sym">符</span></div>
+          <div class="key special"><span class="sym">123</span></div>
+          <div class="key special"><span class="sym">,</span></div>
+          <div class="key space"><span style="font-size:17px">🎙</span></div>
+          <div class="key special"><span class="sym">。</span></div>
+          <div class="key special"><span class="sym">中/英</span></div>
+          <div class="key accent"><span class="sym">↵</span></div>
+        </div>
+      </div>
+
+      <div class="resize"></div>
+    </div>
+
+    <div class="tick w"></div><div class="dim w">990 × 58% 屏宽</div>
+    <div class="tick h"></div><div class="dim h"><span>320 · 30%</span></div>
+  </div>
+
+  <div class="specs">
+    <div class="spec">
+      <h2>最小尺寸<small>40% × 25%</small></h2>
+      <div class="stage">
+        <div class="mini" style="left:100px; bottom:14px; width:320px; height:100px;">
+          <div class="r"><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div></div>
+          <div class="r"><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div></div>
+          <div class="r"><div class="k s"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k s"></div></div>
+          <div class="r"><div class="k s"></div><div class="k s"></div><div class="k s"></div><div class="k" style="flex:3"></div><div class="k s"></div><div class="k s"></div></div>
+        </div>
+      </div>
+      <p>比手机悬浮键盘还窄一档，拇指够得着；字号夹在 <code>11–22</code>，再小就不可读。</p>
+      <p>候选条固定 34 高，不随缩放变化。</p>
+    </div>
+
+    <div class="spec">
+      <h2>默认尺寸<small>58% × 30%</small></h2>
+      <div class="stage">
+        <div class="mini" style="left:53px; bottom:14px; width:395px; height:150px;">
+          <div class="r"><div class="k s" style="flex:3"></div><div class="k" style="flex:1"></div><div class="k" style="flex:1"></div><div class="k" style="flex:1"></div></div>
+          <div class="r"><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div></div>
+          <div class="r"><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div></div>
+          <div class="r"><div class="k s"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k s"></div></div>
+          <div class="r"><div class="k s"></div><div class="k s"></div><div class="k s"></div><div class="k" style="flex:3"></div><div class="k s"></div><div class="k s"></div></div>
+        </div>
+      </div>
+      <p>数字挂在 QWERTY 键的左上角，不再单独占一行——这是压高度的关键。</p>
+      <p>首次使用停在底部居中、偏上 20 逻辑像素，横竖屏各记一套位置。</p>
+    </div>
+
+    <div class="spec">
+      <h2>最大尺寸<small>80% × 45%</small></h2>
+      <div class="stage">
+        <div class="mini" style="left:26px; bottom:14px; width:470px; height:172px;">
+          <div class="r"><div class="k s" style="flex:3"></div><div class="k" style="flex:1"></div><div class="k" style="flex:1"></div><div class="k" style="flex:1"></div></div>
+          <div class="r"><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div></div>
+          <div class="r"><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div></div>
+          <div class="r"><div class="k s"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k"></div><div class="k s"></div></div>
+          <div class="r"><div class="k s"></div><div class="k s"></div><div class="k s"></div><div class="k" style="flex:3"></div><div class="k s"></div><div class="k s"></div></div>
+        </div>
+      </div>
+      <p>上限从 100% 收到 80%：再宽拇指就要横跨整块屏，正是你指出的问题。</p>
+      <p>高度上限 45%，避免键盘遮掉太多正文。</p>
+    </div>
+  </div>
+
+  <div class="states">
+    <div>
+      <h3>空闲态<span>顶部 64 高，整行工具条</span></h3>
+      <div class="demo">
+        <div class="bar"><span>▦</span><span>☺</span><span>A⌄</span><span>🎙</span><span class="grow">⚙</span><span>⌄</span></div>
+      </div>
+      <p>没有预编辑和候选时，整块顶部显示工具条，面板高度不变。</p>
+    </div>
+    <div>
+      <h3>输入中<span>同一块 64 高，切成两行</span></h3>
+      <div class="demo">
+        <div class="pre">ni'h'l'b<span class="act">☁ <b style="color:var(--accent);font-weight:400">⌨</b></span></div>
+        <div class="cands"><span class="c first">你回来吧</span><span class="c">你回不来</span><span class="c">你还来不</span><span class="c">你</span><span class="c" style="margin-left:auto;color:#9aa0aa">›</span></div>
+      </div>
+      <p>一旦有预编辑或候选，工具条换成「预编辑 + 候选」两行；清空后自动换回工具条。</p>
+    </div>
+  </div>
+
+  <div class="numbers">
+    <div><b>默认</b><code>58% × 30%</code><br>底部居中，偏上 20</div>
+    <div><b>范围</b>宽 <code>40–80%</code><br>高 <code>25–45%</code></div>
+    <div><b>行数</b>4 行（数字挂在键角）<br>候选条 34 固定</div>
+    <div><b>字号</b><code>clamp(行高 × 0.42, 11, 22)</code><br>圆角随行高</div>
+    <div><b>亮色</b>键 <code>#fff</code> · 特殊键 <code>#dfe2e7</code><br>面板 <code>#eef0f3</code></div>
+    <div><b>强调</b>回车用主题紫 <code>#6d5bd0</code><br>候选首项淡紫底</div>
+    <div><b>拖动</b>顶部把手，离边 &lt; 24 吸附<br>至少 48 留在屏内</div>
+    <div><b>持久化</b><code>keyboardPlacement</code><br>横竖屏各一套</div>
+  </div>
+</div>
+
+</body>
+</html>

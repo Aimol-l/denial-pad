@@ -1,0 +1,14 @@
+name: denial_keyboard
+description: Floating software keyboard for the Denial tablet shell.
+publish_to: none
+version: 0.1.0
+environment:
+  sdk: ^3.13.0
+  flutter: 3.47.5
+dependencies:
+  flutter:
+    sdk: flutter
+  denial_keyboard_core:
+    path: core
+dev_dependencies:
+  flutter_lints: ^6.0.0

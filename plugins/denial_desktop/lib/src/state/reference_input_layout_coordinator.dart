@@ -34,6 +34,7 @@ class ReferenceInputLayoutCoordinator {
     bool appsMoving = false,
     Offset sceneOrigin = Offset.zero,
     PhoneDeskInputComposer? composer,
+    Rect? keyboardRect,
   }) {
     if (viewSize.width <= 0 || viewSize.height <= 0) {
       return;
@@ -174,6 +175,7 @@ class ReferenceInputLayoutCoordinator {
       shellRegions: shellRegions,
       windows: inputRegions,
       edgeSwipeRegions: edgeSwipeRegions,
+      softwareKeyboardRegions: <Rect>[?keyboardRect],
       keyboardCapture: quickSettingsActive || interactions.capturesKeyboard,
       exclusiveShellMode: interactions.compositorExclusive,
     );

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:denial_flutter_sdk/input.dart';
 
+import '../state/floating_keyboard_state.dart';
 import '../state/phone_desk.dart';
 
 class InputLayoutPublisher extends ConsumerStatefulWidget {
@@ -67,6 +68,10 @@ class _InputLayoutPublisherState extends ConsumerState<InputLayoutPublisher> {
     ref.watch(mobilePresentationTopInsetProvider);
     // Beside a desk the phone's regions move into the scene.
     ref.watch(phoneDeskProvider);
+    // The floating keyboard's region has to follow the panel while it is
+    // dragged, otherwise the pointer leaves the region mid-gesture and the
+    // compositor hands the rest of the drag to the application underneath.
+    ref.watch(floatingKeyboardRectProvider);
     _viewSize = MediaQuery.sizeOf(context);
     _schedulePublish(_viewSize);
     return widget.child;
