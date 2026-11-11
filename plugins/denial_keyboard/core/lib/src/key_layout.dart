@@ -10,6 +10,8 @@ enum KeyKind {
   enter,
   space,
   language,
+  /// The full stop beside the space bar; the language decides its character.
+  period,
   layer,
   emoji,
 }
@@ -84,7 +86,7 @@ List<KeyRow> lettersLayout({bool numberRow = false}) {
       const KeySpec('123', kind: KeyKind.layer),
       const KeySpec(',', kind: KeyKind.symbol),
       const KeySpec('🎙', kind: KeyKind.space, flex: 3.4),
-      const KeySpec('。', kind: KeyKind.symbol),
+      const KeySpec('。', kind: KeyKind.period),
       const KeySpec('中/英', kind: KeyKind.language, flex: 1.3),
       const KeySpec('↵', kind: KeyKind.enter, flex: 1.4),
     ]),

@@ -51,7 +51,6 @@ class _KeyboardPanelState extends State<KeyboardPanel> {
   ShiftState _shift = ShiftState.off;
   InputMode _mode = InputMode.latin;
   int _layer = 0;
-  DateTime? _lastSpace;
   Timer? _repeat;
 
   bool get _typing =>
@@ -88,14 +87,9 @@ class _KeyboardPanelState extends State<KeyboardPanel> {
       case KeyKind.enter:
         widget.backend.pressKey('Return');
       case KeyKind.space:
-        final now = DateTime.now();
-        final last = _lastSpace;
-        _lastSpace = now;
-        if (last != null && now.difference(last) < const Duration(milliseconds: 400)) {
-          _type('. ');
-        } else {
-          _type(' ');
-        }
+        // Always a space: the keyboard never rewrites a key the user pressed
+        // into punctuation.
+        _type(' ');
       case KeyKind.layer:
         setState(() {
           _layer = switch (spec.label) {
@@ -112,6 +106,8 @@ class _KeyboardPanelState extends State<KeyboardPanel> {
         widget.backend.pressKey('LangSwitch');
       case KeyKind.emoji:
         break;
+      case KeyKind.period:
+        _type(_mode.period);
       case KeyKind.letter:
       case KeyKind.digit:
       case KeyKind.symbol:
@@ -272,9 +268,11 @@ class _KeyboardPanelState extends State<KeyboardPanel> {
                 flex: (row.keys[i].flex * 1000).round(),
                 child: KeyCap(
                   spec: row.keys[i],
-                  label: row.keys[i].kind == KeyKind.language
-                      ? _mode.keyLabel
-                      : row.keys[i].labelFor(shift: _shift != ShiftState.off),
+                  label: switch (row.keys[i].kind) {
+                    KeyKind.language => _mode.keyLabel,
+                    KeyKind.period => _mode.period,
+                    _ => row.keys[i].labelFor(shift: _shift != ShiftState.off),
+                  },
                   colors: colors,
                   height: metrics.rowHeight,
                   fontSize: metrics.fontSize,

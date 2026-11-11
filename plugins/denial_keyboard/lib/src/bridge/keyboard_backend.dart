@@ -44,6 +44,7 @@ String? keyNameFor(KeyKind kind) {
       return 'space';
     case KeyKind.shift:
     case KeyKind.language:
+    case KeyKind.period:
     case KeyKind.layer:
     case KeyKind.emoji:
     case KeyKind.letter:

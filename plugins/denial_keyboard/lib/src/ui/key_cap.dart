@@ -38,6 +38,14 @@ class KeyCap extends StatefulWidget {
 class _KeyCapState extends State<KeyCap> {
   bool _pressed = false;
 
+  void _press() {
+    if (!_pressed) setState(() => _pressed = true);
+  }
+
+  void _release() {
+    if (_pressed) setState(() => _pressed = false);
+  }
+
   bool get _isSpecial => switch (widget.spec.kind) {
     KeyKind.shift ||
     KeyKind.backspace ||
@@ -53,13 +61,16 @@ class _KeyCapState extends State<KeyCap> {
   @override
   Widget build(BuildContext context) {
     final colors = widget.colors;
+    final base = _isAccent
+        ? colors.accent
+        : _isSpecial
+            ? colors.keySpecial
+            : colors.key;
+    // Darken whatever the key is, so the accent and special keys read pressed
+    // too; a single pressed colour looked wrong on the purple Enter key.
     final background = _pressed
-        ? colors.keyPressed
-        : _isAccent
-            ? colors.accent
-            : _isSpecial
-                ? colors.keySpecial
-                : colors.key;
+        ? Color.alphaBlend(const Color(0x38000000), base)
+        : base;
     final foreground = _isAccent
         ? const Color(0xFFFFFFFF)
         : _isSpecial
@@ -67,18 +78,21 @@ class _KeyCapState extends State<KeyCap> {
             : colors.ink;
     return GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTapDown: (_) => setState(() => _pressed = true),
-        onTapUp: (_) => setState(() => _pressed = false),
-        onTapCancel: () => setState(() => _pressed = false),
+        onTapDown: (_) => _press(),
+        onTapUp: (_) => _release(),
+        onTapCancel: _release,
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
-        onLongPressUp: widget.onLongPressUp,
+        onLongPressUp: () {
+          _release();
+          widget.onLongPressUp?.call();
+        },
         child: Container(
           height: widget.height,
           decoration: BoxDecoration(
             color: background,
             borderRadius: BorderRadius.circular(widget.radius),
-            boxShadow: _isSpecial || _isAccent ? null : [kKeyShadow],
+            boxShadow: _pressed || _isSpecial || _isAccent ? null : [kKeyShadow],
           ),
           child: Stack(
             children: [

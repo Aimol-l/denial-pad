@@ -395,6 +395,11 @@ impl InputMethodManager {
         }
     }
 
+    /// Whether an external input method currently drives the focused editor.
+    pub(super) fn instance_active(&self) -> bool {
+        self.instance.as_ref().is_some_and(|instance| instance.active)
+    }
+
     pub(super) fn set_blocked(&mut self, blocked: bool) -> bool {
         if self.blocked == blocked {
             return false;

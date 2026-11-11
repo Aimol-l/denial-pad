@@ -12,4 +12,8 @@ enum InputMode {
 
   /// The label on the language key: the mode a tap switches to.
   String get keyLabel => this == latin ? '中' : '英';
+
+  /// The full stop the keyboard types and shows: the language's own form in
+  /// Chinese, the ASCII one otherwise.
+  String get period => this == chinese ? '。' : '.';
 }

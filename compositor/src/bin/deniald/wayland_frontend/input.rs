@@ -352,6 +352,12 @@ fn inject_shell_key_stroke(
     const LEFT_CTRL: u32 = 29;
     const LEFT_SHIFT: u32 = 42;
 
+    // TEMP: is there a target for the injected key?
+    tracing::info!(
+        keycode = stroke.evdev_keycode,
+        target = keyboard.current_focus().is_some(),
+        "SKB inject"
+    );
     let keycode = Keycode::new(stroke.evdev_keycode + XKB_KEYCODE_OFFSET);
     if keyboard.pressed_keys().contains(&keycode) {
         warn!(
@@ -404,6 +410,11 @@ pub(super) fn inject_shell_key_transition(
     if stroke.shift {
         return false;
     }
+    tracing::debug!(
+        keycode = stroke.evdev_keycode,
+        target = keyboard.current_focus().is_some(),
+        "shell keyboard key transition"
+    );
     let keycode = Keycode::new(stroke.evdev_keycode + XKB_KEYCODE_OFFSET);
     let seat_pressed = keyboard.pressed_keys().contains(&keycode);
     let accepted = {
@@ -483,6 +494,17 @@ pub(crate) fn dispatch_shell_keyboard(
             InputTime::now(),
         )
     };
+    // Diagnostic only: a shell-keyboard report names the key and whether an
+    // external input method still owns the seat while the shell keyboard is up.
+    if tracing::enabled!(tracing::Level::DEBUG) {
+        let frontend = state.frontend();
+        tracing::debug!(
+            ?command,
+            im_active = frontend.input_method.instance_active(),
+            mobile = frontend.mobile_shell(),
+            "shell keyboard dispatch"
+        );
+    }
     // Do not gate the shared router on a focused Wayland surface. Flutter is a
     // first-class seat focus target, so software and physical keyboards both
     // use process_keyboard_transition() and the same seat dispatch.
@@ -670,6 +692,11 @@ fn commit_shell_text(
         return true;
     }
     let delivered = state.frontend_mut().commit_shell_keyboard_text(None, text);
+    tracing::debug!(
+        text,
+        has_editor = delivered.is_some(),
+        "shell keyboard commit"
+    );
     match delivered {
         Some(delivered) => delivered,
         None => type_shell_text(state, keyboard, text, time),

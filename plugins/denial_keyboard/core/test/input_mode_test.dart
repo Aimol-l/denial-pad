@@ -8,6 +8,11 @@ void main() {
     expect(InputMode.chinese.toggled, InputMode.latin);
   });
 
+  test('the full stop follows the language', () {
+    expect(InputMode.latin.period, '.');
+    expect(InputMode.chinese.period, '。');
+  });
+
   test('the language key shows the mode a tap switches to', () {
     expect(InputMode.latin.keyLabel, '中');
     expect(InputMode.chinese.keyLabel, '英');

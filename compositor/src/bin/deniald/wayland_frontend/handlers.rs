@@ -1728,6 +1728,15 @@ impl SeatHandler for RuntimeState {
 
     fn focus_changed(&mut self, seat: &Seat<Self>, focused: Option<&KeyboardFocusTarget>) {
         #[cfg(feature = "flutter")]
+        if tracing::enabled!(tracing::Level::DEBUG) {
+            let focus = match focused {
+                None => "none",
+                Some(KeyboardFocusTarget::Flutter) => "flutter",
+                Some(_) => "client",
+            };
+            tracing::debug!(focus, "keyboard focus changed");
+        }
+        #[cfg(feature = "flutter")]
         if focused.is_some_and(|focus| !matches!(focus, KeyboardFocusTarget::Flutter)) {
             self.frontend_mut().clear_local_flutter_focus();
         }
