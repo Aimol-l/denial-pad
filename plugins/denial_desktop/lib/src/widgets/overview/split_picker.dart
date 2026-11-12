@@ -7,6 +7,7 @@ import 'package:denial_flutter_sdk/models.dart';
 import 'package:denial_flutter_sdk/rendering.dart' show WindowContentRect;
 
 import '../../state/reference_shell_controller.dart';
+import '../../state/reference_shell_metrics.dart';
 
 /// Picks the second pane's app from a grid of live thumbnails, on the side of
 /// the screen that is still empty. The fixed side keeps rendering underneath.
@@ -72,9 +73,13 @@ class SplitPicker extends ConsumerWidget {
                           ),
                         ),
                       )
-                    : LayoutBuilder(
-                        builder: (context, constraints) {
-                          final pane = constraints.biggest;
+                    : Builder(
+                        builder: (context) {
+                          final view = MediaQuery.sizeOf(context);
+                          final extent = pair.vertical
+                              ? view.height -
+                                    ReferenceShellMetrics.appStatusInset(view)
+                              : view.width;
                           return GridView.builder(
                             padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
                             gridDelegate:
@@ -97,9 +102,7 @@ class SplitPicker extends ConsumerWidget {
                               final fits = fixed == null
                                   ? true
                                   : (splitRatioBounds(
-                                          extent: pair.vertical
-                                              ? pane.height
-                                              : pane.width,
+                                          extent: extent,
                                           firstMin: pair.vertical
                                               ? fixed.minHeight
                                               : fixed.minWidth,

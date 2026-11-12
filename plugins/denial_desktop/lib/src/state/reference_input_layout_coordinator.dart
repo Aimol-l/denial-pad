@@ -156,12 +156,29 @@ class ReferenceInputLayoutCoordinator {
       }
       final first = cards[0];
       final second = cards[1];
+      // The floating divider lives on the seam; its band belongs to the shell
+      // even though the panes below it belong to the clients.
+      const seamBand = 28.0;
+      final seam = split.vertical
+          ? Rect.fromLTWH(
+              0,
+              first.bottom - seamBand / 2,
+              viewSize.width,
+              seamBand,
+            )
+          : Rect.fromLTWH(
+              first.right - seamBand / 2,
+              first.top,
+              seamBand,
+              first.height,
+            );
       final shellRegions = <Rect>[
         Rect.fromLTRB(0, 0, viewSize.width, first.top),
         Rect.fromLTRB(0, second.bottom, viewSize.width, viewSize.height),
         Rect.fromLTRB(0, first.top, first.left, first.bottom),
         Rect.fromLTRB(first.right, first.top, second.left, first.bottom),
         Rect.fromLTRB(second.right, first.top, viewSize.width, first.bottom),
+        seam.intersect(Offset.zero & viewSize),
       ].where((region) => !region.isEmpty).toList(growable: false);
       _publishInputLayout(
         viewSize: viewSize,

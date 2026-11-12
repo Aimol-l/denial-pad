@@ -74,8 +74,32 @@ class MobileSplitStage extends ConsumerWidget {
             index == 0 ? SplitSide.first : SplitSide.second,
           ),
           child: Opacity(
-            opacity: active ? 1 : 0.94,
-            child: WindowContentRect(window: window, active: active),
+            opacity: active ? 1 : 0.96,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                WindowContentRect(window: window, active: active),
+                // The active side owns the keyboard and Back; a hairline on
+                // the seam says so without taking any geometry.
+                if (active)
+                  Align(
+                    alignment: index == 0
+                        ? (pair.vertical
+                              ? Alignment.bottomCenter
+                              : Alignment.centerRight)
+                        : (pair.vertical
+                              ? Alignment.topCenter
+                              : Alignment.centerLeft),
+                    child: SizedBox(
+                      width: pair.vertical ? null : 1.5,
+                      height: pair.vertical ? 1.5 : null,
+                      child: const DecoratedBox(
+                        decoration: BoxDecoration(color: Color(0x8C6D5BD0)),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
         ),
       );

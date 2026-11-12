@@ -514,6 +514,18 @@ impl WaylandFrontend {
                 .and_then(|root| self.surface_id(&root))
                 .is_some_and(|window_id| split.contains(window_id))
         });
+        if pane
+            && let Some(managed) = ManagedWindow::new(window)
+            && managed.facts().client_state.maximized
+        {
+            // A maximized client sizes itself to the work area, so a pane must
+            // take it out of that state before the size can stick.
+            managed.prepare_client_state_request(
+                super::managed_window::ClientStateRequestKind::Unmaximize,
+                Some(target.size),
+                None,
+            );
+        }
         if let Some(toplevel) = window.toplevel() {
             configure_mobile_toplevel(toplevel, target.size, !pane);
         }
