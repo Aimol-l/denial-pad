@@ -343,3 +343,20 @@ git commit -m "feat(split): portrait axis, rotation and external activation"
 - [x] configure 循环保护：容忍 1–2px 取整误差，最多重发 3 次；分屏卡片不再带四边 tiled 状态。
 - [ ] 遗留：kgx（Console）仍不接受 configure（surface 停在 1600×1000），待继续排查。
 - [ ] 遗留：退出分屏的显式入口（现在只有 recents 上划配对卡片 / 返回键）。
+
+---
+
+## 重写：并入桌面布局模型（2026-11-12 晚）
+
+依据 `docs/superpowers/specs/2026-11-12-tablet-layout-shell.md`，计划见
+`docs/superpowers/plans/2026-11-12-tablet-layout-rewrite.md`。
+
+- [x] T1 共享 split 数学（`window_layout::split_geometry_on_axis_with_minimums` + 新 `mobile_layout`）
+- [x] T2 手机窗格按客户端最小尺寸夹紧
+- [x] T3 wire 发布 `min_width/min_height`（按 1.0 倍缩放归一）
+- [x] T4 外壳拒绝放不下的分屏（放置区提示 + 选择器置灰）
+- [x] T5 窗格 1:1 绘制（删除 BoxFit 适配）+ `DENIAL_SPLIT_DEBUG`
+- [x] T6 窄条分割条（拖动/夹紧/气泡/双击复位）
+- [x] T7 一侧关闭后另一侧全屏
+- [x] T8 旋转与外部激活按最小尺寸复验
+- [ ] T9 设备验收（见计划 Test Steps）
