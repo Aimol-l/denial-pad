@@ -981,7 +981,6 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       ratio: pair.ratio,
     );
     _platform.focusWindow(window);
-    _watchSplitCompliance();
     return true;
   }
 
@@ -1012,20 +1011,24 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     if (!_splitFits(next.first, next.second, vertical: next.vertical)) {
       return false;
     }
+    // The app just picked becomes the active side: it is what the person
+    // asked for, and taking focus also makes it repaint at its new size.
+    final pickedSide = next.first == second.objectId
+        ? SplitSide.first
+        : SplitSide.second;
+    final active = next.withActive(pickedSide);
     state = state.copyWith(
-      splitPair: next,
-      foregroundObjectId: next.activeWindow,
+      splitPair: active,
+      foregroundObjectId: second.objectId,
     );
     _syncSplitDeck();
     _platform.splitWindowsByIds(
-      first: next.first,
-      second: next.second,
-      vertical: next.vertical,
-      ratio: next.ratio,
+      first: active.first,
+      second: active.second,
+      vertical: active.vertical,
+      ratio: active.ratio,
     );
-    final placed = state.windowByObjectId(next.activeWindow);
-    if (placed != null) _platform.focusWindow(placed);
-    _watchSplitCompliance();
+    _platform.focusWindow(second);
     return true;
   }
 
@@ -1064,59 +1067,6 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   /// Leaving the picker without a second app returns to fullscreen.
   void dismissSplitPicker() => endSplit();
-
-  Timer? _splitCompliance;
-  Timer? _splitNoticeTimer;
-
-  /// Tells the person why the shell did something they did not ask for.
-  void showSplitNotice(String message) {
-    state = state.copyWith(splitNotice: message);
-    _splitNoticeTimer?.cancel();
-    _splitNoticeTimer = Timer(const Duration(milliseconds: 2600), () {
-      state = state.copyWith(clearSplitNotice: true);
-    });
-  }
-
-  /// A client that will not adopt its pane rectangle (GNOME Console, for one)
-  /// cannot live in a split without being cropped; the split ends instead and
-  /// that app keeps the screen.
-  void _watchSplitCompliance() {
-    _splitCompliance?.cancel();
-    _splitCompliance = Timer(const Duration(milliseconds: 1500), () {
-      final pair = state.splitPair;
-      if (pair == null || !pair.isComplete) return;
-      final size = _deck.geometry.size;
-      if (size.isEmpty) return;
-      final panes = splitPaneRects(
-        size.width,
-        size.height,
-        pair,
-        topInset: ReferenceShellMetrics.appStatusInset(size),
-      );
-      final ids = [pair.first, pair.second];
-      for (var index = 0; index < ids.length; index += 1) {
-        final window = state.windowByObjectId(ids[index]);
-        if (window == null) continue;
-        final pane = panes[index];
-        final adopted =
-            (window.contentWidth - pane.width).abs() <= 4 &&
-            (window.contentHeight - pane.height).abs() <= 4;
-        splitDebug(
-          'pane $index "${window.appId}" content='
-          '${window.contentWidth.round()}x${window.contentHeight.round()} '
-          'pane=${pane.width.round()}x${pane.height.round()} '
-          'adopted=$adopted',
-        );
-        if (!adopted && window.contentWidth > 0) {
-          final name = window.title.isEmpty ? window.appId : window.title;
-          endSplit();
-          focusWindow(window);
-          showSplitNotice('“$name” 无法调整到分屏尺寸');
-          return;
-        }
-      }
-    });
-  }
 
   /// The ratio interval that keeps both panes at their clients' minimum size.
   ({double min, double max})? splitBoundsFor(SplitPair pair) {
@@ -1160,7 +1110,6 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   }
 
   void endSplit() {
-    _splitCompliance?.cancel();
     if (state.splitPair == null) return;
     state = state.copyWith(clearSplitPair: true);
     _syncSplitDeck();
