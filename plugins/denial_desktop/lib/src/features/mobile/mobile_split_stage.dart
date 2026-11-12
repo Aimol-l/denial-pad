@@ -33,6 +33,17 @@ class MobileSplitStage extends ConsumerWidget {
     final first = windows.first;
     if (first == null) return const SizedBox.shrink();
     final size = MediaQuery.sizeOf(context);
+    // Rotating swaps the axis after this frame, so the pair follows the
+    // screen without reconfiguring the clients twice mid-rotation.
+    final vertical = size.height > size.width;
+    if (pair.vertical != vertical) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!context.mounted) return;
+        ref
+            .read(referenceShellProvider.notifier)
+            .syncSplitAxis(vertical: vertical);
+      });
+    }
     final cards = splitPaneRects(
       size.width,
       size.height,

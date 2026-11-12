@@ -245,7 +245,9 @@ class ReferenceShellState {
   bool get appOnScreen => primaryWindow != null || splitPair != null;
 
   bool get primaryWindowHandlesKeyboard =>
-      primaryWindow?.keyboardInset ?? false;
+      // A split's active pane reflows around the keyboard through the
+      // compositor's inset; the shell keeps both cards where they are.
+      splitActiveWindow != null || (primaryWindow?.keyboardInset ?? false);
 
   /// The pane of a split pair that takes input: the active side.
   DenialWindow? get splitActiveWindow {

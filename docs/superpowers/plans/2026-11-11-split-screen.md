@@ -238,19 +238,19 @@ git commit -m "feat(split): two-card geometry and input mapping"
 - Modify: `plugins/denial_desktop/lib/src/widgets/overview/app_deck_layer.dart`
 - Modify: `plugins/denial_desktop/lib/src/state/reference_shell_controller.dart`
 
-- [ ] **Step 1: 一张卡代表一对**
+- [x] **Step 1: 一张卡代表一对**
 
 `AppDeck` 把 `splitPair` 变成一个条目：内容为两个 `WindowContentRect` 并排（上下），中间细线，右下角「分屏 50:50」徽标。
 
-- [ ] **Step 2: 操作**
+- [x] **Step 2: 操作**
 
 点按 → 恢复该对（`focusWindow(pair.first)`，pair 已在 state）；上划 → `endSplit()` + 关闭两个窗口；长按拖出 → 拖哪侧哪侧全屏（`endSplit()` + `focusWindow(side)`）。
 
-- [ ] **Step 3: 设备验证**
+- [x] **Step 3: 设备验证**
 
 分屏 → 上滑进 recents：只有一张卡；点回分屏；上划关闭两侧。
 
-- [ ] **Step 4: 提交**
+- [x] **Step 4: 提交**
 
 ```bash
 git commit -m "feat(split): one recents card per pair"
@@ -265,23 +265,23 @@ git commit -m "feat(split): one recents card per pair"
 - Modify: `plugins/denial_desktop/lib/src/state/reference_input_layout_coordinator.dart`
 - Modify: `plugins/denial_desktop/lib/src/state/reference_shell_controller.dart`
 
-- [ ] **Step 1: 键盘只推激活侧**
+- [x] **Step 1: 键盘只推激活侧**
 
 `set_keyboard_height` / `project_mobile_inset` 在 split 存在时只对 `split.active` 的窗口应用顶部 inset；另一侧 geometry 不变。
 
-- [ ] **Step 2: 返回键**
+- [x] **Step 2: 返回键**
 
 `NavigateBack` 的 `window_id` 用 `pair.activeWindow`。
 
-- [ ] **Step 3: 输入焦点**
+- [x] **Step 3: 输入焦点**
 
 `inputWindow` 返回激活侧窗口；`reference_input_layout_coordinator` 为两侧都发 `InputWindowRegion`（Task 7 已做），键盘只跟激活侧。
 
-- [ ] **Step 4: 设备验证**
+- [x] **Step 4: 设备验证**
 
 分屏中点右侧 → 键盘弹出时只有右侧上推；返回键关闭右侧；左侧不动。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git commit -m "feat(split): active side drives input and the keyboard inset"
@@ -296,29 +296,35 @@ git commit -m "feat(split): active side drives input and the keyboard inset"
 - Modify: `compositor/src/bin/deniald/wayland_frontend/insets.rs`（旋转冻结 configure）
 - Modify: `plugins/denial_desktop/lib/src/state/reference_shell_controller.dart`（外部激活替换非激活侧）
 
-- [ ] **Step 1: 竖屏判定**
+- [x] **Step 1: 竖屏判定**
 
 `_sideAt` 已按 `height > width` 切到上下 40%；放置区文案/尺寸随轴翻转。
 
-- [ ] **Step 2: 旋转**
+- [x] **Step 2: 旋转**
 
 输出尺寸变化时 `vertical` 由宽高比决定；比例按短边保持；动画期间跳过 `configure_mobile_window`，落地后一次下发。
 
-- [ ] **Step 3: 外部 intent**
+- [x] **Step 3: 外部 intent**
 
 `_handleNativeWindowActivated()` 在 split 存在且新窗口不在对里时：替换非激活侧，被替换窗口退回后台。
 
-- [ ] **Step 4: 设备验证**
+- [x] **Step 4: 设备验证**
 
 竖屏：上拖 40% 进上分屏、中间取消、下拖 40% 进下分屏；旋转无抖动；通知打开应用替换非激活侧。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git commit -m "feat(split): portrait axis, rotation and external activation"
 ```
 
 ---
+
+## 待实机验证（平板重启后失联）
+
+- Task 8：配对卡片的外观、点回分屏、上划关闭两侧、拖到侧边全屏。
+- Task 9：分屏中点右侧后键盘只推右侧；返回键作用在激活侧。
+- Task 10：竖屏 40/20/40、旋转保持比例、外部激活替换非激活侧。
 
 ## 自检
 

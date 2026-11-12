@@ -949,6 +949,29 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     _platform.focusWindow(first);
   }
 
+  /// Rotating the phone flips a split's axis; the panes keep their order and
+  /// the ratio, so the divider stays where the person left it on the short
+  /// side.
+  void syncSplitAxis({required bool vertical}) {
+    final pair = state.splitPair;
+    if (pair == null || pair.vertical == vertical) return;
+    final next = SplitPair(
+      first: pair.first,
+      second: pair.second,
+      vertical: vertical,
+      ratio: pair.ratio,
+      active: pair.active,
+    );
+    state = state.copyWith(splitPair: next);
+    if (!next.isComplete) return;
+    _platform.splitWindowsByIds(
+      first: next.first,
+      second: next.second,
+      vertical: vertical,
+      ratio: next.ratio,
+    );
+  }
+
   /// Leaving the picker without a second app returns to fullscreen.
   void dismissSplitPicker() => endSplit();
 
@@ -1047,6 +1070,42 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       if (window.windowId == windowId && window.isUserApp) {
         final appId = AppLaunchRequest.normalizeAppId(window.appId);
         if (_backgroundLaunchAppIds.remove(appId)) {
+          return;
+        }
+        // A window the shell did not ask for, such as a notification's app,
+        // takes the side of the split that is not in use; the window it
+        // replaces goes back to the background.
+        final split = state.splitPair;
+        if (split != null &&
+            split.isComplete &&
+            !split.contains(window.objectId)) {
+          final next = split.active == SplitSide.first
+              ? SplitPair(
+                  first: split.first,
+                  second: window.objectId,
+                  vertical: split.vertical,
+                  ratio: split.ratio,
+                  active: SplitSide.second,
+                )
+              : SplitPair(
+                  first: window.objectId,
+                  second: split.second,
+                  vertical: split.vertical,
+                  ratio: split.ratio,
+                  active: SplitSide.first,
+                );
+          state = state.copyWith(
+            splitPair: next,
+            foregroundObjectId: next.activeWindow,
+          );
+          _syncSplitDeck();
+          _platform.splitWindowsByIds(
+            first: next.first,
+            second: next.second,
+            vertical: next.vertical,
+            ratio: next.ratio,
+          );
+          _platform.focusWindow(window);
           return;
         }
         // Activation of the switch target confirms it and changes nothing
