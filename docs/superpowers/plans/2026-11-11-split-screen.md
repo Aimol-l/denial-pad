@@ -203,7 +203,7 @@ git commit -m "feat(split): floating divider with snap, reset and close preview"
 - Produces: `split_pane_rects(full, vertical, ratio) -> [Rect; 2]`（含 14px 外边距与 14px 间隙）
 - Consumes: 同常量在 Dart 侧 `splitPaneRects(size, pair)`（`split_pair.dart`）
 
-- [ ] **Step 1: 合成器扣出边距**
+- [x] **Step 1: 合成器扣出边距**
 
 ```rust
 pub(super) const SPLIT_MARGIN: i32 = 14;
@@ -211,19 +211,19 @@ pub(super) const SPLIT_GUTTER: i32 = 14;
 // inner = full 去掉左右/下 14；两 pane 之间留 14
 ```
 
-- [ ] **Step 2: 外壳按同一公式画卡片**
+- [x] **Step 2: 外壳按同一公式画卡片**
 
 `splitPaneRects` 返回两个 `Rect`；stage 用 `ClipRRect(20)` + `WindowContentRect`，激活侧加 accent 描边，非激活 `brightness .94`。
 
-- [ ] **Step 3: 输入映射用 pane 矩形**
+- [x] **Step 3: 输入映射用 pane 矩形**
 
 `reference_input_layout_coordinator` 在分屏时为每个窗口生成 `InputWindowRegion`，`viewSize` 用对应的 pane 矩形（含偏移），保证触摸落在卡片内时映射正确。
 
-- [ ] **Step 4: 设备验证**
+- [x] **Step 4: 设备验证**
 
 两张卡片之间有 14px 间隙；点两侧都能切换激活侧；点卡片四角输入位置正确。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git commit -m "feat(split): two-card geometry and input mapping"

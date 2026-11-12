@@ -2,22 +2,26 @@ import 'package:flutter/widgets.dart';
 
 import 'package:denial_flutter_sdk/models.dart';
 
-/// The handle that sits in the gutter between the two panes.
+/// The handle that floats in the gutter between the two cards.
 ///
 /// It drags the ratio (20–80% with the middle snap), resets on a double tap,
-/// and closes the split from its ✕. Dragging past the last 10% on either side
-/// is a close preview: the windows stay at their limit while a red overlay
-/// says the side will close on release.
+/// and closes the split from its ✕. Dragging into the last 10% on either side
+/// is a close preview: the windows stay at their limit while a red ghost over
+/// the squeezed card says it closes on release.
 class SplitDivider extends StatefulWidget {
   const SplitDivider({
     super.key,
     required this.pair,
+    required this.panes,
     required this.onRatio,
     required this.onReset,
     required this.onClose,
   });
 
   final SplitPair pair;
+
+  /// The two cards, first then second, exactly where they are drawn.
+  final List<Rect> panes;
 
   /// The windows' ratio, already snapped and clamped.
   final ValueChanged<double> onRatio;
@@ -35,11 +39,9 @@ class SplitDividerState extends State<SplitDivider> {
   /// 0 or 1 while the drag is in a close band.
   int? _closing;
 
-  /// The gap between the ✕ and the grip, both centred on the divider.
+  /// The gap between the ✕ and the grip, both centred on the gutter.
   static const double _closeOffset = 48;
   static const double _hit = 44;
-
-  Size _renderSize = Size.zero;
 
   Offset _toLocal(Offset global) {
     final box = context.findRenderObject();
@@ -47,13 +49,25 @@ class SplitDividerState extends State<SplitDivider> {
     return box.globalToLocal(global);
   }
 
-  void _update(Offset global) {
+  /// The ratio a finger at [global] asks for, with the gutter centred on it.
+  double _ratioAt(Offset global) {
     final local = _toLocal(global);
     final vertical = widget.pair.vertical;
-    final span = vertical ? _renderSize.height : _renderSize.width;
-    if (span <= 0) return;
-    final fraction = (vertical ? local.dy : local.dx) / span;
-    final clamped = fraction.clamp(0.0, 1.0);
+    final first = widget.panes.first;
+    final second = widget.panes.last;
+    final origin = vertical ? first.top : first.left;
+    final gutter = vertical
+        ? second.top - first.bottom
+        : second.left - first.right;
+    final span = (vertical ? second.bottom : second.right) - origin;
+    final travel = span - gutter;
+    if (travel <= 0) return widget.pair.ratio;
+    final along = vertical ? local.dy : local.dx;
+    return (along - gutter / 2 - origin) / travel;
+  }
+
+  void _update(Offset global) {
+    final clamped = _ratioAt(global).clamp(0.0, 1.0);
     final closing = clamped <= 0.1
         ? 0
         : clamped >= 0.9
@@ -80,66 +94,62 @@ class SplitDividerState extends State<SplitDivider> {
   Widget build(BuildContext context) {
     final pair = widget.pair;
     final vertical = pair.vertical;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final size = _renderSize = constraints.biggest;
-        final fraction = _drag ?? splitFractions(pair.ratio).first;
-        final center = Offset(
-          vertical ? size.width / 2 : size.width * fraction,
-          vertical ? size.height * fraction : size.height / 2,
-        );
-        final gripSize = vertical
-            ? const Size(86, 38)
-            : const Size(38, 86);
-        return Stack(
-          children: [
-            if (_closing case final side?)
-              Positioned(
-                left: vertical ? 0 : (side == 0 ? 0 : null),
-                right: vertical ? 0 : (side == 1 ? 0 : null),
-                top: vertical ? (side == 0 ? 0 : null) : 0,
-                bottom: vertical ? (side == 1 ? 0 : null) : 0,
-                width: vertical ? null : 190,
-                height: vertical ? 190 : null,
-                child: const _ClosingPreview(),
-              ),
-            Positioned(
-              left: center.dx - _hit / 2,
-              top: center.dy - _closeOffset - _hit / 2,
-              width: _hit,
-              height: _hit,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onTap: widget.onClose,
-                child: const Center(child: _CloseButton()),
-              ),
-            ),
-            Positioned(
-              left: center.dx - gripSize.width / 2,
-              top: center.dy - gripSize.height / 2,
-              width: gripSize.width,
-              height: gripSize.height,
-              child: GestureDetector(
-                behavior: HitTestBehavior.opaque,
-                onDoubleTap: widget.onReset,
-                onHorizontalDragStart: vertical ? null : (_) {},
-                onHorizontalDragUpdate: vertical
-                    ? null
-                    : (details) => _update(details.globalPosition),
-                onHorizontalDragEnd: vertical ? null : (_) => _end(),
-                onHorizontalDragCancel: vertical ? null : _end,
-                onVerticalDragStart: vertical ? (_) {} : null,
-                onVerticalDragUpdate: vertical
-                    ? (details) => _update(details.globalPosition)
-                    : null,
-                onVerticalDragEnd: vertical ? (_) => _end() : null,
-                onVerticalDragCancel: vertical ? _end : null,
-                child: _Grip(vertical: vertical),
-              ),
-            ),
-          ],
-        );
-      },
+    final first = widget.panes.first;
+    final second = widget.panes.last;
+    final origin = vertical ? first.top : first.left;
+    final gutter = vertical
+        ? second.top - first.bottom
+        : second.left - first.right;
+    final span = (vertical ? second.bottom : second.right) - origin;
+    final ratio = _drag ?? splitFractions(pair.ratio).first;
+    final along = origin + (span - gutter) * ratio + gutter / 2;
+    final cross = vertical
+        ? (first.left + first.right) / 2
+        : (first.top + first.bottom) / 2;
+    final center = vertical ? Offset(cross, along) : Offset(along, cross);
+    final gripSize = vertical ? const Size(86, 38) : const Size(38, 86);
+    return Stack(
+      children: [
+        if (_closing case final side?)
+          Positioned.fromRect(
+            rect: widget.panes[side],
+            child: const _ClosingPreview(),
+          ),
+        Positioned(
+          left: center.dx - _hit / 2,
+          top: center.dy - _closeOffset - _hit / 2,
+          width: _hit,
+          height: _hit,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onClose,
+            child: const Center(child: _CloseButton()),
+          ),
+        ),
+        Positioned(
+          left: center.dx - gripSize.width / 2,
+          top: center.dy - gripSize.height / 2,
+          width: gripSize.width,
+          height: gripSize.height,
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onDoubleTap: widget.onReset,
+            onHorizontalDragStart: vertical ? null : (_) {},
+            onHorizontalDragUpdate: vertical
+                ? null
+                : (details) => _update(details.globalPosition),
+            onHorizontalDragEnd: vertical ? null : (_) => _end(),
+            onHorizontalDragCancel: vertical ? null : _end,
+            onVerticalDragStart: vertical ? (_) {} : null,
+            onVerticalDragUpdate: vertical
+                ? (details) => _update(details.globalPosition)
+                : null,
+            onVerticalDragEnd: vertical ? (_) => _end() : null,
+            onVerticalDragCancel: vertical ? _end : null,
+            child: _Grip(vertical: vertical),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -174,6 +184,7 @@ class _Grip extends StatelessWidget {
             blurRadius: 20,
             offset: Offset(0, 6),
           ),
+          BoxShadow(color: Color(0x0F14161C), spreadRadius: 1),
         ],
       ),
       alignment: Alignment.center,
@@ -217,6 +228,7 @@ class _CloseButton extends StatelessWidget {
             blurRadius: 14,
             offset: Offset(0, 4),
           ),
+          BoxShadow(color: Color(0x0F14161C), spreadRadius: 1),
         ],
       ),
       alignment: Alignment.center,
@@ -246,27 +258,30 @@ class _CrossPainter extends CustomPainter {
   bool shouldRepaint(covariant _CrossPainter oldDelegate) => false;
 }
 
+/// The red ghost over the card that would close if the finger lifted now.
 class _ClosingPreview extends StatelessWidget {
   const _ClosingPreview();
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0x24E5534B),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0x99E5534B), width: 2),
-      ),
-      alignment: Alignment.center,
-      child: const Text(
-        '松手关闭\n这一侧',
-        textAlign: TextAlign.center,
-        style: TextStyle(
-          color: Color(0xFFB8433B),
-          fontSize: 14,
-          height: 1.5,
-          fontWeight: FontWeight.w600,
-          decoration: TextDecoration.none,
+    return IgnorePointer(
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0x24E5534B),
+          borderRadius: BorderRadius.circular(splitCardRadius),
+          border: Border.all(color: const Color(0x99E5534B), width: 2),
+        ),
+        alignment: Alignment.center,
+        child: const Text(
+          '松手关闭\n这一侧',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: Color(0xFFB8433B),
+            fontSize: 14,
+            height: 1.5,
+            fontWeight: FontWeight.w600,
+            decoration: TextDecoration.none,
+          ),
         ),
       ),
     );

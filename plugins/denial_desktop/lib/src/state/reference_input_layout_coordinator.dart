@@ -112,6 +112,54 @@ class ReferenceInputLayoutCoordinator {
     final inputBottom = edgePanelActive
         ? edgePanelRect.top.clamp(0.0, viewSize.height).toDouble()
         : viewSize.height;
+    // Two apps side by side: each card takes its own touches, the margins and
+    // the gutter stay with the shell's divider.
+    final split = state.splitPair;
+    if (split != null && split.isComplete) {
+      final cards =
+          splitPaneRects(
+                viewSize.width,
+                viewSize.height,
+                split,
+                topInset: topInset,
+              )
+              .map(
+                (card) =>
+                    Rect.fromLTWH(card.left, card.top, card.width, card.height),
+              )
+              .toList(growable: false);
+      final windows = <InputWindowRegion>[];
+      for (final (index, windowId) in [split.first, split.second].indexed) {
+        final window = state.windowByObjectId(windowId);
+        if (window == null) continue;
+        windows.addAll(
+          _inputRegionsForWindow(
+            window: window,
+            area: cards[index],
+            clip: cards[index],
+          ),
+        );
+      }
+      final first = cards[0];
+      final second = cards[1];
+      final shellRegions = <Rect>[
+        Rect.fromLTRB(0, 0, viewSize.width, first.top),
+        Rect.fromLTRB(0, second.bottom, viewSize.width, viewSize.height),
+        Rect.fromLTRB(0, first.top, first.left, first.bottom),
+        Rect.fromLTRB(first.right, first.top, second.left, first.bottom),
+        Rect.fromLTRB(second.right, first.top, viewSize.width, first.bottom),
+      ].where((region) => !region.isEmpty).toList(growable: false);
+      _publishInputLayout(
+        viewSize: viewSize,
+        shellRegions: shellRegions,
+        windows: windows,
+        softwareKeyboardRegions: <Rect>[?keyboardRect],
+        keyboardCapture: quickSettingsActive || interactions.capturesKeyboard,
+        exclusiveShellMode: interactions.compositorExclusive,
+      );
+      return;
+    }
+
     final inputWindow = state.inputWindow;
     final canvas = Offset.zero & viewSize;
     final shellOwnsCanvas =
@@ -164,10 +212,14 @@ class ReferenceInputLayoutCoordinator {
         ? const <InputWindowRegion>[]
         : _inputRegionsForWindow(
             window: inputWindow,
-            viewSize: viewSize,
+            area: Rect.fromLTWH(
+              0,
+              topInset,
+              viewSize.width,
+              (viewSize.height - topInset).clamp(0.0, viewSize.height),
+            ),
+            clip: Rect.fromLTRB(0, topInset, viewSize.width, inputBottom),
             contentOffset: contentOffset,
-            inputBottom: inputBottom,
-            topInset: topInset,
           );
 
     _publishInputLayout(
@@ -199,10 +251,9 @@ class ReferenceInputLayoutCoordinator {
 
   List<InputWindowRegion> _inputRegionsForWindow({
     required DenialWindow window,
-    required Size viewSize,
-    required double contentOffset,
-    required double inputBottom,
-    required double topInset,
+    required Rect area,
+    required Rect clip,
+    double contentOffset = 0,
   }) {
     final frame = window.presentationCoordinateRect;
     final content = window.contentCoordinateRect;
@@ -211,12 +262,11 @@ class ReferenceInputLayoutCoordinator {
     }
     // Match the texture's top-centred BoxFit.cover, including the interval
     // between an output configure and the client's replacement buffer.
-    final widthScale = viewSize.width / frame.width;
-    final heightScale =
-        (viewSize.height - topInset).clamp(0.0, viewSize.height) / frame.height;
+    final widthScale = area.width / frame.width;
+    final heightScale = area.height / frame.height;
     final scale = widthScale > heightScale ? widthScale : heightScale;
-    final frameLeft = (viewSize.width - frame.width * scale) / 2.0;
-    final frameTop = topInset - contentOffset;
+    final frameLeft = area.left + (area.width - frame.width * scale) / 2.0;
+    final frameTop = area.top - contentOffset;
     final fullContentRect = Rect.fromLTWH(
       frameLeft,
       frameTop,
@@ -229,7 +279,6 @@ class ReferenceInputLayoutCoordinator {
       content.width * scale,
       content.height * scale,
     );
-    final clip = Rect.fromLTRB(0, topInset, viewSize.width, inputBottom);
     final rect = clientRect.intersect(clip);
     if (rect.isEmpty) {
       return const <InputWindowRegion>[];

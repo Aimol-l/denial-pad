@@ -470,6 +470,16 @@ impl WaylandFrontend {
     }
 
     pub(super) fn mobile_window_inset(&self, window: &Window) -> i32 {
+        // A split card already sits below the status bar, so reserving the
+        // strip again would push the app image down inside its own card.
+        if let Some(split) = self.mobile_split
+            && let Some(window_id) = self
+                .window_root_surface(window)
+                .and_then(|root| self.surface_id(&root))
+            && split.contains(window_id)
+        {
+            return 0;
+        }
         let Some(geometry) = self.mobile_window_geometry(window) else {
             return 0;
         };
