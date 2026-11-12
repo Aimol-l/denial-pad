@@ -45,7 +45,24 @@ class SplitDropOverlay extends StatelessWidget {
               rect: _rectFor(candidate, size),
               child: _DropRegion(
                 label: candidate.label,
+                detail: _detail(size, MediaQuery.devicePixelRatioOf(context)),
                 active: candidate == active,
+              ),
+            ),
+          if (active == null)
+            Positioned(
+              left: 0,
+              right: 0,
+              top: size.height * 0.8,
+              child: const Center(
+                child: Text(
+                  '松手取消',
+                  style: TextStyle(
+                    color: Color(0x80FFFFFF),
+                    fontSize: 13,
+                    decoration: TextDecoration.none,
+                  ),
+                ),
               ),
             ),
         ],
@@ -53,44 +70,65 @@ class SplitDropOverlay extends StatelessWidget {
     );
   }
 
+  /// The pane each side would become: half the usable area, minus the gutter.
+  /// Sizes are shown in logical pixels, whatever space the deck measures in.
+  String _detail(Size size, double devicePixelRatio) {
+    const margin = 14.0;
+    const gutter = 14.0;
+    const status = 45.0;
+    final width = size.width / devicePixelRatio;
+    final height = size.height / devicePixelRatio;
+    final usableWidth = width - margin * 2 - gutter;
+    final usableHeight = height - status - margin;
+    final paneWidth = (vertical ? usableWidth : usableWidth / 2).round();
+    final paneHeight =
+        (vertical ? (usableHeight - gutter) / 2 : usableHeight).round();
+    return '50% · 约 $paneWidth × $paneHeight';
+  }
+
   Rect _rectFor(SplitDropSide side, Size size) {
-    const margin = 12.0;
-    const gap = 8.0;
-    final halfWidth = (size.width - margin * 2 - gap) / 2;
-    final halfHeight = (size.height - margin * 2 - gap) / 2;
+    // Each drop side is 40% of the screen; the middle 20% cancels.
+    const margin = 14.0;
+    final span = size.width * 0.4 - margin;
+    final rise = size.height * 0.4 - margin;
     return switch (side) {
       SplitDropSide.left => Rect.fromLTWH(
         margin,
         margin,
-        halfWidth,
+        span,
         size.height - margin * 2,
       ),
       SplitDropSide.right => Rect.fromLTWH(
-        margin + halfWidth + gap,
+        size.width - margin - span,
         margin,
-        halfWidth,
+        span,
         size.height - margin * 2,
       ),
       SplitDropSide.top => Rect.fromLTWH(
         margin,
         margin,
         size.width - margin * 2,
-        halfHeight,
+        rise,
       ),
       SplitDropSide.bottom => Rect.fromLTWH(
         margin,
-        margin + halfHeight + gap,
+        size.height - margin - rise,
         size.width - margin * 2,
-        halfHeight,
+        rise,
       ),
     };
   }
 }
 
 class _DropRegion extends StatelessWidget {
-  const _DropRegion({required this.label, required this.active});
+  const _DropRegion({
+    required this.label,
+    required this.detail,
+    required this.active,
+  });
 
   final String label;
+  final String detail;
   final bool active;
 
   @override
@@ -106,15 +144,31 @@ class _DropRegion extends StatelessWidget {
           color: active ? accent : const Color(0x806D5BD0),
         ),
         child: Center(
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: active ? accent : const Color(0xB36D5BD0),
-              fontSize: 17,
-              fontWeight: FontWeight.w600,
-              decoration: TextDecoration.none,
-            ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: active ? accent : const Color(0xB36D5BD0),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                detail,
+                style: TextStyle(
+                  color: active
+                      ? const Color(0xB36D5BD0)
+                      : const Color(0x806D5BD0),
+                  fontSize: 12.5,
+                  decoration: TextDecoration.none,
+                ),
+              ),
+            ],
           ),
         ),
       ),

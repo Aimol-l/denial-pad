@@ -7,8 +7,8 @@ const double splitMinFraction = 0.2;
 const double splitMaxFraction = 0.8;
 /// A divider this close to the middle snaps to an even split.
 const double splitSnapWindow = 0.03;
-/// The share a split starts with: the side the user dragged into is larger.
-const double splitDefaultFraction = 0.53;
+/// The share a split starts with.
+const double splitDefaultFraction = 0.5;
 
 /// One split pair: two windows, the axis they share, and the first pane's
 /// share of the screen. The compositor owns the rectangles; this type owns the

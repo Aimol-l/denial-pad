@@ -87,6 +87,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
   /// The card being carried to a side, and the side under the finger.
   DenialWindow? _splitPickup;
   SplitDropSide? _splitSide;
+  Offset? _pickupOrigin;
   late final Animation<double> _openAnimation = Animation.fromValueListenable(
     _open,
   );
@@ -228,34 +229,44 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
   void _pickupStart(DenialWindow window, Offset global) {
     setState(() {
       _splitPickup = window;
-      _splitSide = _sideAt(global);
+      _pickupOrigin = global;
+      // A long press alone must not choose a side: the card usually sits over
+      // one already. The drop only arms after the finger actually travels.
+      _splitSide = null;
     });
   }
 
   void _pickupMove(Offset global) {
-    final side = _sideAt(global);
+    final origin = _pickupOrigin;
+    final travelled = origin == null ? 0.0 : (global - origin).distance;
+    final side = travelled < 24 ? null : _sideAt(global);
     if (side != _splitSide) setState(() => _splitSide = side);
   }
 
   void _pickupEnd(Offset global) {
     final window = _splitPickup;
-    final side = _sideAt(global);
+    // The side armed while moving; a press that never travelled has none.
+    final side = _splitSide;
     setState(() {
       _splitPickup = null;
       _splitSide = null;
+      _pickupOrigin = null;
     });
     if (window != null && side != null) widget.onSplitSide?.call(window, side);
   }
 
   SplitDropSide? _sideAt(Offset point) {
     final size = MediaQuery.sizeOf(context);
-    if (size.height > size.width) {
-      if (point.dy < size.height * 0.25) return SplitDropSide.top;
-      if (point.dy > size.height * 0.75) return SplitDropSide.bottom;
-      return null;
+    // 40% per side, and the middle 20% cancels: releasing there returns to
+    // recents instead of guessing which pane the user meant.
+    final vertical = size.height > size.width;
+    final share = vertical ? point.dy / size.height : point.dx / size.width;
+    if (share < 0.4) {
+      return vertical ? SplitDropSide.top : SplitDropSide.left;
     }
-    if (point.dx < size.width * 0.28) return SplitDropSide.left;
-    if (point.dx > size.width * 0.72) return SplitDropSide.right;
+    if (share > 0.6) {
+      return vertical ? SplitDropSide.bottom : SplitDropSide.right;
+    }
     return null;
   }
 
@@ -564,7 +575,7 @@ class _DeckCardState extends State<_DeckCard>
     final labelOpacity = widget.labelOpacity;
     final onMoveToDesk = widget.onMoveToDesk;
     return Opacity(
-      opacity: widget.dimmed ? 0.35 : 1,
+      opacity: widget.dimmed ? 0.25 : 1,
       child: Stack(
       fit: StackFit.expand,
       children: [
@@ -574,7 +585,7 @@ class _DeckCardState extends State<_DeckCard>
             child: PosedWindow(
               pose: _pose,
               child: AnimatedScale(
-                scale: _picked ? 0.92 : 1,
+                scale: _picked ? 0.72 : 1,
                 duration: const Duration(milliseconds: 120),
                 curve: Curves.easeOut,
                 child: AnimatedRotation(

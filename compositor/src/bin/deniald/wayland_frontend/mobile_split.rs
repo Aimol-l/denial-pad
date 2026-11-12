@@ -10,8 +10,8 @@ use smithay::utils::{Logical, Rectangle};
 pub(super) const MIN_RATIO: f32 = 0.2;
 /// The furthest a divider may push a pane.
 pub(super) const MAX_RATIO: f32 = 0.8;
-/// The ratio a split starts with: the side the user dragged into is larger.
-pub(super) const DEFAULT_RATIO: f32 = 0.53;
+/// The ratio a split starts with.
+pub(super) const DEFAULT_RATIO: f32 = 0.5;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct MobileSplit {

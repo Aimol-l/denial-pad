@@ -84,7 +84,18 @@ class MobileSplitStage extends ConsumerWidget {
                     ? 0
                     : ReferenceShellMetrics.appStatusInset(size),
               ),
-              child: SplitPicker(pair: pair),
+              child: SplitPicker(
+                pair: pair,
+                onAllApps: () {
+                  final controller = ref.read(
+                    referenceShellProvider.notifier,
+                  );
+                  // The launcher is a fullscreen shell surface today: leave
+                  // the split and show it rather than faking a third pane.
+                  controller.endSplit();
+                  controller.goHome();
+                },
+              ),
             ),
           ),
         ],
