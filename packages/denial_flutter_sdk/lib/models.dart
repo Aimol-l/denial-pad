@@ -20,6 +20,7 @@ export 'src/models/split_pair.dart'
         SplitPaneRect,
         splitPaneRects,
         splitFits,
+        splitRatioAt,
         splitRatioBounds;
 export 'src/models/audio.dart'
     show AppAudioStream, AudioLevelState, AudioOutputDevice;

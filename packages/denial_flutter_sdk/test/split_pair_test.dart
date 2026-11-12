@@ -110,4 +110,21 @@ void main() {
       isFalse,
     );
   });
+
+  test('a pointer ratio stops at the pane minimums', () {
+    final bounds = splitRatioBounds(
+      extent: 1600,
+      firstMin: 700,
+      secondMin: 600,
+    )!;
+    expect(
+      splitRatioAt(100, extent: 1600, bounds: bounds),
+      closeTo(bounds.min, 1e-9),
+    );
+    expect(
+      splitRatioAt(1580, extent: 1600, bounds: bounds),
+      closeTo(bounds.max, 1e-9),
+    );
+    expect(splitRatioAt(800, extent: 1600, bounds: bounds), 0.5);
+  });
 }

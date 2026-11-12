@@ -1037,11 +1037,30 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   /// Leaving the picker without a second app returns to fullscreen.
   void dismissSplitPicker() => endSplit();
 
+  /// The ratio interval that keeps both panes at their clients' minimum size.
+  ({double min, double max})? splitBoundsFor(SplitPair pair) {
+    final size = _deck.geometry.size;
+    if (size.width <= 0 || size.height <= 0) return null;
+    final first = state.windowByObjectId(pair.first);
+    final second = state.windowByObjectId(pair.second);
+    if (first == null || second == null) return null;
+    final extent = pair.vertical
+        ? size.height - ReferenceShellMetrics.appStatusInset(size)
+        : size.width;
+    return splitRatioBounds(
+      extent: extent,
+      firstMin: pair.vertical ? first.minHeight : first.minWidth,
+      secondMin: pair.vertical ? second.minHeight : second.minWidth,
+    );
+  }
+
   void updateSplitRatio(double ratio) {
     final pair = state.splitPair;
     if (pair == null) return;
-    splitDebug('ratio ${ratio.toStringAsFixed(3)}');
-    state = state.copyWith(splitPair: pair.withRatio(ratio));
+    final bounds = splitBoundsFor(pair);
+    final next = bounds == null ? ratio : ratio.clamp(bounds.min, bounds.max);
+    splitDebug('ratio ${next.toStringAsFixed(3)} bounds=${bounds ?? 'none'}');
+    state = state.copyWith(splitPair: pair.withRatio(next));
     _platform.updateSplitRatio(state.splitPair!.ratio);
   }
 

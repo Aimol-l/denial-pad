@@ -168,6 +168,16 @@ bool splitFits({
       null;
 }
 
+/// The first pane's share for a pointer at [position] along the split axis.
+double splitRatioAt(
+  double position, {
+  required double extent,
+  required ({double min, double max}) bounds,
+}) {
+  final span = extent <= 0 ? 1.0 : extent;
+  return (position / span).clamp(bounds.min, bounds.max);
+}
+
 /// The two panes of [pair] inside a view whose status bar is [topInset] tall.
 ///
 /// Mirrors the compositor's `split_rects`, so the shell draws each window at

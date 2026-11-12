@@ -7,6 +7,7 @@ import 'package:denial_flutter_sdk/rendering.dart' show WindowContentRect;
 import '../../state/reference_shell_controller.dart';
 import '../../state/reference_shell_metrics.dart';
 import '../../state/split_debug.dart';
+import '../../widgets/overview/split_divider.dart';
 import '../../widgets/overview/split_picker.dart';
 
 /// Two apps sharing the phone screen, each taking half of it.
@@ -105,9 +106,23 @@ class MobileSplitStage extends ConsumerWidget {
     }
 
     if (first == null || second == null) return const SizedBox.shrink();
+    final bounds = controller.splitBoundsFor(pair);
     return Stack(
       fit: StackFit.expand,
-      children: [pane(first, 0), pane(second, 1)],
+      children: [
+        pane(first, 0),
+        pane(second, 1),
+        if (bounds != null)
+          Positioned.fill(
+            child: SplitDivider(
+              vertical: pair.vertical,
+              ratio: pair.ratio,
+              bounds: bounds,
+              onRatio: controller.updateSplitRatio,
+              onReset: () => controller.updateSplitRatio(0.5),
+            ),
+          ),
+      ],
     );
   }
 }
