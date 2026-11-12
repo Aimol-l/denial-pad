@@ -121,7 +121,7 @@ class SplitPair {
   return (first: clamped, second: 1 - clamped);
 }
 
-/// A split card in shell coordinates.
+/// A split pane in shell coordinates.
 typedef SplitPaneRect = ({
   double left,
   double top,
@@ -129,56 +129,38 @@ typedef SplitPaneRect = ({
   double height,
 });
 
-/// The margin each split card keeps from the screen edge.
-const double splitCardMargin = 14;
-
-/// The gap between the two split cards, where the divider floats.
-const double splitCardGutter = 14;
-
-/// The extra room below the status bar before the first card starts.
-const double splitCardTopGap = 10;
-
-/// The corner radius of a split card.
-const double splitCardRadius = 20;
-
-/// The two cards of [pair] inside a view whose status bar is [topInset] tall.
+/// The two panes of [pair] inside a view whose status bar is [topInset] tall.
 ///
 /// Mirrors the compositor's `split_rects`, so the shell draws each window at
-/// exactly the rectangle the client was configured for.
+/// exactly the rectangle the client was configured for: the two panes tile
+/// the area below the status bar with nothing between them.
 List<SplitPaneRect> splitPaneRects(
   double viewWidth,
   double viewHeight,
   SplitPair pair, {
   required double topInset,
 }) {
-  final width = math.max(1.0, viewWidth - splitCardMargin * 2);
-  final height = math.max(
-    1.0,
-    viewHeight - topInset - splitCardTopGap - splitCardMargin,
-  );
-  final originX = splitCardMargin;
-  final originY = topInset + splitCardTopGap;
-  final span = pair.vertical ? height : width;
-  final gutter = math.min(splitCardGutter, math.max(0.0, span - 2));
-  final firstExtent = (span - gutter) * splitFractions(pair.ratio).first;
-  final secondExtent = math.max(0.0, span - gutter - firstExtent);
+  final width = math.max(1.0, viewWidth);
+  final height = math.max(1.0, viewHeight - topInset);
+  final originY = topInset;
+  final fractions = splitFractions(pair.ratio);
   if (pair.vertical) {
     return [
-      (left: originX, top: originY, width: width, height: firstExtent),
+      (left: 0, top: originY, width: width, height: height * fractions.first),
       (
-        left: originX,
-        top: originY + firstExtent + gutter,
+        left: 0,
+        top: originY + height * fractions.first,
         width: width,
-        height: secondExtent,
+        height: height * fractions.second,
       ),
     ];
   }
   return [
-    (left: originX, top: originY, width: firstExtent, height: height),
+    (left: 0, top: originY, width: width * fractions.first, height: height),
     (
-      left: originX + firstExtent + gutter,
+      left: width * fractions.first,
       top: originY,
-      width: secondExtent,
+      width: width * fractions.second,
       height: height,
     ),
   ];

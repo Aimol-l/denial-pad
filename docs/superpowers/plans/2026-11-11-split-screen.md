@@ -331,3 +331,15 @@ git commit -m "feat(split): portrait axis, rotation and external activation"
 - 规范覆盖：入口 §3 (T4)、状态机 §4 (T4/T5/T8)、阈值 §5 (T4/T6)、布局 §6 (T7)、视觉 §8 (T4/T5/T6/T7/T8)、细则 §9 (T8/T9/T10)、接口 §10 (T1/T7/T9)、边界 §11 (T4/T5/T8/T10)。
 - 每个任务的接口签名与前一任务产出一致；`splitFractions` 同时被分割条与 stage 使用。
 - 默认比例 0.5 需同时改 Rust 常量、Dart 常量与测试。
+
+---
+
+## v4 简化（2026-11-12 晚，用户要求）
+
+- [x] 去掉分割条（`split_divider.dart` 已删除）：比例固定 50:50，不能拖动/复位/✕。
+- [x] 去掉卡片外观：无外边距、无 14px 间隙、无 20px 圆角、无激活侧描边；两个窗格直接各占半屏。
+- [x] 合成器 `split_rects` 与 Dart `splitPaneRects` 改为严格平分（保留状态栏 45 逻辑像素）。
+- [x] 分屏内应用强制 1.0 倍应用缩放（退出恢复）；constrained 客户端的最小宽度不再被放大。
+- [x] configure 循环保护：容忍 1–2px 取整误差，最多重发 3 次；分屏卡片不再带四边 tiled 状态。
+- [ ] 遗留：kgx（Console）仍不接受 configure（surface 停在 1600×1000），待继续排查。
+- [ ] 遗留：退出分屏的显式入口（现在只有 recents 上划配对卡片 / 返回键）。

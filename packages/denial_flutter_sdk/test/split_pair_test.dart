@@ -50,21 +50,21 @@ void main() {
     expect(pair.filled(9).isComplete, isTrue);
   });
 
-  test('landscape cards keep the margins and the gutter', () {
+  test('landscape panes tile the screen below the status bar', () {
     const pair = SplitPair(first: 3, second: 5, vertical: false);
     final [left, right] = splitPaneRects(1600, 1000, pair, topInset: 45);
-    expect(left, (left: 14.0, top: 55.0, width: 779.0, height: 931.0));
-    expect(right, (left: 807.0, top: 55.0, width: 779.0, height: 931.0));
-    expect(right.left - (left.left + left.width), splitCardGutter);
-    expect(right.left + right.width + splitCardMargin, 1600);
+    expect(left, (left: 0.0, top: 45.0, width: 800.0, height: 955.0));
+    expect(right, (left: 800.0, top: 45.0, width: 800.0, height: 955.0));
+    expect(right.left, left.left + left.width);
+    expect(right.left + right.width, 1600);
   });
 
-  test('portrait cards stack with the same gutter', () {
+  test('portrait panes tile the screen below the status bar', () {
     const pair = SplitPair(first: 3, second: 5, vertical: true);
     final [top, bottom] = splitPaneRects(800, 1245, pair, topInset: 45);
-    expect(top, (left: 14.0, top: 55.0, width: 772.0, height: 581.0));
-    expect(bottom, (left: 14.0, top: 650.0, width: 772.0, height: 581.0));
-    expect(bottom.top - (top.top + top.height), splitCardGutter);
-    expect(bottom.top + bottom.height + splitCardMargin, 1245);
+    expect(top, (left: 0.0, top: 45.0, width: 800.0, height: 600.0));
+    expect(bottom, (left: 0.0, top: 645.0, width: 800.0, height: 600.0));
+    expect(bottom.top, top.top + top.height);
+    expect(bottom.top + bottom.height, 1245);
   });
 }

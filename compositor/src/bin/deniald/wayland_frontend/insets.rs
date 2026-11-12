@@ -456,6 +456,50 @@ impl WaylandFrontend {
         Some(geometry)
     }
 
+    /// The windows the mobile split owns, if any.
+    pub(super) fn mobile_windows(&self) -> Vec<Window> {
+        let Some(split) = self.mobile_split else {
+            return Vec::new();
+        };
+        self.space
+            .elements()
+            .filter(|window| {
+                self.window_root_surface(window)
+                    .and_then(|root| self.surface_id(&root))
+                    .is_some_and(|window_id| split.contains(window_id))
+            })
+            .cloned()
+            .collect()
+    }
+
+    /// Forces the pending mobile geometry out to the client, past the paced
+    /// configure path: `send_paced_resize_configure` throttles a size-only
+    /// change while an earlier configure is still unacknowledged, which is
+    /// exactly the state a window is in when a split claims it as its second
+    /// pane right after its fullscreen configure.
+    pub(super) fn force_configure_mobile_window(&mut self, window: &Window) {
+        let Some(target) = self.mobile_window_geometry(window) else {
+            return;
+        };
+        let Some(toplevel) = window.toplevel() else {
+            return;
+        };
+        let pane = self.mobile_split.is_some_and(|split| {
+            self.window_root_surface(window)
+                .and_then(|root| self.surface_id(&root))
+                .is_some_and(|window_id| split.contains(window_id))
+        });
+        configure_mobile_toplevel(toplevel, target.size, !pane);
+        if self.recorded_exact_window_geometry(window) == Some(target) {
+            return;
+        }
+        self.set_window_geometry_target_with_authority(
+            window,
+            target,
+            WindowGeometryAuthority::Exact,
+        );
+    }
+
     pub(super) fn configure_mobile_window(&mut self, window: &Window) {
         let Some(target) = self.mobile_window_geometry(window) else {
             return;

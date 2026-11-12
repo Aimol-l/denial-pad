@@ -12,12 +12,7 @@ pub(super) const MIN_RATIO: f32 = 0.2;
 pub(super) const MAX_RATIO: f32 = 0.8;
 /// The ratio a split starts with.
 pub(super) const DEFAULT_RATIO: f32 = 0.5;
-/// The margin each card keeps from the screen edge.
-pub(super) const SPLIT_MARGIN: i32 = 14;
-/// The gap between the two cards, where the divider sits.
-pub(super) const SPLIT_GUTTER: i32 = 14;
-/// The extra room below the status bar before the first card starts.
-pub(super) const SPLIT_TOP: i32 = 10;
+
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct MobileSplit {
@@ -59,49 +54,29 @@ impl MobileSplit {
     }
 }
 
-/// Both panes of `full`, first then second, inset into two cards.
-///
-/// `full` already starts below the status bar. Each card keeps [SPLIT_MARGIN]
-/// from the edges, [SPLIT_TOP] below the bar, and [SPLIT_GUTTER] separates the
-/// two so the shell has room for its floating divider.
+/// Both panes of `full`, first then second; the two always tile it exactly.
 pub(super) fn split_rects(
     full: Rectangle<i32, Logical>,
     vertical: bool,
     ratio: f32,
 ) -> [Rectangle<i32, Logical>; 2] {
     let ratio = ratio.clamp(MIN_RATIO, MAX_RATIO);
-    let margin = SPLIT_MARGIN
-        .min(full.size.w / 4)
-        .min(full.size.h / 4)
-        .max(0);
-    let top = SPLIT_TOP.min((full.size.h - margin * 2).max(0));
-    let card = Rectangle::new(
-        (full.loc.x + margin, full.loc.y + top).into(),
-        (
-            (full.size.w - margin * 2).max(1),
-            (full.size.h - margin - top).max(1),
-        )
-            .into(),
-    );
-    let span = if vertical { card.size.h } else { card.size.w };
-    let gutter = SPLIT_GUTTER.min((span - 2).max(0));
-    let first_extent = (((span - gutter) as f32) * ratio).round() as i32;
-    let first_extent = first_extent.clamp(1, (span - gutter - 1).max(1));
-    let second_extent = (span - gutter - first_extent).max(1);
     if vertical {
+        let first_height = ((full.size.h as f32) * ratio).round() as i32;
         [
-            Rectangle::new(card.loc, (card.size.w, first_extent).into()),
+            Rectangle::new(full.loc, (full.size.w, first_height).into()),
             Rectangle::new(
-                (card.loc.x, card.loc.y + first_extent + gutter).into(),
-                (card.size.w, second_extent).into(),
+                (full.loc.x, full.loc.y + first_height).into(),
+                (full.size.w, full.size.h - first_height).into(),
             ),
         ]
     } else {
+        let first_width = ((full.size.w as f32) * ratio).round() as i32;
         [
-            Rectangle::new(card.loc, (first_extent, card.size.h).into()),
+            Rectangle::new(full.loc, (first_width, full.size.h).into()),
             Rectangle::new(
-                (card.loc.x + first_extent + gutter, card.loc.y).into(),
-                (second_extent, card.size.h).into(),
+                (full.loc.x + first_width, full.loc.y).into(),
+                (full.size.w - first_width, full.size.h).into(),
             ),
         ]
     }

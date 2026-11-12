@@ -422,6 +422,14 @@ fn apply_window_command(state: &mut RuntimeState, command: WindowCommand) {
             if changed {
                 state.scene_sync.mark_dirty();
             }
+            // A pane that just joined the pair is typically still holding an
+            // unacknowledged fullscreen configure; the paced path would
+            // throttle its resize away. Force it out once.
+            if let Some(frontend) = state.wayland.as_mut() {
+                for window in frontend.mobile_windows() {
+                    frontend.force_configure_mobile_window(&window);
+                }
+            }
         }
         WindowCommand::UpdateSplitRatio { ratio } => {
             let changed = state.wayland.as_mut().is_some_and(|frontend| {

@@ -18,10 +18,6 @@ export 'src/models/split_pair.dart'
         splitMinFraction,
         splitSnapWindow,
         SplitPaneRect,
-        splitCardGutter,
-        splitCardMargin,
-        splitCardRadius,
-        splitCardTopGap,
         splitPaneRects;
 export 'src/models/audio.dart'
     show AppAudioStream, AudioLevelState, AudioOutputDevice;
