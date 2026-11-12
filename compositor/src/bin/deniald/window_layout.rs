@@ -2764,7 +2764,7 @@ fn split_geometry_on_axis(
     )
 }
 
-fn split_geometry_on_axis_with_minimums(
+pub(super) fn split_geometry_on_axis_with_minimums(
     geometry: Rectangle<i32, Logical>,
     requested_gap: i32,
     requested_ratio: f64,

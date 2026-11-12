@@ -228,6 +228,9 @@ pub(crate) use surface_pipeline::canvas_rect_to_buffer;
 #[path = "wayland_frontend/fcitx.rs"]
 mod fcitx;
 #[cfg(feature = "flutter")]
+#[path = "wayland_frontend/mobile_layout.rs"]
+mod mobile_layout;
+#[cfg(feature = "flutter")]
 #[path = "wayland_frontend/mobile_split.rs"]
 mod mobile_split;
 #[cfg(feature = "flutter")]
