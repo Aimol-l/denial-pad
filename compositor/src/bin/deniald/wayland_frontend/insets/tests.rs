@@ -117,7 +117,7 @@ impl Fixture {
     }
 
     fn configure(&mut self, size: (i32, i32)) -> Vec<Vec<u32>> {
-        configure_mobile_toplevel(self.toplevel(), size.into());
+        configure_mobile_toplevel(self.toplevel(), size.into(), true);
         self.events()
     }
 
@@ -315,7 +315,7 @@ fn dialog_keeps_parent_and_receives_mobile_states_and_size() {
     fixture.request(7, 1, &[4]); // xdg_toplevel.set_parent
     let dialog = fixture.toplevel();
     assert_eq!(dialog.parent().as_ref(), Some(parent.wl_surface()));
-    configure_mobile_toplevel(dialog, (360, 752).into());
+    configure_mobile_toplevel(dialog, (360, 752).into(), true);
     assert_eq!(dialog.parent().as_ref(), Some(parent.wl_surface()));
     let events = fixture.events();
     let event = events.iter().find(|event| event[0] == 7).unwrap();

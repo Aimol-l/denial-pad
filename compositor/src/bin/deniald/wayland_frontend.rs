@@ -225,14 +225,14 @@ use surface_pipeline::SurfaceTreeRoot;
 #[cfg(feature = "flutter")]
 pub(crate) use surface_pipeline::canvas_rect_to_buffer;
 #[cfg(feature = "flutter")]
-#[path = "wayland_frontend/surface_snapshot.rs"]
-mod surface_snapshot;
-#[cfg(feature = "flutter")]
 #[path = "wayland_frontend/fcitx.rs"]
 mod fcitx;
 #[cfg(feature = "flutter")]
 #[path = "wayland_frontend/mobile_split.rs"]
 mod mobile_split;
+#[cfg(feature = "flutter")]
+#[path = "wayland_frontend/surface_snapshot.rs"]
+mod surface_snapshot;
 #[cfg(feature = "flutter")]
 pub(crate) use fcitx::Composition;
 #[path = "wayland_frontend/text_input.rs"]
@@ -816,8 +816,19 @@ mod initial_toplevel_placement_tests {
 struct WindowGeometryIntent {
     target: Rectangle<i32, Logical>,
     authority: WindowGeometryAuthority,
-    reassertion: WindowGeometryReassertion,
+    /// How many times this contract has already been re-sent.
+    reassertions: u8,
+    /// The one suppression warning for this contract has been logged.
+    reassertion_reported: bool,
 }
+
+/// How many times one geometry contract may be re-sent to a client that keeps
+/// committing another size. A lagging commit is common; a client that really
+/// refuses (a minimum size, for one) must not be asked forever.
+const MAX_GEOMETRY_REASSERTIONS: u8 = 3;
+
+/// Clients round fractional scales: one or two pixels off is compliance.
+const GEOMETRY_SIZE_TOLERANCE: i32 = 2;
 
 impl WindowGeometryIntent {
     fn for_contract(
@@ -825,15 +836,13 @@ impl WindowGeometryIntent {
         authority: WindowGeometryAuthority,
         previous: Option<Self>,
     ) -> Self {
-        let reassertion = previous
-            .filter(|previous| previous.target == target && previous.authority == authority)
-            .map_or(WindowGeometryReassertion::Available, |previous| {
-                previous.reassertion
-            });
+        let previous = previous
+            .filter(|previous| previous.target == target && previous.authority == authority);
         Self {
             target,
             authority,
-            reassertion,
+            reassertions: previous.map_or(0, |previous| previous.reassertions),
+            reassertion_reported: previous.is_some_and(|previous| previous.reassertion_reported),
         }
     }
 
@@ -842,26 +851,16 @@ impl WindowGeometryIntent {
     }
 
     fn claim_reassertion(&mut self) -> WindowGeometryReassertionAction {
-        match self.reassertion {
-            WindowGeometryReassertion::Available => {
-                self.reassertion = WindowGeometryReassertion::Sent;
-                WindowGeometryReassertionAction::Send
-            }
-            WindowGeometryReassertion::Sent => {
-                self.reassertion = WindowGeometryReassertion::Suppressed;
-                WindowGeometryReassertionAction::ReportSuppressed
-            }
-            WindowGeometryReassertion::Suppressed => WindowGeometryReassertionAction::Suppress,
+        if self.reassertions < MAX_GEOMETRY_REASSERTIONS {
+            self.reassertions += 1;
+            return WindowGeometryReassertionAction::Send;
         }
+        if !self.reassertion_reported {
+            self.reassertion_reported = true;
+            return WindowGeometryReassertionAction::ReportSuppressed;
+        }
+        WindowGeometryReassertionAction::Suppress
     }
-}
-
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-enum WindowGeometryReassertion {
-    #[default]
-    Available,
-    Sent,
-    Suppressed,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -898,8 +897,12 @@ fn committed_size_requires_reassertion(
     // Initial and unmapped surface trees have no usable content geometry.
     // In particular, a client building its subsurface tree may commit several
     // times before its first non-empty window. Those commits do not reject a
-    // configure and must not spend the contract's single resize reassertion.
-    committed.w > 0 && committed.h > 0 && preview.is_none() && committed != target
+    // configure and must not spend a resize reassertion.
+    committed.w > 0
+        && committed.h > 0
+        && preview.is_none()
+        && ((committed.w - target.w).abs() > GEOMETRY_SIZE_TOLERANCE
+            || (committed.h - target.h).abs() > GEOMETRY_SIZE_TOLERANCE)
 }
 
 #[cfg(test)]
@@ -910,7 +913,8 @@ mod window_geometry_intent_tests {
         WindowGeometryIntent {
             target: Rectangle::new((10, 20).into(), (800, 600).into()),
             authority,
-            reassertion: WindowGeometryReassertion::Available,
+            reassertions: 0,
+            reassertion_reported: false,
         }
     }
 
@@ -964,7 +968,7 @@ mod window_geometry_intent_tests {
             if committed_size_requires_reassertion(intent.target.size, None, committed) {
                 intent.claim_reassertion();
             }
-            assert_eq!(intent.reassertion, WindowGeometryReassertion::Available);
+            assert_eq!(intent.reassertions, 0);
             assert!(intent.retained_after_commit(committed));
         }
 
@@ -978,8 +982,8 @@ mod window_geometry_intent_tests {
             intent.claim_reassertion(),
             WindowGeometryReassertionAction::Send
         );
-        // A real mismatch still gets only one retry, even if an empty commit
-        // follows it. Preserve the configure-loop protection for live clients.
+        // A real mismatch keeps its remaining retries, but an empty commit
+        // still never spends one.
         assert!(!committed_size_requires_reassertion(
             intent.target.size,
             None,
@@ -987,7 +991,7 @@ mod window_geometry_intent_tests {
         ));
         assert_eq!(
             intent.claim_reassertion(),
-            WindowGeometryReassertionAction::ReportSuppressed
+            WindowGeometryReassertionAction::Send
         );
     }
 
@@ -1003,12 +1007,14 @@ mod window_geometry_intent_tests {
     }
 
     #[test]
-    fn one_geometry_contract_can_only_reassert_once() {
+    fn a_geometry_contract_reasserts_a_few_times_then_stops() {
         let mut intent = intent(WindowGeometryAuthority::Layout);
-        assert_eq!(
-            intent.claim_reassertion(),
-            WindowGeometryReassertionAction::Send
-        );
+        for _ in 0..MAX_GEOMETRY_REASSERTIONS {
+            assert_eq!(
+                intent.claim_reassertion(),
+                WindowGeometryReassertionAction::Send
+            );
+        }
         assert_eq!(
             intent.claim_reassertion(),
             WindowGeometryReassertionAction::ReportSuppressed
@@ -1034,14 +1040,14 @@ mod window_geometry_intent_tests {
             WindowGeometryAuthority::Layout,
             Some(previous),
         );
-        assert_eq!(unchanged.reassertion, WindowGeometryReassertion::Sent);
+        assert_eq!(unchanged.reassertions, 1);
 
         let changed = WindowGeometryIntent::for_contract(
             Rectangle::new((10, 20).into(), (900, 600).into()),
             WindowGeometryAuthority::Layout,
             Some(previous),
         );
-        assert_eq!(changed.reassertion, WindowGeometryReassertion::Available);
+        assert_eq!(changed.reassertions, 0);
     }
 }
 

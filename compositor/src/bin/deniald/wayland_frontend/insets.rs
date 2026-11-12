@@ -36,23 +36,27 @@ use protocol::server::denial_keyboard_inset_v1::{self, DenialKeyboardInsetV1};
 #[path = "insets/tests.rs"]
 mod tests;
 
-fn configure_mobile_toplevel(toplevel: &ToplevelSurface, size: Size<i32, Logical>) {
+fn configure_mobile_toplevel(toplevel: &ToplevelSurface, size: Size<i32, Logical>, tiled: bool) {
+    let client = super::application_scale::client_size(toplevel.wl_surface(), size);
     toplevel.with_pending_state(|pending| {
-        pending.size = Some(super::application_scale::client_size(
-            toplevel.wl_surface(),
-            size,
-        ));
+        pending.size = Some(client);
         pending.states.unset(xdg_toplevel::State::Fullscreen);
         pending.states.unset(xdg_toplevel::State::Maximized);
         // Mobile clients fill their assigned rectangle, including dialogs and
         // clients managing their own insets. Leave unrelated state bits alone.
+        // A pane is not a tiled window: GTK clients treat four tiled edges as
+        // maximized and then ignore the size we ask for.
         for edge in [
             xdg_toplevel::State::TiledLeft,
             xdg_toplevel::State::TiledRight,
             xdg_toplevel::State::TiledTop,
             xdg_toplevel::State::TiledBottom,
         ] {
-            pending.states.set(edge);
+            if tiled {
+                pending.states.set(edge);
+            } else {
+                pending.states.unset(edge);
+            }
         }
     });
     // Smithay compares with the last sent/acked state and filters unsupported
@@ -275,12 +279,8 @@ impl WaylandFrontend {
             let Some(focused) = focused else {
                 return 0;
             };
-            let focused_root = self
-                .owning_toplevel_surface(&focused)
-                .map(|root| root.id());
-            let surface_root = self
-                .owning_toplevel_surface(surface)
-                .map(|root| root.id());
+            let focused_root = self.owning_toplevel_surface(&focused).map(|root| root.id());
+            let surface_root = self.owning_toplevel_surface(surface).map(|root| root.id());
             if focused_root.is_none() || focused_root != surface_root {
                 return 0;
             }
@@ -460,8 +460,13 @@ impl WaylandFrontend {
         let Some(target) = self.mobile_window_geometry(window) else {
             return;
         };
+        let pane = self.mobile_split.is_some_and(|split| {
+            self.window_root_surface(window)
+                .and_then(|root| self.surface_id(&root))
+                .is_some_and(|window_id| split.contains(window_id))
+        });
         if let Some(toplevel) = window.toplevel() {
-            configure_mobile_toplevel(toplevel, target.size);
+            configure_mobile_toplevel(toplevel, target.size, !pane);
         }
         // An unchanged geometry target can still need a state-only configure.
         // Avoid rewriting geometry/authority when only XDG state has changed.
@@ -485,12 +490,61 @@ impl WaylandFrontend {
         if self.mobile_split == split {
             return false;
         }
+        let previous = self.mobile_split;
         self.mobile_split = split;
+        self.sync_split_app_scales(previous, split);
         let windows = self.space.elements().cloned().collect::<Vec<_>>();
         for window in windows {
             self.configure_mobile_window(&window);
         }
         true
+    }
+
+    /// A split pane gets the app's own 1.0 scale: a per-app scale inflates the
+    /// client's minimum width, and a card is too narrow for that. Leaving the
+    /// pair puts the app back on the scale its settings ask for.
+    fn sync_split_app_scales(
+        &mut self,
+        previous: Option<super::mobile_split::MobileSplit>,
+        next: Option<super::mobile_split::MobileSplit>,
+    ) {
+        let mut ids: Vec<u64> = Vec::new();
+        for split in [previous, next].into_iter().flatten() {
+            for id in [split.first, split.second] {
+                if id != 0 && !ids.contains(&id) {
+                    ids.push(id);
+                }
+            }
+        }
+        for id in ids {
+            let Some(window) = self.window_for_root_surface_id(id) else {
+                continue;
+            };
+            let in_split = next.is_some_and(|split| split.contains(id));
+            let scale = if in_split {
+                1.0
+            } else {
+                let Some(surface) = window.wl_surface() else {
+                    continue;
+                };
+                super::application_scale::application_scale_for_app(
+                    &self.settings,
+                    &super::application_scale::toplevel_app_id(&surface),
+                )
+            };
+            super::application_scale::apply_window_scale(self, &window, scale);
+        }
+    }
+
+    fn window_for_root_surface_id(&self, id: u64) -> Option<Window> {
+        self.space
+            .elements()
+            .find(|window| {
+                self.window_root_surface(window)
+                    .and_then(|root| self.surface_id(&root))
+                    == Some(id)
+            })
+            .cloned()
     }
 
     pub(super) fn mobile_window_inset(&self, window: &Window) -> i32 {
