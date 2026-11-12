@@ -782,16 +782,21 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   /// app closes. Recents with no app left closes for home.
   void dismissFromRecents(DenialWindow window) {
     final pair = state.splitPair;
+    final inPair = pair != null && pair.contains(window.objectId);
     final closing = <DenialWindow>[window];
-    if (pair != null && pair.contains(window.objectId)) {
-      endSplit();
+    if (pair != null && inPair) {
       final other = state.windowByObjectId(
-        pair.first == window.objectId ? pair.second : pair.first,
+        window.objectId == pair.first ? pair.second : pair.first,
       );
       if (other != null) closing.add(other);
     }
+    // Forget both cards before the split reopens the second slot, so the row
+    // closes the pair's one card instead of showing the other side return.
     for (final app in closing) {
       _dismissedIds.add(app.objectId);
+    }
+    if (inPair) endSplit();
+    for (final app in closing) {
       _platform.closeWindow(app);
     }
     _deck.reorder(_presentedOrder(), ShellSprings.appStrip);
@@ -833,7 +838,13 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   void openFromRecents(DenialWindow window) {
     final index = _deck.indexOf(_deckIdOf(window.objectId));
     if (index == null || !window.isUserApp) return;
-    focusWindow(window);
+    // A split card stands for both apps: coming back shows the side that was
+    // in use.
+    final split = state.splitPair;
+    final target = split != null && split.contains(window.objectId)
+        ? (state.windowByObjectId(split.activeWindow) ?? window)
+        : window;
+    focusWindow(target);
   }
 
   /// Puts two apps on the phone screen, side by side or top and bottom.
