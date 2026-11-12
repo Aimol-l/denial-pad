@@ -612,7 +612,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       final caught = _hold == _DeckHold.open
           ? _liftCaught
           : _deck.presenting.value;
-      final front = _deck.indexOf(state.foregroundWindow?.objectId);
+      final front = _deck.indexOf(_deckIdOf(state.foregroundWindow?.objectId));
       _endFingerGesture();
       if (front == null) _takeFromHome(lift: true);
       if (front == null && !_deck.presenting.value) _deck.enterFromHome();
@@ -763,7 +763,8 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       case MobileBackTarget.overview:
         closeOverview();
       case MobileBackTarget.app:
-        final window = state.primaryWindow;
+        // A split hands Back to the side the person is using.
+        final window = state.inputWindow;
         if (window == null) return false;
         _platform.navigateBack(window);
     }
@@ -780,17 +781,57 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   /// A card swiped away in recents: the row closes its gap at once, and the
   /// app closes. Recents with no app left closes for home.
   void dismissFromRecents(DenialWindow window) {
-    _dismissedIds.add(window.objectId);
+    final pair = state.splitPair;
+    final closing = <DenialWindow>[window];
+    if (pair != null && pair.contains(window.objectId)) {
+      endSplit();
+      final other = state.windowByObjectId(
+        pair.first == window.objectId ? pair.second : pair.first,
+      );
+      if (other != null) closing.add(other);
+    }
+    for (final app in closing) {
+      _dismissedIds.add(app.objectId);
+      _platform.closeWindow(app);
+    }
     _deck.reorder(_presentedOrder(), ShellSprings.appStrip);
     if (_deck.length == 0) closeOverview();
-    _platform.closeWindow(window);
+  }
+
+  /// The card the deck shows for [objectId]: both sides of a split sit in one
+  /// recents card, at the first pane's slot.
+  int? _deckIdOf(int? objectId) {
+    final pair = state.splitPair;
+    if (objectId == null || pair == null || !pair.isComplete) return objectId;
+    return pair.contains(objectId) ? pair.first : objectId;
+  }
+
+  /// A split pair is one card in recents: the row keeps its first side and
+  /// forgets the second, which the card draws itself.
+  List<int> _collapsedOrder(List<int> order) {
+    final pair = state.splitPair;
+    if (pair == null || !pair.isComplete) return order;
+    return [
+      for (final id in order)
+        if (id != pair.second) id,
+    ];
+  }
+
+  /// Recents keeps one slot per card while the pair changes: the row closes
+  /// the second pane's slot when a split starts and reopens it when it ends.
+  void _syncSplitDeck() {
+    if (_deck.presenting.value) {
+      _deck.reorder(_presentedOrder(), ShellSprings.appStrip);
+    } else {
+      _arrangeDeck();
+    }
   }
 
   /// A card tapped in recents: recents closes around it as the row brings it
   /// to the centre, each continuing whatever motion it has. A swipe up takes
   /// it back.
   void openFromRecents(DenialWindow window) {
-    final index = _deck.indexOf(window.objectId);
+    final index = _deck.indexOf(_deckIdOf(window.objectId));
     if (index == null || !window.isUserApp) return;
     focusWindow(window);
   }
@@ -825,6 +866,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       edgePanelDrag: Offset.zero,
       edgePanelDragActive: false,
     );
+    _syncSplitDeck();
     _platform.splitWindows(
       first: first,
       second: second,
@@ -857,6 +899,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       edgePanelDrag: Offset.zero,
       edgePanelDragActive: false,
     );
+    _syncSplitDeck();
     _platform.splitWindowsByIds(
       first: window.objectId,
       second: 0,
@@ -864,6 +907,23 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       ratio: pair.ratio,
     );
     _platform.focusWindow(window);
+  }
+
+  /// A recents card dropped on a side: a split card hands the side under the
+  /// finger the whole screen, a single app starts a fresh split.
+  void dropCardOnSide(
+    DenialWindow window, {
+    required bool vertical,
+    required bool first,
+  }) {
+    final pair = state.splitPair;
+    if (pair == null || !pair.contains(window.objectId)) {
+      beginSingleSplit(window, vertical: vertical);
+      return;
+    }
+    final target = state.windowByObjectId(first ? pair.first : pair.second);
+    endSplit();
+    if (target != null) focusWindow(target);
   }
 
   /// The picker's choice: the second pane joins the first.
@@ -879,6 +939,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       splitPair: next,
       foregroundObjectId: next.activeWindow,
     );
+    _syncSplitDeck();
     _platform.splitWindowsByIds(
       first: next.first,
       second: next.second,
@@ -915,6 +976,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   void endSplit() {
     if (state.splitPair == null) return;
     state = state.copyWith(clearSplitPair: true);
+    _syncSplitDeck();
     _platform.endSplit();
   }
 
@@ -1164,6 +1226,13 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       state = state.copyWith(clearForegroundObjectId: true);
       return;
     }
+    // The row's card stands for the whole pair, so it comes back to the side
+    // the person was using.
+    final pair = state.splitPair;
+    if (pair != null && pair.contains(id)) {
+      state = state.copyWith(foregroundObjectId: pair.activeWindow);
+      return;
+    }
     final window = state.openAppWindowsByObjectId[id];
     if (window == null) return;
     _backgroundLaunchAppIds.remove(
@@ -1195,11 +1264,11 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
         _appSwitchOrderMatchesOpenApps() && current.appSwitchOrder.isNotEmpty
         ? current.appSwitchOrder
         : _recencyOrder();
-    final order = [
+    final order = _collapsedOrder([
       for (final id in source)
         if (open.containsKey(id) && !_dismissedIds.contains(id)) id,
-    ];
-    final front = order.indexOf(current.foregroundObjectId ?? -1);
+    ]);
+    final front = order.indexOf(_deckIdOf(current.foregroundObjectId) ?? -1);
     _deck.arrange(order, rowAt: (front < 0 ? order.length : front).toDouble());
   }
 
@@ -1211,13 +1280,13 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       for (final id in _deck.order)
         if (open.containsKey(id) && !_dismissedIds.contains(id)) id,
     ];
-    return [
+    return _collapsedOrder([
       ...kept,
       for (final window in state.openAppWindows)
         if (!kept.contains(window.objectId) &&
             !_dismissedIds.contains(window.objectId))
           window.objectId,
-    ];
+    ]);
   }
 
   void _deckPresentingChanged() {

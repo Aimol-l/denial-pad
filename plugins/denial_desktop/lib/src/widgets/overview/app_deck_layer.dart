@@ -32,6 +32,7 @@ class AppDeckLayer extends StatefulWidget {
     required this.deck,
     required this.windows,
     required this.recents,
+    this.split,
     this.backdrop,
     required this.onPresentationChanged,
     this.onProgressChanged,
@@ -49,6 +50,10 @@ class AppDeckLayer extends StatefulWidget {
 
   /// Recents is open or opening, and takes touches.
   final bool recents;
+
+  /// The pair sharing the screen. Recents shows it as a single card drawn at
+  /// the first pane's slot, so the two apps never drift apart in the row.
+  final SplitPair? split;
 
   /// The scene behind recents, frosted once. Translucent apps draw slices of
   /// it as their glass instead of filtering the scene on every frame.
@@ -151,6 +156,20 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
     }
     _open.dispose();
     super.dispose();
+  }
+
+  /// The pair whose first pane is [id], when recents draws the split card.
+  SplitPair? _pairAt(int id) {
+    final split = widget.split;
+    if (split == null || !split.isComplete || split.first != id) return null;
+    return split;
+  }
+
+  /// The app on the pair's other side, drawn beside [window] in its card.
+  DenialWindow? _pairWindowAt(int id) {
+    final pair = _pairAt(id);
+    if (pair == null) return null;
+    return _windows[pair.second];
   }
 
   void _indexWindows() {
@@ -335,6 +354,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
     final deck = widget.deck;
     final geometry = deck.geometry;
     final interactive = widget.recents;
+
     return Positioned.fill(
       child: IgnorePointer(
         ignoring: !interactive,
@@ -375,6 +395,8 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
                       _DeckCard(
                         key: ValueKey<int>(id),
                         window: window,
+                        pair: _pairAt(id),
+                        pairWindow: _pairWindowAt(id),
                         pose: pose,
                         labelWidth: geometry.card.width,
                         labelOpacity: geometry.landscape ? null : _labelOpacity,
@@ -397,7 +419,8 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
                   if (_splitPickup != null)
                     SplitDropOverlay(
                       side: _splitSide,
-                      vertical: MediaQuery.sizeOf(context).height >
+                      vertical:
+                          MediaQuery.sizeOf(context).height >
                           MediaQuery.sizeOf(context).width,
                     ),
                 ],
@@ -411,11 +434,14 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
 }
 
 /// One app as the deck poses it. In recents it is a card: a tap opens it,
-/// and a swipe up throws it away.
+/// and a swipe up throws it away. A split pair is drawn as one card carrying
+/// both apps, at the first pane's slot.
 class _DeckCard extends StatefulWidget {
   const _DeckCard({
     super.key,
     required this.window,
+    this.pair,
+    this.pairWindow,
     required this.pose,
     required this.labelWidth,
     required this.labelOpacity,
@@ -429,6 +455,12 @@ class _DeckCard extends StatefulWidget {
   });
 
   final DenialWindow window;
+
+  /// The pair this card stands for, when it is a split card.
+  final SplitPair? pair;
+
+  /// The pair's other app, drawn beside [window] inside the card.
+  final DenialWindow? pairWindow;
   final ValueListenable<WindowPose> pose;
   final double labelWidth;
 
@@ -570,6 +602,48 @@ class _DeckCardState extends State<_DeckCard>
     });
   }
 
+  /// The card's content: one app, or both sides of a split pair.
+  Widget _cardSurface(BuildContext context) {
+    final pair = widget.pair;
+    final second = widget.pairWindow;
+    if (pair == null || second == null) {
+      return WindowSurface(
+        window: widget.window,
+        contentPadding: EdgeInsets.only(
+          top: ReferenceShellMetrics.appStatusInset(MediaQuery.sizeOf(context)),
+        ),
+      );
+    }
+    final fractions = splitFractions(pair.ratio);
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Flex(
+          direction: pair.vertical ? Axis.vertical : Axis.horizontal,
+          children: [
+            Expanded(
+              flex: (fractions.first * 1000).round(),
+              child: WindowContentRect(window: widget.window),
+            ),
+            SizedBox(
+              width: pair.vertical ? 0 : 6,
+              height: pair.vertical ? 6 : 0,
+            ),
+            Expanded(
+              flex: (fractions.second * 1000).round(),
+              child: WindowContentRect(window: second),
+            ),
+          ],
+        ),
+        Positioned(
+          right: 10,
+          bottom: 10,
+          child: IgnorePointer(child: _PairBadge(pair: pair)),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final labelOpacity = widget.labelOpacity;
@@ -577,116 +651,142 @@ class _DeckCardState extends State<_DeckCard>
     return Opacity(
       opacity: widget.dimmed ? 0.25 : 1,
       child: Stack(
-      fit: StackFit.expand,
-      children: [
-        IgnorePointer(
-          child: WindowBackdropMotion(
-            motion: _pose,
-            child: PosedWindow(
-              pose: _pose,
-              child: AnimatedScale(
-                scale: _picked ? 0.72 : 1,
-                duration: const Duration(milliseconds: 120),
-                curve: Curves.easeOut,
-                child: AnimatedRotation(
-                  turns: _picked ? -0.007 : 0,
+        fit: StackFit.expand,
+        children: [
+          IgnorePointer(
+            child: WindowBackdropMotion(
+              motion: _pose,
+              child: PosedWindow(
+                pose: _pose,
+                child: AnimatedScale(
+                  scale: _picked ? 0.72 : 1,
                   duration: const Duration(milliseconds: 120),
                   curve: Curves.easeOut,
-                  child: WindowSurface(
-                    window: widget.window,
-                    contentPadding: EdgeInsets.only(
-                      top: ReferenceShellMetrics.appStatusInset(
-                        MediaQuery.sizeOf(context),
-                      ),
-                    ),
+                  child: AnimatedRotation(
+                    turns: _picked ? -0.007 : 0,
+                    duration: const Duration(milliseconds: 120),
+                    curve: Curves.easeOut,
+                    child: _cardSurface(context),
                   ),
                 ),
               ),
             ),
           ),
-        ),
-        if (labelOpacity != null)
-          Positioned(
-            left: 0,
-            top: 0,
-            width: widget.labelWidth,
-            height: OverviewCardLabel.height,
-            child: IgnorePointer(
+          if (labelOpacity != null)
+            Positioned(
+              left: 0,
+              top: 0,
+              width: widget.labelWidth,
+              height: OverviewCardLabel.height,
+              child: IgnorePointer(
+                child: CompositedTranslation(
+                  translation: _pose.label,
+                  devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+                  child: FadeTransition(
+                    opacity: labelOpacity,
+                    child: OverviewCardLabel(
+                      window: widget.window,
+                      trailingSpace: onMoveToDesk == null
+                          ? 0
+                          : _MoveToDeskButton.size + OverviewCardLabel.gap,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          _PoseHitRegion(
+            pose: _pose,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                if (!_leaving) widget.onOpen(widget.window);
+              },
+              onLongPressStart: widget.onPickupStart == null
+                  ? null
+                  : (details) {
+                      if (_leaving) return;
+                      setState(() => _picked = true);
+                      widget.onPickupStart!(
+                        widget.window,
+                        details.globalPosition,
+                      );
+                    },
+              onLongPressMoveUpdate: widget.onPickupMove == null
+                  ? null
+                  : (details) => widget.onPickupMove!(details.globalPosition),
+              onLongPressEnd: widget.onPickupEnd == null
+                  ? null
+                  : (details) {
+                      if (_picked) setState(() => _picked = false);
+                      widget.onPickupEnd!(details.globalPosition);
+                    },
+              onVerticalDragStart: _startDrag,
+              onVerticalDragUpdate: _moveDrag,
+              onVerticalDragEnd: _endDrag,
+              onVerticalDragCancel: _settleBack,
+            ),
+          ),
+          if (labelOpacity != null && onMoveToDesk != null)
+            // The translation spans the deck, so a tap on the button is tested
+            // where the label is drawn, not at the label's untranslated slot.
+            Positioned.fill(
               child: CompositedTranslation(
                 translation: _pose.label,
                 devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-                child: FadeTransition(
-                  opacity: labelOpacity,
-                  child: OverviewCardLabel(
-                    window: widget.window,
-                    trailingSpace: onMoveToDesk == null
-                        ? 0
-                        : _MoveToDeskButton.size + OverviewCardLabel.gap,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        _PoseHitRegion(
-          pose: _pose,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () {
-              if (!_leaving) widget.onOpen(widget.window);
-            },
-            onLongPressStart: widget.onPickupStart == null
-                ? null
-                : (details) {
-                    if (_leaving) return;
-                    setState(() => _picked = true);
-                    widget.onPickupStart!(widget.window, details.globalPosition);
-                  },
-            onLongPressMoveUpdate: widget.onPickupMove == null
-                ? null
-                : (details) => widget.onPickupMove!(details.globalPosition),
-            onLongPressEnd: widget.onPickupEnd == null
-                ? null
-                : (details) {
-                    if (_picked) setState(() => _picked = false);
-                    widget.onPickupEnd!(details.globalPosition);
-                  },
-            onVerticalDragStart: _startDrag,
-            onVerticalDragUpdate: _moveDrag,
-            onVerticalDragEnd: _endDrag,
-            onVerticalDragCancel: _settleBack,
-          ),
-        ),
-        if (labelOpacity != null && onMoveToDesk != null)
-          // The translation spans the deck, so a tap on the button is tested
-          // where the label is drawn, not at the label's untranslated slot.
-          Positioned.fill(
-            child: CompositedTranslation(
-              translation: _pose.label,
-              devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
-              child: Stack(
-                children: [
-                  Positioned(
-                    left: 0,
-                    top: 0,
-                    width: widget.labelWidth,
-                    height: OverviewCardLabel.height,
-                    child: FadeTransition(
-                      opacity: labelOpacity,
-                      child: Align(
-                        alignment: AlignmentDirectional.centerEnd,
-                        child: _MoveToDeskButton(
-                          onTap: () {
-                            if (!_leaving) onMoveToDesk(widget.window);
-                          },
+                child: Stack(
+                  children: [
+                    Positioned(
+                      left: 0,
+                      top: 0,
+                      width: widget.labelWidth,
+                      height: OverviewCardLabel.height,
+                      child: FadeTransition(
+                        opacity: labelOpacity,
+                        child: Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: _MoveToDeskButton(
+                            onTap: () {
+                              if (!_leaving) onMoveToDesk(widget.window);
+                            },
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The corner tag that says a recents card is two apps, and at what ratio.
+class _PairBadge extends StatelessWidget {
+  const _PairBadge({required this.pair});
+
+  final SplitPair pair;
+
+  @override
+  Widget build(BuildContext context) {
+    final share = (splitFractions(pair.ratio).first * 100).round();
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xA614161C),
+        borderRadius: BorderRadius.circular(9),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        child: Text(
+          '分屏 $share:${100 - share}',
+          style: const TextStyle(
+            color: Color(0xFFF2F3F7),
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            decoration: TextDecoration.none,
           ),
-      ],
+        ),
       ),
     );
   }
@@ -778,6 +878,7 @@ class _RenderPoseHitRegion extends RenderProxyBox {
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
     final current = pose.value;
+
     if (current.opacity <= 0 ||
         !RRect.fromRectAndRadius(
           current.rect,

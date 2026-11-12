@@ -257,11 +257,35 @@ impl WaylandFrontend {
     /// mobile presentation reports the keyboard over them, and only to
     /// windows on the phone: the keyboard never shows on a desk.
     fn keyboard_inset_height(&self, surface: &WlSurface) -> u32 {
-        if self.mobile_shell && self.surface_on_phone(surface) {
-            self.keyboard_insets.height
-        } else {
-            0
+        if !(self.mobile_shell && self.surface_on_phone(surface)) {
+            return 0;
         }
+        let height = self.keyboard_insets.height;
+        if height == 0 {
+            return 0;
+        }
+        // In a split only the active pane reflows around the keyboard; the
+        // other one keeps its size and simply sits behind the panel.
+        if self.mobile_split.is_some() {
+            let focused = self
+                .seat
+                .get_keyboard()
+                .and_then(|keyboard| keyboard.current_focus())
+                .map(WlSurface::from);
+            let Some(focused) = focused else {
+                return 0;
+            };
+            let focused_root = self
+                .owning_toplevel_surface(&focused)
+                .map(|root| root.id());
+            let surface_root = self
+                .owning_toplevel_surface(surface)
+                .map(|root| root.id());
+            if focused_root.is_none() || focused_root != surface_root {
+                return 0;
+            }
+        }
+        height
     }
 
     fn surface_on_phone(&self, surface: &WlSurface) -> bool {

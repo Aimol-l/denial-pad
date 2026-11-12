@@ -4,6 +4,7 @@ import 'package:denial_desktop/src/state/reference_shell_presentation.dart';
 import 'package:denial_flutter_sdk/rendering.dart' show FrostedBackdrop;
 
 import '../../widgets/overview/app_deck_layer.dart';
+import '../../widgets/overview/split_drop_zone.dart';
 import '../../widgets/shade/shade_progress.dart';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -101,6 +102,9 @@ class MobileAppDeckLayer extends ConsumerWidget {
         referenceShellProvider.select((state) => state.openAppWindows),
       ),
       recents: recents,
+      split: ref.watch(
+        referenceShellProvider.select((state) => state.splitPair),
+      ),
       backdrop: backdrop,
       onPresentationChanged: onPresentationChanged,
       onProgressChanged: onProgressChanged,
@@ -108,8 +112,11 @@ class MobileAppDeckLayer extends ConsumerWidget {
       onDismissWindow: controller.dismissFromRecents,
       onOpenWindow: controller.openFromRecents,
       onMoveWindowToDesk: deskBeside ? controller.moveToDesk : null,
-      onSplitSide: (window, side) =>
-          controller.beginSingleSplit(window, vertical: side.vertical),
+      onSplitSide: (window, side) => controller.dropCardOnSide(
+        window,
+        vertical: side.vertical,
+        first: side == SplitDropSide.left || side == SplitDropSide.top,
+      ),
     );
   }
 }

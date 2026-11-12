@@ -247,12 +247,19 @@ class ReferenceShellState {
   bool get primaryWindowHandlesKeyboard =>
       primaryWindow?.keyboardInset ?? false;
 
+  /// The pane of a split pair that takes input: the active side.
+  DenialWindow? get splitActiveWindow {
+    final pair = splitPair;
+    if (pair == null || pair.isComplete == false) return null;
+    return windowByObjectId(pair.activeWindow);
+  }
+
   DenialWindow? get inputWindow {
     if (lockLayerVisible || launchTransitionActive || overviewVisible) {
       return null;
     }
 
-    return primaryWindow;
+    return primaryWindow ?? splitActiveWindow;
   }
 
   /// What the system Back action acts on, in Android's order: the keyboard
@@ -270,7 +277,7 @@ class ReferenceShellState {
     if (overviewVisible) {
       return MobileBackTarget.overview;
     }
-    return primaryWindow == null ? MobileBackTarget.none : MobileBackTarget.app;
+    return inputWindow == null ? MobileBackTarget.none : MobileBackTarget.app;
   }
 
   int get openAppWindowCount => openAppWindows.length;
