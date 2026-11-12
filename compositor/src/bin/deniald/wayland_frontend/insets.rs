@@ -449,7 +449,12 @@ impl WaylandFrontend {
         // A split pair replaces the full rect with the pane each member owns.
         if let Some(split) = self.mobile_split
             && let Some(window_id) = self.surface_id(&root)
-            && let Some(pane) = split.pane(window_id, geometry)
+            && let Some(pane) = split.pane(
+                window_id,
+                geometry,
+                self.mobile_split_minimums().0,
+                self.mobile_split_minimums().1,
+            )
         {
             return Some(pane);
         }
@@ -578,6 +583,28 @@ impl WaylandFrontend {
             };
             super::application_scale::apply_window_scale(self, &window, scale);
         }
+    }
+
+    /// The minimum sizes of the two panes, in display space. Missing clients
+    /// fall back to a single pixel so a split never waits on metadata.
+    fn mobile_split_minimums(&self) -> (Size<i32, Logical>, Size<i32, Logical>) {
+        let one = Size::from((1, 1));
+        let Some(split) = self.mobile_split else {
+            return (one, one);
+        };
+        let minimum_of = |id: u64| {
+            if id == 0 {
+                return one;
+            }
+            let Some(window) = self.window_for_root_surface_id(id) else {
+                return one;
+            };
+            match ManagedWindow::new(&window) {
+                Some(managed) => managed.facts().minimum_size,
+                None => one,
+            }
+        };
+        (minimum_of(split.first), minimum_of(split.second))
     }
 
     fn window_for_root_surface_id(&self, id: u64) -> Option<Window> {
