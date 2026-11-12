@@ -2176,29 +2176,31 @@ class Window {
   bool get pinned => const fb.BoolReader().vTableGet(_bc, _bcOffset, 66, false);
   bool get suppressAnimations => const fb.BoolReader().vTableGet(_bc, _bcOffset, 68, false);
   bool get serverSideDecorated => const fb.BoolReader().vTableGet(_bc, _bcOffset, 70, true);
-  double get opacity => const fb.Float32Reader().vTableGet(_bc, _bcOffset, 72, 1.0);
-  WindowContentKind get contentKind => WindowContentKind.fromValue(const fb.Uint8Reader().vTableGet(_bc, _bcOffset, 74, 0));
-  WindowOpacityClass get opacityClass => WindowOpacityClass.fromValue(const fb.Uint8Reader().vTableGet(_bc, _bcOffset, 76, 0));
-  int get workspaceId => const fb.Int64Reader().vTableGet(_bc, _bcOffset, 78, 1);
-  bool get minimized => const fb.BoolReader().vTableGet(_bc, _bcOffset, 80, false);
-  bool get fullscreen => const fb.BoolReader().vTableGet(_bc, _bcOffset, 82, false);
-  bool get maximized => const fb.BoolReader().vTableGet(_bc, _bcOffset, 84, false);
-  int get transientParentId => const fb.Uint64Reader().vTableGet(_bc, _bcOffset, 86, 0);
-  int get heldByWindowId => const fb.Uint64Reader().vTableGet(_bc, _bcOffset, 88, 0);
-  int get heldHold => const fb.Uint32Reader().vTableGet(_bc, _bcOffset, 90, 0);
-  double get heldShare => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 92, 0.0);
-  double get petAnchorX => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 94, 0.0);
-  double get petAnchorY => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 96, 0.0);
-  bool get petBelow => const fb.BoolReader().vTableGet(_bc, _bcOffset, 98, false);
-  bool get pet => const fb.BoolReader().vTableGet(_bc, _bcOffset, 100, false);
-  int get petHolds => const fb.Uint32Reader().vTableGet(_bc, _bcOffset, 102, 0);
-  bool get petDragged => const fb.BoolReader().vTableGet(_bc, _bcOffset, 104, false);
-  ClientTexture? get clientTexture => ClientTexture.reader.vTableGetNullable(_bc, _bcOffset, 106);
-  bool get keyboardInset => const fb.BoolReader().vTableGet(_bc, _bcOffset, 108, false);
+  double get minWidth => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 72, 0.0);
+  double get minHeight => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 74, 0.0);
+  double get opacity => const fb.Float32Reader().vTableGet(_bc, _bcOffset, 76, 1.0);
+  WindowContentKind get contentKind => WindowContentKind.fromValue(const fb.Uint8Reader().vTableGet(_bc, _bcOffset, 78, 0));
+  WindowOpacityClass get opacityClass => WindowOpacityClass.fromValue(const fb.Uint8Reader().vTableGet(_bc, _bcOffset, 80, 0));
+  int get workspaceId => const fb.Int64Reader().vTableGet(_bc, _bcOffset, 82, 1);
+  bool get minimized => const fb.BoolReader().vTableGet(_bc, _bcOffset, 84, false);
+  bool get fullscreen => const fb.BoolReader().vTableGet(_bc, _bcOffset, 86, false);
+  bool get maximized => const fb.BoolReader().vTableGet(_bc, _bcOffset, 88, false);
+  int get transientParentId => const fb.Uint64Reader().vTableGet(_bc, _bcOffset, 90, 0);
+  int get heldByWindowId => const fb.Uint64Reader().vTableGet(_bc, _bcOffset, 92, 0);
+  int get heldHold => const fb.Uint32Reader().vTableGet(_bc, _bcOffset, 94, 0);
+  double get heldShare => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 96, 0.0);
+  double get petAnchorX => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 98, 0.0);
+  double get petAnchorY => const fb.Float64Reader().vTableGet(_bc, _bcOffset, 100, 0.0);
+  bool get petBelow => const fb.BoolReader().vTableGet(_bc, _bcOffset, 102, false);
+  bool get pet => const fb.BoolReader().vTableGet(_bc, _bcOffset, 104, false);
+  int get petHolds => const fb.Uint32Reader().vTableGet(_bc, _bcOffset, 106, 0);
+  bool get petDragged => const fb.BoolReader().vTableGet(_bc, _bcOffset, 108, false);
+  ClientTexture? get clientTexture => ClientTexture.reader.vTableGetNullable(_bc, _bcOffset, 110);
+  bool get keyboardInset => const fb.BoolReader().vTableGet(_bc, _bcOffset, 112, false);
 
   @override
   String toString() {
-    return 'Window{objectId: ${objectId}, objectKind: ${objectKind}, surfaceId: ${surfaceId}, windowId: ${windowId}, textureId: ${textureId}, title: ${title}, appId: ${appId}, width: ${width}, height: ${height}, surfaceX: ${surfaceX}, surfaceY: ${surfaceY}, surfaceWidth: ${surfaceWidth}, surfaceHeight: ${surfaceHeight}, textureSourceX: ${textureSourceX}, textureSourceY: ${textureSourceY}, textureSourceWidth: ${textureSourceWidth}, textureSourceHeight: ${textureSourceHeight}, geometryX: ${geometryX}, geometryY: ${geometryY}, geometryWidth: ${geometryWidth}, geometryHeight: ${geometryHeight}, monitorId: ${monitorId}, transform: ${transform}, scale120: ${scale120}, statusColorArgb: ${statusColorArgb}, hasStatusColor: ${hasStatusColor}, contentX: ${contentX}, contentY: ${contentY}, contentWidth: ${contentWidth}, contentHeight: ${contentHeight}, surfaces: ${surfaces}, pinned: ${pinned}, suppressAnimations: ${suppressAnimations}, serverSideDecorated: ${serverSideDecorated}, opacity: ${opacity}, contentKind: ${contentKind}, opacityClass: ${opacityClass}, workspaceId: ${workspaceId}, minimized: ${minimized}, fullscreen: ${fullscreen}, maximized: ${maximized}, transientParentId: ${transientParentId}, heldByWindowId: ${heldByWindowId}, heldHold: ${heldHold}, heldShare: ${heldShare}, petAnchorX: ${petAnchorX}, petAnchorY: ${petAnchorY}, petBelow: ${petBelow}, pet: ${pet}, petHolds: ${petHolds}, petDragged: ${petDragged}, clientTexture: ${clientTexture}, keyboardInset: ${keyboardInset}}';
+    return 'Window{objectId: ${objectId}, objectKind: ${objectKind}, surfaceId: ${surfaceId}, windowId: ${windowId}, textureId: ${textureId}, title: ${title}, appId: ${appId}, width: ${width}, height: ${height}, surfaceX: ${surfaceX}, surfaceY: ${surfaceY}, surfaceWidth: ${surfaceWidth}, surfaceHeight: ${surfaceHeight}, textureSourceX: ${textureSourceX}, textureSourceY: ${textureSourceY}, textureSourceWidth: ${textureSourceWidth}, textureSourceHeight: ${textureSourceHeight}, geometryX: ${geometryX}, geometryY: ${geometryY}, geometryWidth: ${geometryWidth}, geometryHeight: ${geometryHeight}, monitorId: ${monitorId}, transform: ${transform}, scale120: ${scale120}, statusColorArgb: ${statusColorArgb}, hasStatusColor: ${hasStatusColor}, contentX: ${contentX}, contentY: ${contentY}, contentWidth: ${contentWidth}, contentHeight: ${contentHeight}, surfaces: ${surfaces}, pinned: ${pinned}, suppressAnimations: ${suppressAnimations}, serverSideDecorated: ${serverSideDecorated}, minWidth: ${minWidth}, minHeight: ${minHeight}, opacity: ${opacity}, contentKind: ${contentKind}, opacityClass: ${opacityClass}, workspaceId: ${workspaceId}, minimized: ${minimized}, fullscreen: ${fullscreen}, maximized: ${maximized}, transientParentId: ${transientParentId}, heldByWindowId: ${heldByWindowId}, heldHold: ${heldHold}, heldShare: ${heldShare}, petAnchorX: ${petAnchorX}, petAnchorY: ${petAnchorY}, petBelow: ${petBelow}, pet: ${pet}, petHolds: ${petHolds}, petDragged: ${petDragged}, clientTexture: ${clientTexture}, keyboardInset: ${keyboardInset}}';
   }
 }
 
@@ -2216,7 +2218,7 @@ class WindowBuilder {
   final fb.Builder fbBuilder;
 
   void begin() {
-    fbBuilder.startTable(53);
+    fbBuilder.startTable(55);
   }
 
   int addObjectId(int? objectId) {
@@ -2355,80 +2357,88 @@ class WindowBuilder {
     fbBuilder.addBool(33, serverSideDecorated);
     return fbBuilder.offset;
   }
+  int addMinWidth(double? minWidth) {
+    fbBuilder.addFloat64(34, minWidth);
+    return fbBuilder.offset;
+  }
+  int addMinHeight(double? minHeight) {
+    fbBuilder.addFloat64(35, minHeight);
+    return fbBuilder.offset;
+  }
   int addOpacity(double? opacity) {
-    fbBuilder.addFloat32(34, opacity);
+    fbBuilder.addFloat32(36, opacity);
     return fbBuilder.offset;
   }
   int addContentKind(WindowContentKind? contentKind) {
-    fbBuilder.addUint8(35, contentKind?.value);
+    fbBuilder.addUint8(37, contentKind?.value);
     return fbBuilder.offset;
   }
   int addOpacityClass(WindowOpacityClass? opacityClass) {
-    fbBuilder.addUint8(36, opacityClass?.value);
+    fbBuilder.addUint8(38, opacityClass?.value);
     return fbBuilder.offset;
   }
   int addWorkspaceId(int? workspaceId) {
-    fbBuilder.addInt64(37, workspaceId);
+    fbBuilder.addInt64(39, workspaceId);
     return fbBuilder.offset;
   }
   int addMinimized(bool? minimized) {
-    fbBuilder.addBool(38, minimized);
+    fbBuilder.addBool(40, minimized);
     return fbBuilder.offset;
   }
   int addFullscreen(bool? fullscreen) {
-    fbBuilder.addBool(39, fullscreen);
+    fbBuilder.addBool(41, fullscreen);
     return fbBuilder.offset;
   }
   int addMaximized(bool? maximized) {
-    fbBuilder.addBool(40, maximized);
+    fbBuilder.addBool(42, maximized);
     return fbBuilder.offset;
   }
   int addTransientParentId(int? transientParentId) {
-    fbBuilder.addUint64(41, transientParentId);
+    fbBuilder.addUint64(43, transientParentId);
     return fbBuilder.offset;
   }
   int addHeldByWindowId(int? heldByWindowId) {
-    fbBuilder.addUint64(42, heldByWindowId);
+    fbBuilder.addUint64(44, heldByWindowId);
     return fbBuilder.offset;
   }
   int addHeldHold(int? heldHold) {
-    fbBuilder.addUint32(43, heldHold);
+    fbBuilder.addUint32(45, heldHold);
     return fbBuilder.offset;
   }
   int addHeldShare(double? heldShare) {
-    fbBuilder.addFloat64(44, heldShare);
+    fbBuilder.addFloat64(46, heldShare);
     return fbBuilder.offset;
   }
   int addPetAnchorX(double? petAnchorX) {
-    fbBuilder.addFloat64(45, petAnchorX);
+    fbBuilder.addFloat64(47, petAnchorX);
     return fbBuilder.offset;
   }
   int addPetAnchorY(double? petAnchorY) {
-    fbBuilder.addFloat64(46, petAnchorY);
+    fbBuilder.addFloat64(48, petAnchorY);
     return fbBuilder.offset;
   }
   int addPetBelow(bool? petBelow) {
-    fbBuilder.addBool(47, petBelow);
+    fbBuilder.addBool(49, petBelow);
     return fbBuilder.offset;
   }
   int addPet(bool? pet) {
-    fbBuilder.addBool(48, pet);
+    fbBuilder.addBool(50, pet);
     return fbBuilder.offset;
   }
   int addPetHolds(int? petHolds) {
-    fbBuilder.addUint32(49, petHolds);
+    fbBuilder.addUint32(51, petHolds);
     return fbBuilder.offset;
   }
   int addPetDragged(bool? petDragged) {
-    fbBuilder.addBool(50, petDragged);
+    fbBuilder.addBool(52, petDragged);
     return fbBuilder.offset;
   }
   int addClientTextureOffset(int? offset) {
-    fbBuilder.addOffset(51, offset);
+    fbBuilder.addOffset(53, offset);
     return fbBuilder.offset;
   }
   int addKeyboardInset(bool? keyboardInset) {
-    fbBuilder.addBool(52, keyboardInset);
+    fbBuilder.addBool(54, keyboardInset);
     return fbBuilder.offset;
   }
 
@@ -2472,6 +2482,8 @@ class WindowObjectBuilder extends fb.ObjectBuilder {
   final bool? _pinned;
   final bool? _suppressAnimations;
   final bool? _serverSideDecorated;
+  final double? _minWidth;
+  final double? _minHeight;
   final double? _opacity;
   final WindowContentKind? _contentKind;
   final WindowOpacityClass? _opacityClass;
@@ -2527,6 +2539,8 @@ class WindowObjectBuilder extends fb.ObjectBuilder {
     bool? pinned,
     bool? suppressAnimations,
     bool? serverSideDecorated,
+    double? minWidth,
+    double? minHeight,
     double? opacity,
     WindowContentKind? contentKind,
     WindowOpacityClass? opacityClass,
@@ -2581,6 +2595,8 @@ class WindowObjectBuilder extends fb.ObjectBuilder {
         _pinned = pinned,
         _suppressAnimations = suppressAnimations,
         _serverSideDecorated = serverSideDecorated,
+        _minWidth = minWidth,
+        _minHeight = minHeight,
         _opacity = opacity,
         _contentKind = contentKind,
         _opacityClass = opacityClass,
@@ -2611,7 +2627,7 @@ class WindowObjectBuilder extends fb.ObjectBuilder {
     final int? surfacesOffset = _surfaces == null ? null
         : fbBuilder.writeList(_surfaces!.map((b) => b.getOrCreateOffset(fbBuilder)).toList());
     final int? clientTextureOffset = _clientTexture?.getOrCreateOffset(fbBuilder);
-    fbBuilder.startTable(53);
+    fbBuilder.startTable(55);
     fbBuilder.addUint64(0, _objectId);
     fbBuilder.addUint8(1, _objectKind?.value);
     fbBuilder.addUint64(2, _surfaceId);
@@ -2646,25 +2662,27 @@ class WindowObjectBuilder extends fb.ObjectBuilder {
     fbBuilder.addBool(31, _pinned);
     fbBuilder.addBool(32, _suppressAnimations);
     fbBuilder.addBool(33, _serverSideDecorated);
-    fbBuilder.addFloat32(34, _opacity);
-    fbBuilder.addUint8(35, _contentKind?.value);
-    fbBuilder.addUint8(36, _opacityClass?.value);
-    fbBuilder.addInt64(37, _workspaceId);
-    fbBuilder.addBool(38, _minimized);
-    fbBuilder.addBool(39, _fullscreen);
-    fbBuilder.addBool(40, _maximized);
-    fbBuilder.addUint64(41, _transientParentId);
-    fbBuilder.addUint64(42, _heldByWindowId);
-    fbBuilder.addUint32(43, _heldHold);
-    fbBuilder.addFloat64(44, _heldShare);
-    fbBuilder.addFloat64(45, _petAnchorX);
-    fbBuilder.addFloat64(46, _petAnchorY);
-    fbBuilder.addBool(47, _petBelow);
-    fbBuilder.addBool(48, _pet);
-    fbBuilder.addUint32(49, _petHolds);
-    fbBuilder.addBool(50, _petDragged);
-    fbBuilder.addOffset(51, clientTextureOffset);
-    fbBuilder.addBool(52, _keyboardInset);
+    fbBuilder.addFloat64(34, _minWidth);
+    fbBuilder.addFloat64(35, _minHeight);
+    fbBuilder.addFloat32(36, _opacity);
+    fbBuilder.addUint8(37, _contentKind?.value);
+    fbBuilder.addUint8(38, _opacityClass?.value);
+    fbBuilder.addInt64(39, _workspaceId);
+    fbBuilder.addBool(40, _minimized);
+    fbBuilder.addBool(41, _fullscreen);
+    fbBuilder.addBool(42, _maximized);
+    fbBuilder.addUint64(43, _transientParentId);
+    fbBuilder.addUint64(44, _heldByWindowId);
+    fbBuilder.addUint32(45, _heldHold);
+    fbBuilder.addFloat64(46, _heldShare);
+    fbBuilder.addFloat64(47, _petAnchorX);
+    fbBuilder.addFloat64(48, _petAnchorY);
+    fbBuilder.addBool(49, _petBelow);
+    fbBuilder.addBool(50, _pet);
+    fbBuilder.addUint32(51, _petHolds);
+    fbBuilder.addBool(52, _petDragged);
+    fbBuilder.addOffset(53, clientTextureOffset);
+    fbBuilder.addBool(54, _keyboardInset);
     return fbBuilder.endTable();
   }
 

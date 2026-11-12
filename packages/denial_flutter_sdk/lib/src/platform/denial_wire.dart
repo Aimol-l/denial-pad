@@ -1633,6 +1633,8 @@ class DenialWireCodec {
         geometryY: window.geometryY,
         geometryWidth: window.geometryWidth,
         geometryHeight: window.geometryHeight,
+        minWidth: window.minWidth,
+        minHeight: window.minHeight,
         monitorId: window.monitorId,
         workspaceId: window.workspaceId,
         transientParentObjectId: transientParentId == 0

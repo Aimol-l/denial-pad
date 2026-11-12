@@ -1524,6 +1524,9 @@ impl WaylandFrontend {
                     opacity_class = WindowOpacityClass::FullyOpaque;
                 }
             }
+            let minimum = super::managed_window::ManagedWindow::new(window)
+                .map(|managed| managed.facts().minimum_size)
+                .unwrap_or_else(|| Size::from((0, 0)));
             let description = WindowDescription {
                 object_id: stable_id,
                 surface_id: stable_id,
@@ -1546,6 +1549,8 @@ impl WaylandFrontend {
                 geometry_y: f64::from(geometry.loc.y) - self.atlas_origin.y,
                 geometry_width: f64::from(geometry.size.w),
                 geometry_height: f64::from(geometry.size.h),
+                min_width: f64::from(minimum.w),
+                min_height: f64::from(minimum.h),
                 monitor_id,
                 workspace_id,
                 transient_parent_id: transient_parent_id.unwrap_or(0),
@@ -1659,6 +1664,8 @@ impl WaylandFrontend {
                 geometry_y: local_window.geometry.y - self.atlas_origin.y,
                 geometry_width: local_window.geometry.width,
                 geometry_height: local_window.geometry.height,
+                min_width: 0.0,
+                min_height: 0.0,
                 monitor_id,
                 workspace_id,
                 transient_parent_id: 0,
@@ -1847,6 +1854,8 @@ impl WaylandFrontend {
                     geometry_y: global_location.y - self.atlas_origin.y,
                     geometry_width: f64::from(layer_geometry.size.w),
                     geometry_height: f64::from(layer_geometry.size.h),
+                    min_width: 0.0,
+                    min_height: 0.0,
                     monitor_id: i64::try_from(output.id.0).unwrap_or(-1),
                     workspace_id: -1,
                     transient_parent_id: 0,
@@ -1987,6 +1996,8 @@ impl WaylandFrontend {
                     geometry_y: f64::from(geometry.loc.y) - self.atlas_origin.y,
                     geometry_width: f64::from(geometry.size.w),
                     geometry_height: f64::from(geometry.size.h),
+                    min_width: 0.0,
+                    min_height: 0.0,
                     monitor_id,
                     workspace_id: 1,
                     transient_parent_id: 0,

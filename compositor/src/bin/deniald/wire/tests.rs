@@ -1351,6 +1351,8 @@ fn scene_window(id: u64) -> WindowDescription {
         geometry_y: 0.0,
         geometry_width: 100.0,
         geometry_height: 80.0,
+        min_width: 0.0,
+        min_height: 0.0,
         monitor_id: 9,
         workspace_id: 1,
         transient_parent_id: 0,
@@ -1373,6 +1375,24 @@ fn scene_window(id: u64) -> WindowDescription {
         pet: None,
         keyboard_inset: false,
     }
+}
+
+#[test]
+fn a_window_snapshot_carries_the_client_minimum_size() {
+    let mut bridge = bridge();
+    let mut window = scene_window(1);
+    window.min_width = 638.0;
+    window.min_height = 120.0;
+    let (bytes, _) = bridge
+        .update_windows(1, vec![window], &BTreeSet::new())
+        .unwrap();
+    let snapshot = fb::root_as_envelope(bytes.unwrap())
+        .unwrap()
+        .payload_as_window_snapshot()
+        .unwrap();
+    let decoded = snapshot.windows().unwrap().get(0);
+    assert_eq!(decoded.min_width(), 638.0);
+    assert_eq!(decoded.min_height(), 120.0);
 }
 
 #[test]

@@ -214,6 +214,8 @@ class DenialWindow {
     required this.geometryY,
     required this.geometryWidth,
     required this.geometryHeight,
+    this.minWidth = 0.0,
+    this.minHeight = 0.0,
     required this.monitorId,
     this.workspaceId = 1,
     this.transientParentObjectId,
@@ -261,6 +263,11 @@ class DenialWindow {
   final double geometryY;
   final double geometryWidth;
   final double geometryHeight;
+
+  /// The smallest window the client accepts, in display space; a split pane
+  /// narrower than this cannot host the app.
+  final double minWidth;
+  final double minHeight;
   final int monitorId;
   final int workspaceId;
   final int? transientParentObjectId;
@@ -532,6 +539,8 @@ class DenialWindow {
         other.geometryY == geometryY &&
         other.geometryWidth == geometryWidth &&
         other.geometryHeight == geometryHeight &&
+        other.minWidth == minWidth &&
+        other.minHeight == minHeight &&
         other.monitorId == monitorId &&
         other.workspaceId == workspaceId &&
         other.transientParentObjectId == transientParentObjectId &&

@@ -763,6 +763,9 @@ pub struct WindowDescription {
     pub geometry_y: f64,
     pub geometry_width: f64,
     pub geometry_height: f64,
+    /// The smallest window the client accepts, in display space.
+    pub min_width: f64,
+    pub min_height: f64,
     pub monitor_id: i64,
     pub workspace_id: i64,
     pub transient_parent_id: u64,

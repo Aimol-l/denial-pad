@@ -436,6 +436,10 @@ table Window {
   // Appended for wire compatibility: older senders/receivers retain Denial's
   // original server-side frame policy.
   server_side_decorated:bool = true;
+  // The smallest window the client will accept, in display space. A split
+  // pane narrower than this cannot host the app.
+  min_width:double;
+  min_height:double;
   // Opacity for the legacy primary-texture path. Surface-aware receivers use
   // the value carried by each SurfaceLayer instead.
   opacity:float = 1.0;

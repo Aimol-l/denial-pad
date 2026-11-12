@@ -4641,25 +4641,27 @@ impl<'a> Window<'a> {
   pub const VT_PINNED: flatbuffers::VOffsetT = 66;
   pub const VT_SUPPRESS_ANIMATIONS: flatbuffers::VOffsetT = 68;
   pub const VT_SERVER_SIDE_DECORATED: flatbuffers::VOffsetT = 70;
-  pub const VT_OPACITY: flatbuffers::VOffsetT = 72;
-  pub const VT_CONTENT_KIND: flatbuffers::VOffsetT = 74;
-  pub const VT_OPACITY_CLASS: flatbuffers::VOffsetT = 76;
-  pub const VT_WORKSPACE_ID: flatbuffers::VOffsetT = 78;
-  pub const VT_MINIMIZED: flatbuffers::VOffsetT = 80;
-  pub const VT_FULLSCREEN: flatbuffers::VOffsetT = 82;
-  pub const VT_MAXIMIZED: flatbuffers::VOffsetT = 84;
-  pub const VT_TRANSIENT_PARENT_ID: flatbuffers::VOffsetT = 86;
-  pub const VT_HELD_BY_WINDOW_ID: flatbuffers::VOffsetT = 88;
-  pub const VT_HELD_HOLD: flatbuffers::VOffsetT = 90;
-  pub const VT_HELD_SHARE: flatbuffers::VOffsetT = 92;
-  pub const VT_PET_ANCHOR_X: flatbuffers::VOffsetT = 94;
-  pub const VT_PET_ANCHOR_Y: flatbuffers::VOffsetT = 96;
-  pub const VT_PET_BELOW: flatbuffers::VOffsetT = 98;
-  pub const VT_PET: flatbuffers::VOffsetT = 100;
-  pub const VT_PET_HOLDS: flatbuffers::VOffsetT = 102;
-  pub const VT_PET_DRAGGED: flatbuffers::VOffsetT = 104;
-  pub const VT_CLIENT_TEXTURE: flatbuffers::VOffsetT = 106;
-  pub const VT_KEYBOARD_INSET: flatbuffers::VOffsetT = 108;
+  pub const VT_MIN_WIDTH: flatbuffers::VOffsetT = 72;
+  pub const VT_MIN_HEIGHT: flatbuffers::VOffsetT = 74;
+  pub const VT_OPACITY: flatbuffers::VOffsetT = 76;
+  pub const VT_CONTENT_KIND: flatbuffers::VOffsetT = 78;
+  pub const VT_OPACITY_CLASS: flatbuffers::VOffsetT = 80;
+  pub const VT_WORKSPACE_ID: flatbuffers::VOffsetT = 82;
+  pub const VT_MINIMIZED: flatbuffers::VOffsetT = 84;
+  pub const VT_FULLSCREEN: flatbuffers::VOffsetT = 86;
+  pub const VT_MAXIMIZED: flatbuffers::VOffsetT = 88;
+  pub const VT_TRANSIENT_PARENT_ID: flatbuffers::VOffsetT = 90;
+  pub const VT_HELD_BY_WINDOW_ID: flatbuffers::VOffsetT = 92;
+  pub const VT_HELD_HOLD: flatbuffers::VOffsetT = 94;
+  pub const VT_HELD_SHARE: flatbuffers::VOffsetT = 96;
+  pub const VT_PET_ANCHOR_X: flatbuffers::VOffsetT = 98;
+  pub const VT_PET_ANCHOR_Y: flatbuffers::VOffsetT = 100;
+  pub const VT_PET_BELOW: flatbuffers::VOffsetT = 102;
+  pub const VT_PET: flatbuffers::VOffsetT = 104;
+  pub const VT_PET_HOLDS: flatbuffers::VOffsetT = 106;
+  pub const VT_PET_DRAGGED: flatbuffers::VOffsetT = 108;
+  pub const VT_CLIENT_TEXTURE: flatbuffers::VOffsetT = 110;
+  pub const VT_KEYBOARD_INSET: flatbuffers::VOffsetT = 112;
 
   #[inline]
   pub unsafe fn init_from_table(table: flatbuffers::Table<'a>) -> Self {
@@ -4677,6 +4679,8 @@ impl<'a> Window<'a> {
     builder.add_held_by_window_id(args.held_by_window_id);
     builder.add_transient_parent_id(args.transient_parent_id);
     builder.add_workspace_id(args.workspace_id);
+    builder.add_min_height(args.min_height);
+    builder.add_min_width(args.min_width);
     builder.add_content_height(args.content_height);
     builder.add_content_width(args.content_width);
     builder.add_content_y(args.content_y);
@@ -4967,6 +4971,20 @@ impl<'a> Window<'a> {
     unsafe { self._tab.get::<bool>(Window::VT_SERVER_SIDE_DECORATED, Some(true)).unwrap()}
   }
   #[inline]
+  pub fn min_width(&self) -> f64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<f64>(Window::VT_MIN_WIDTH, Some(0.0)).unwrap()}
+  }
+  #[inline]
+  pub fn min_height(&self) -> f64 {
+    // Safety:
+    // Created from valid Table for this object
+    // which contains a valid value in this slot
+    unsafe { self._tab.get::<f64>(Window::VT_MIN_HEIGHT, Some(0.0)).unwrap()}
+  }
+  #[inline]
   pub fn opacity(&self) -> f32 {
     // Safety:
     // Created from valid Table for this object
@@ -5142,6 +5160,8 @@ impl flatbuffers::Verifiable for Window<'_> {
      .visit_field::<bool>("pinned", Self::VT_PINNED, false)?
      .visit_field::<bool>("suppress_animations", Self::VT_SUPPRESS_ANIMATIONS, false)?
      .visit_field::<bool>("server_side_decorated", Self::VT_SERVER_SIDE_DECORATED, false)?
+     .visit_field::<f64>("min_width", Self::VT_MIN_WIDTH, false)?
+     .visit_field::<f64>("min_height", Self::VT_MIN_HEIGHT, false)?
      .visit_field::<f32>("opacity", Self::VT_OPACITY, false)?
      .visit_field::<WindowContentKind>("content_kind", Self::VT_CONTENT_KIND, false)?
      .visit_field::<WindowOpacityClass>("opacity_class", Self::VT_OPACITY_CLASS, false)?
@@ -5200,6 +5220,8 @@ pub struct WindowArgs<'a> {
     pub pinned: bool,
     pub suppress_animations: bool,
     pub server_side_decorated: bool,
+    pub min_width: f64,
+    pub min_height: f64,
     pub opacity: f32,
     pub content_kind: WindowContentKind,
     pub opacity_class: WindowOpacityClass,
@@ -5258,6 +5280,8 @@ impl<'a> Default for WindowArgs<'a> {
       pinned: false,
       suppress_animations: false,
       server_side_decorated: true,
+      min_width: 0.0,
+      min_height: 0.0,
       opacity: 1.0,
       content_kind: WindowContentKind::SurfaceTree,
       opacity_class: WindowOpacityClass::ContentTranslucent,
@@ -5423,6 +5447,14 @@ impl<'a: 'b, 'b, A: flatbuffers::Allocator + 'a> WindowBuilder<'a, 'b, A> {
     self.fbb_.push_slot::<bool>(Window::VT_SERVER_SIDE_DECORATED, server_side_decorated, true);
   }
   #[inline]
+  pub fn add_min_width(&mut self, min_width: f64) {
+    self.fbb_.push_slot::<f64>(Window::VT_MIN_WIDTH, min_width, 0.0);
+  }
+  #[inline]
+  pub fn add_min_height(&mut self, min_height: f64) {
+    self.fbb_.push_slot::<f64>(Window::VT_MIN_HEIGHT, min_height, 0.0);
+  }
+  #[inline]
   pub fn add_opacity(&mut self, opacity: f32) {
     self.fbb_.push_slot::<f32>(Window::VT_OPACITY, opacity, 1.0);
   }
@@ -5550,6 +5582,8 @@ impl core::fmt::Debug for Window<'_> {
       ds.field("pinned", &self.pinned());
       ds.field("suppress_animations", &self.suppress_animations());
       ds.field("server_side_decorated", &self.server_side_decorated());
+      ds.field("min_width", &self.min_width());
+      ds.field("min_height", &self.min_height());
       ds.field("opacity", &self.opacity());
       ds.field("content_kind", &self.content_kind());
       ds.field("opacity_class", &self.opacity_class());
