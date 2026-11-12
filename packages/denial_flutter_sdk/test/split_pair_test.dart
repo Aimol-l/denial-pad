@@ -127,4 +127,11 @@ void main() {
     );
     expect(splitRatioAt(800, extent: 1600, bounds: bounds), 0.5);
   });
+
+  test('closing one side leaves the other as the survivor', () {
+    const pair = SplitPair(first: 3, second: 5, vertical: false);
+    expect(pairSurvivor(pair, 3), 5);
+    expect(pairSurvivor(pair, 5), 3);
+    expect(pairSurvivor(pair, 9), 0);
+  });
 }

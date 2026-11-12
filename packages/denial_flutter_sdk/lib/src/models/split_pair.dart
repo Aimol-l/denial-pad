@@ -168,6 +168,13 @@ bool splitFits({
       null;
 }
 
+/// The window left after [closedWindowId] leaves [pair]; zero when neither.
+int pairSurvivor(SplitPair pair, int closedWindowId) {
+  if (closedWindowId == pair.first) return pair.second;
+  if (closedWindowId == pair.second) return pair.first;
+  return 0;
+}
+
 /// The first pane's share for a pointer at [position] along the split axis.
 double splitRatioAt(
   double position, {

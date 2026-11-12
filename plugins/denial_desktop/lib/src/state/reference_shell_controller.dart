@@ -438,6 +438,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   void _reconcileWindowSnapshot() {
     final open = state.openAppWindowsByObjectId;
     _dismissedIds.removeWhere((id) => !open.containsKey(id));
+    _endSplitIfMemberClosed();
     if (_deck.presenting.value) {
       _deck.reorder(_presentedOrder(), ShellSprings.appStrip);
     }
@@ -467,6 +468,22 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       clearLaunchingObjectId:
           state.windowByObjectId(state.launchingObjectId) == null,
     );
+  }
+
+  /// A split whose member closed leaves the other app filling the screen.
+  void _endSplitIfMemberClosed() {
+    final pair = state.splitPair;
+    if (pair == null) return;
+    final firstOpen =
+        pair.first == 0 || state.windowByObjectId(pair.first) != null;
+    final secondOpen =
+        pair.second == 0 || state.windowByObjectId(pair.second) != null;
+    if (firstOpen && secondOpen) return;
+    final closed = firstOpen ? pair.second : pair.first;
+    final survivor = pairSurvivor(pair, closed);
+    endSplit();
+    final window = state.windowByObjectId(survivor);
+    if (window != null) focusWindow(window);
   }
 
   DenialWindow? _matchingLaunchWindow(

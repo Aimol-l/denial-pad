@@ -20,6 +20,7 @@ export 'src/models/split_pair.dart'
         SplitPaneRect,
         splitPaneRects,
         splitFits,
+        pairSurvivor,
         splitRatioAt,
         splitRatioBounds;
 export 'src/models/audio.dart'
