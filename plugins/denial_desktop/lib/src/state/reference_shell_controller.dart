@@ -974,7 +974,8 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       active: pair.active,
     );
     state = state.copyWith(splitPair: next);
-    if (!next.isComplete) return;
+    // An open picker is still a single-pane split: the compositor has to move
+    // its pane to the new axis too.
     _platform.splitWindowsByIds(
       first: next.first,
       second: next.second,
