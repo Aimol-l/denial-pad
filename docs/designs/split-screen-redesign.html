@@ -2,613 +2,466 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Denial 平板分屏 — 设计稿</title>
+<title>Denial 平板分屏 · 重设计</title>
 <style>
   :root {
     --accent: #6d5bd0;
-    --accent-soft: rgba(109, 91, 208, 0.14);
-    --accent-line: rgba(109, 91, 208, 0.55);
+    --accent-soft: rgba(109, 91, 208, .14);
+    --accent-line: rgba(109, 91, 208, .55);
     --ink: #1c1c1f;
-    --ink-muted: #5f6470;
-    --ink-faint: #9aa0aa;
+    --muted: #5f6470;
+    --faint: #9aa0aa;
     --line: #e3e5e9;
     --panel: #eef0f3;
-    --panel-border: #d3d6dc;
+    --gutter: 14px;
     --status: 48px;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
-    background: #f4f5f8;
-    color: #23242a;
+    background: #f4f5f8; color: #23242a; padding: 48px 0 90px;
     font-family: "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
-    padding: 48px 0 80px;
-    -webkit-user-select: none; user-select: none;
   }
-  .doc { max-width: 1760px; margin: 0 auto; padding: 0 48px; }
-  h1 { font-size: 34px; font-weight: 650; letter-spacing: .01em; }
-  .sub { margin-top: 10px; color: #6b7080; font-size: 15px; line-height: 1.7; max-width: 900px; }
-  .sub code { background: #eceaf6; border-radius: 5px; padding: 1px 6px; font-size: 13px; color: #5b4bb8; }
+  .doc { max-width: 1780px; margin: 0 auto; padding: 0 48px; }
+  h1 { font-size: 33px; font-weight: 650; }
+  .sub { margin-top: 10px; color: #6b7080; font-size: 15px; line-height: 1.75; max-width: 980px; }
+  .sub b { color: #35363f; font-weight: 600; }
 
-  /* ---------- 流程条 ---------- */
-  .steps { display: flex; gap: 14px; margin: 34px 0 12px; }
-  .step {
-    flex: 1; background: #ffffff; border: 1px solid #e4e6ec; border-radius: 14px;
-    padding: 16px 18px;
-    box-shadow: 0 1px 2px rgba(20, 22, 28, .04);
-  }
-  .step .n { font-size: 12px; color: var(--accent); font-weight: 700; letter-spacing: .08em; }
-  .step .t { margin-top: 6px; font-size: 15px; font-weight: 600; }
-  .step .d { margin-top: 5px; font-size: 12.5px; color: #6b7080; line-height: 1.65; }
+  .principles { margin: 30px 0 8px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+  .principle { background: #fff; border: 1px solid #e4e6ec; border-radius: 14px; padding: 15px 17px; }
+  .principle .k { font-size: 12px; letter-spacing: .08em; font-weight: 700; color: var(--accent); }
+  .principle .t { margin-top: 6px; font-size: 15px; font-weight: 600; }
+  .principle .d { margin-top: 5px; font-size: 12.5px; color: #6b7080; line-height: 1.6; }
 
-  /* ---------- 画板 ---------- */
-  .board { margin-top: 56px; }
-  .board .cap { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
-  .board .cap .tag {
+  .board { margin-top: 58px; }
+  .cap { display: flex; align-items: baseline; gap: 12px; margin-bottom: 16px; }
+  .cap .tag {
     font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--accent);
     border: 1px solid var(--accent-line); border-radius: 999px; padding: 3px 10px;
   }
-  .board .cap .t { font-size: 19px; font-weight: 620; }
-  .board .cap .n { margin-left: auto; font-size: 12px; color: #9aa0ad; }
-  .note { margin-top: 14px; font-size: 13px; color: #6b7080; line-height: 1.7; max-width: 1500px; }
+  .cap .t { font-size: 19px; font-weight: 620; }
+  .cap .n { margin-left: auto; font-size: 12px; color: #9aa0ad; }
+  .note { margin-top: 14px; font-size: 13px; color: #6b7080; line-height: 1.75; }
   .note b { color: #2a2b32; font-weight: 600; }
   .note .k { color: #5b4bb8; }
 
-  /* ---------- 设备 ---------- */
   .device {
-    position: relative; margin: 0 auto;
-    border-radius: 30px; overflow: hidden;
-    background: #fbfbfc;
-    box-shadow: 0 24px 70px rgba(20, 22, 28, .16), 0 0 0 1px #e0e2e8;
+    position: relative; margin: 0 auto; overflow: hidden;
+    border-radius: 30px; background: #20242b;
+    box-shadow: 0 24px 70px rgba(20,22,28,.18), 0 0 0 1px #e0e2e8;
   }
-  .device.land { width: 1707px; height: 1067px; }
-  .device.port { width: 800px; height: 1280px; }
-
-  /* 状态栏 */
+  .device.land { width: 1600px; height: 1000px; }
+  .device.port { width: 760px; height: 1216px; }
   .statusbar {
     position: absolute; left: 0; right: 0; top: 0; height: var(--status);
-    display: flex; align-items: center; padding: 0 26px;
-    font-size: 14px; color: #2b2b30; z-index: 30;
-    background: linear-gradient(rgba(255,255,255,.86), rgba(255,255,255,0));
+    display: flex; align-items: center; padding: 0 26px; z-index: 40;
+    font-size: 13px; color: rgba(255,255,255,.85);
   }
-  .statusbar .clock { font-weight: 600; }
-  .statusbar .dots { margin-left: auto; display: flex; gap: 7px; align-items: center; }
-  .statusbar .dot { width: 7px; height: 7px; border-radius: 50%; background: #2b2b30; opacity: .55; }
-  .statusbar .batt { width: 22px; height: 11px; border: 1.5px solid #2b2b30; border-radius: 3px; opacity: .55; position: relative; }
-  .statusbar .batt::after { content: ""; position: absolute; right: -4px; top: 3px; width: 2px; height: 5px; background: #2b2b30; border-radius: 0 2px 2px 0; }
-
-  /* 应用占位（不同应用用不同色调区分） */
-  .app { position: absolute; overflow: hidden; background: #fff; }
-  .app .label {
-    position: absolute; left: 18px; top: 14px; z-index: 5;
-    font-size: 13px; font-weight: 600; color: rgba(255,255,255,.92);
-    background: rgba(0,0,0,.28); backdrop-filter: blur(8px);
-    border-radius: 8px; padding: 4px 10px;
+  .statusbar.dark { color: rgba(20,22,28,.75); }
+  .statusbar .batt {
+    margin-left: auto; width: 20px; height: 10px; border: 1.4px solid currentColor;
+    border-radius: 3px; opacity: .7;
   }
-  .app.a-weread { background: linear-gradient(160deg, #f4f1ea, #e7e0d2); }
-  .app.a-weread .label { color: #4a4436; background: rgba(255,255,255,.55); }
-  .app.a-cloudmusic { background: linear-gradient(160deg, #2a2136, #1b1626); }
-  .app.a-fushi { background: linear-gradient(160deg, #e8ecff, #d5dcf7); }
-  .app.a-fushi .label { color: #3a4266; background: rgba(255,255,255,.55); }
-  .app.a-home { background: linear-gradient(165deg, #cfd6f2 0%, #b6c0ea 45%, #9aa6e0 100%); }
-  .app.a-home .label { color: #2f3866; background: rgba(255,255,255,.5); }
 
-  /* 应用内容假布局 */
-  .fake-rows { position: absolute; left: 22px; right: 22px; top: 64px; display: flex; flex-direction: column; gap: 12px; }
-  .fake-rows i { display: block; height: 10px; border-radius: 999px; background: rgba(0,0,0,.08); }
-  .fake-rows i:nth-child(2) { width: 82%; } .fake-rows i:nth-child(3) { width: 64%; }
-  .fake-rows i:nth-child(4) { width: 91%; } .fake-rows i:nth-child(5) { width: 47%; }
-  .fake-rows.on-dark i { background: rgba(255,255,255,.14); }
-
-  /* 主屏 home bar */
-  .homebar {
-    position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%);
-    width: 300px; height: 6px; border-radius: 999px; background: rgba(0,0,0,.22); z-index: 25;
+  /* ---------- 分屏主态：两张卡片 + 间隙分割条 ---------- */
+  .split { position: absolute; inset: 0; display: flex; gap: var(--gutter); padding: calc(var(--status) + 10px) 14px 14px; }
+  .pane {
+    position: relative; flex: 1; border-radius: 20px; overflow: hidden;
+    background: #fff; box-shadow: 0 1px 2px rgba(20,22,28,.08);
   }
-  .homebar.on-dark { background: rgba(255,255,255,.4); }
-
-  /* ---------- 状态 1：任务预览 ---------- */
-  .recents { position: absolute; inset: 0; z-index: 40; background: rgba(16,16,24,.44); backdrop-filter: blur(26px); }
-  .recents .strip {
-    position: absolute; left: 0; right: 0; bottom: 0; height: 340px;
-    background: linear-gradient(rgba(20,20,28,.72), rgba(20,20,28,.92));
-    border-top: 1px solid rgba(255,255,255,.08);
-    padding: 30px 40px;
+  .pane.inactive { filter: brightness(.94) saturate(.96); }
+  .pane .chrome {
+    height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 16px;
+    border-bottom: 1px solid #eceef2; font-size: 14px; font-weight: 600; color: #35363f;
   }
-  .recents .strip .hint { color: #aeb2c0; font-size: 15px; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-  .recents .strip .hint .pill { color: #cdbdf5; border: 1px solid rgba(109,91,208,.5); background: rgba(109,91,208,.16); border-radius: 999px; padding: 3px 12px; font-size: 13px; }
-  .cards { display: flex; gap: 26px; }
-  .card {
-    position: relative; width: 300px; height: 210px; border-radius: 18px; overflow: hidden;
-    box-shadow: 0 16px 40px rgba(0,0,0,.45);
-    outline: 2px solid transparent; outline-offset: 3px;
-    transition: transform .18s;
-  }
-  .card .cap { position: absolute; left: 12px; bottom: 10px; font-size: 12.5px; color: rgba(255,255,255,.9); background: rgba(0,0,0,.34); border-radius: 7px; padding: 3px 9px; }
-  .card.light .cap { color: #3a4266; background: rgba(255,255,255,.6); }
-  .card .x { position: absolute; right: 10px; top: 10px; width: 22px; height: 22px; border-radius: 50%; background: rgba(0,0,0,.4); color: #fff; font-size: 13px; display: grid; place-items: center; }
+  .pane .chrome .dot { width: 10px; height: 10px; border-radius: 50%; }
+  .pane .chrome .r { margin-left: auto; display: flex; gap: 8px; }
+  .pane .chrome .r i { width: 22px; height: 22px; border-radius: 7px; background: #eef0f3; display: block; }
+  .pane .body { position: absolute; inset: 44px 0 0; }
+  .pane .body .line { height: 12px; border-radius: 6px; background: #eef0f3; margin: 0 24px 14px; }
+  .pane .body .line.w70 { width: 70%; }
+  .pane .body .line.w45 { width: 45%; }
+  .pane .body .line.w88 { width: 88%; }
+  .pane .body .pad { padding-top: 26px; }
+  .pane.term { background: #23272e; }
+  .pane.term .chrome { color: #d8dbe2; border-color: #333944; }
+  .pane.term .mono { padding: 22px 24px; font: 15px/1.7 "JetBrains Mono", monospace; color: #cdd3dc; }
+  .pane.term .mono .prompt { color: #9ad0a8; }
 
-  /* 拖拽中的卡片 */
-  .drag-ghost {
-    position: absolute; width: 300px; height: 210px; border-radius: 18px; overflow: hidden;
-    box-shadow: 0 30px 70px rgba(0,0,0,.6); z-index: 60;
-    transform: rotate(-2.5deg) scale(.92);
-    opacity: .96;
+  .pane.active::after {
+    content: ""; position: absolute; inset: 0; border-radius: 20px; pointer-events: none;
+    box-shadow: inset 0 0 0 1.5px rgba(109,91,208,.55), inset 0 0 22px rgba(109,91,208,.10);
   }
-  .drag-ghost .cap { position: absolute; left: 12px; bottom: 10px; font-size: 12.5px; color: rgba(255,255,255,.9); background: rgba(0,0,0,.34); border-radius: 7px; padding: 3px 9px; }
 
-  /* ---------- 放置高亮区 ---------- */
-  .dropzone {
-    position: absolute; z-index: 50; border-radius: 22px;
-    border: 2px dashed var(--accent-line);
-    background: var(--accent-soft);
-    box-shadow: inset 0 0 60px rgba(109,91,208,.12);
-    display: grid; place-items: center;
-  }
-  .dropzone .t { color: var(--accent); font-size: 17px; font-weight: 650; letter-spacing: .02em; }
-  .dropzone .s { margin-top: 8px; color: #7d7595; font-size: 13px; }
-
-  /* ---------- 分屏完成态 ---------- */
-  .split-root { position: absolute; inset: 0; display: flex; }
-  .split-root.vert { flex-direction: column; }
+  /* 分割条：浮在两张卡之间 */
   .divider {
-    position: relative; flex: 0 0 10px; z-index: 20;
-    background: rgba(255,255,255,.5);
-    display: grid; place-items: center; cursor: col-resize;
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+    width: 38px; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 60;
   }
-  .split-root.vert .divider { cursor: row-resize; }
   .divider .grip {
-    width: 46px; height: 46px; border-radius: 50%;
-    background: #fff; border: 1px solid var(--panel-border);
-    box-shadow: 0 4px 14px rgba(20,22,28,.22);
-    display: grid; place-items: center; color: #8a8fa0; font-size: 15px; letter-spacing: 1px;
+    width: 38px; height: 86px; border-radius: 19px; background: rgba(255,255,255,.92);
+    box-shadow: 0 6px 20px rgba(20,22,28,.22), 0 0 0 1px rgba(20,22,28,.06);
+    display: flex; align-items: center; justify-content: center; gap: 4px; backdrop-filter: blur(10px);
   }
-  .split-root .app { position: relative; flex: 1; border-radius: 0; }
-  .split-root .app:first-child { border-radius: 0; }
+  .divider .grip b { width: 3px; height: 22px; border-radius: 2px; background: #c8ccd4; }
+  .divider .close {
+    position: relative; width: 28px; height: 28px; border-radius: 50%; background: rgba(255,255,255,.92);
+    box-shadow: 0 4px 14px rgba(20,22,28,.18), 0 0 0 1px rgba(20,22,28,.06);
+    display: flex; align-items: center; justify-content: center; font-size: 15px; color: #5f6470;
+  }
+  .divider .close::before, .divider .close::after {
+    content: ""; position: absolute; width: 12px; height: 1.6px; border-radius: 1px;
+    background: #5f6470;
+  }
+  .divider .close::before { transform: rotate(45deg); }
+  .divider .close::after { transform: rotate(-45deg); }
 
-  /* 状态 3：右侧选择器 */
-  .picker {
-    position: absolute; right: 0; top: 0; bottom: 0; z-index: 45;
-    width: 47%;
-    background: rgba(18,18,26,.58); backdrop-filter: blur(22px);
-    border-left: 1px solid rgba(255,255,255,.1);
-    padding: 34px 30px;
-  }
-  .picker .h { color: #e9eaf0; font-size: 16px; font-weight: 620; }
-  .picker .h .s { display: block; margin-top: 6px; color: #8f93a0; font-size: 12.5px; font-weight: 400; }
-  .picker .list { margin-top: 24px; display: flex; flex-direction: column; gap: 16px; }
-  .picker .item {
-    display: flex; align-items: center; gap: 14px;
-    background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.09);
-    border-radius: 14px; padding: 12px 14px;
-  }
-  .picker .item .thumb { width: 64px; height: 64px; border-radius: 10px; flex: 0 0 64px; }
-  .picker .item .nm { color: #e9eaf0; font-size: 14px; font-weight: 560; }
-  .picker .item .sb { color: #8f93a0; font-size: 12px; margin-top: 3px; }
-  .picker .item .go { margin-left: auto; color: #b9a6f0; font-size: 12.5px; }
-
-  /* 标注 */
-  .anno {
-    position: absolute; z-index: 70; pointer-events: none;
-    font-size: 13px; color: #4a4458; line-height: 1.5;
-    background: rgba(255, 255, 255, .94);
-    border: 1px solid var(--accent-line);
-    border-radius: 10px; padding: 8px 12px; max-width: 260px;
-    box-shadow: 0 6px 20px rgba(20, 22, 28, .10);
-  }
-  .anno b { color: #1c1c1f; font-weight: 620; }
-  .anno::before {
-    content: ""; position: absolute; width: 8px; height: 8px; border-radius: 50%;
-    background: var(--accent); box-shadow: 0 0 0 4px rgba(109,91,208,.25);
+  /* 关闭预览：一侧被挤到边缘 */
+  .closing { position: absolute; inset: 0; display: flex; gap: var(--gutter); padding: calc(var(--status) + 10px) 14px 14px; }
+  .closing .pane { flex: none; }
+  .closing .ghost {
+    flex: 1; border-radius: 20px; border: 2px dashed rgba(229,83,75,.6);
+    background: rgba(229,83,75,.14); display: flex; align-items: center; justify-content: center;
+    text-align: center; line-height: 1.5;
+    color: #b8433b; font-size: 14px; font-weight: 600;
   }
 
-  /* ---------- 手势消歧 ---------- */
-  .gesture-zone {
-    position: absolute; z-index: 50; border-radius: 22px;
-    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
-    text-align: center;
+  /* ---------- recents：拿起卡片 + 放置区 ---------- */
+  .recents { position: absolute; inset: 0; background: rgba(18,18,26,.55); }
+  .recents .card {
+    position: absolute; border-radius: 22px; overflow: hidden; background: #fff;
+    box-shadow: 0 26px 60px rgba(10,12,18,.35);
   }
-  .gesture-zone .t { font-size: 17px; font-weight: 650; }
-  .gesture-zone .s { font-size: 13px; opacity: .75; }
-  .gesture-zone.split { border: 2px dashed var(--accent-line); background: var(--accent-soft); color: var(--accent); }
-  .gesture-zone.close { border: 2px dashed rgba(203, 72, 63, .5); background: rgba(229, 83, 75, .12); color: #c9483f; }
-  .gesture-zone.idle { border: 2px dashed rgba(0, 0, 0, .16); background: rgba(0, 0, 0, .04); color: #8a8f9c; }
+  .recents .card.lifted { transform: rotate(-2deg) scale(.94); }
+  .recents .card .thumb { height: 100%; }
+  .recents .card .title {
+    position: absolute; left: 16px; top: 14px; font-size: 14px; font-weight: 600; color: #35363f;
+  }
+  .recents .card .lines { position: absolute; left: 18px; right: 18px; top: 44px; }
+  .recents .card .lines i {
+    display: block; height: 8px; border-radius: 4px; background: #eef0f3; margin-bottom: 10px;
+  }
+  .dropzone {
+    position: absolute; border-radius: 22px; border: 2px dashed rgba(178,167,255,.9);
+    background: rgba(109,91,208,.22); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 8px;
+    color: #efeaff; font-size: 18px; font-weight: 620;
+    box-shadow: inset 0 0 60px rgba(109,91,208,.18);
+  }
+  .dropzone.quiet {
+    border-color: rgba(178,167,255,.4); background: rgba(109,91,208,.10);
+    color: rgba(239,234,255,.55); box-shadow: none;
+  }
+  .dropzone .ratio { font-size: 12.5px; font-weight: 500; color: #cdc4f6; }
+  .cancel-hint {
+    position: absolute; left: 50%; top: 80%; transform: translate(-50%, -50%);
+    font-size: 13px; color: rgba(255,255,255,.5); letter-spacing: .04em;
+  }
+  .hint {
+    position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%);
+    background: rgba(20,22,28,.72); color: #fff; font-size: 13px; padding: 8px 14px;
+    border-radius: 999px; backdrop-filter: blur(8px);
+  }
 
-  /* 手势箭头 */
-  .swipe {
-    position: absolute; z-index: 65; display: flex; align-items: center; gap: 10px;
-    font-size: 13.5px; font-weight: 600;
+  /* ---------- 选择器 ---------- */
+  .picker { position: absolute; inset: 0; display: flex; gap: var(--gutter); padding: calc(var(--status) + 10px) 14px 14px; }
+  .picker .pane { flex: 1.06; }
+  .picker .choose {
+    flex: 1; border-radius: 20px; background: rgba(18,18,26,.72);
+    backdrop-filter: blur(22px); padding: 20px 18px; display: flex; flex-direction: column; gap: 10px;
+    color: #eceef4;
   }
-  .swipe .arrow { font-size: 26px; line-height: 1; }
-  .swipe.close-sw { color: #c9483f; }
-  .swipe.split-sw { color: var(--accent); }
+  .picker .choose .h { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .picker .choose .row {
+    display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,.08);
+    border-radius: 14px; padding: 10px 12px;
+  }
+  .picker .choose .row .icon { width: 40px; height: 40px; border-radius: 11px; background: #fff; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+  .picker .choose .row .name { font-size: 14px; font-weight: 600; }
+  .picker .choose .row .status { font-size: 12px; opacity: .55; margin-top: 2px; }
+  .picker .choose .tiles {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-content: start;
+  }
+  .picker .choose .tile { display: flex; flex-direction: column; gap: 8px; }
+  .picker .choose .tile .shot {
+    position: relative; border-radius: 16px; overflow: hidden; aspect-ratio: 4 / 3;
+    box-shadow: 0 10px 26px rgba(8,10,16,.35), 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .picker .choose .tile .mini-chrome {
+    height: 26px; display: flex; align-items: center; padding: 0 10px;
+    border-bottom: 1px solid #eceef2;
+  }
+  .picker .choose .tile .mini-chrome i { width: 34%; height: 7px; border-radius: 4px; background: #e9ebf2; }
+  .picker .choose .tile .mini-lines { padding: 14px 12px; }
+  .picker .choose .tile .mini-lines b {
+    display: block; height: 8px; border-radius: 4px; background: #eceff5; margin-bottom: 9px;
+  }
+  .picker .choose .tile .mini-term {
+    padding: 12px 14px; font: 11px/1.6 "JetBrains Mono", monospace; color: #cdd3dc;
+  }
+  .picker .choose .tile .shot.all {
+    display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,.08);
+    border: 1px dashed rgba(255,255,255,.25); box-shadow: none;
+  }
+  .picker .choose .tile .grid-dots { display: grid; grid-template-columns: repeat(3, 10px); gap: 9px; }
+  .picker .choose .tile .grid-dots i { width: 10px; height: 10px; border-radius: 3px; background: rgba(255,255,255,.55); }
+  .picker .choose .tile .name { font-size: 13px; color: #eceef4; font-weight: 600; }
 
-  /* 分界线 */
-  .threshold {
-    position: absolute; left: 0; right: 0; z-index: 55;
-    border-top: 2px dashed rgba(229, 83, 75, .45);
+  /* ---------- recents 配对卡片 ---------- */
+  .paircard { position: absolute; border-radius: 22px; overflow: hidden; background: #fff; box-shadow: 0 18px 46px rgba(10,12,18,.24); display: flex; }
+  .paircard .half { flex: 1; position: relative; }
+  .paircard .half + .half { border-left: 1px solid #e6e8ee; }
+  .paircard .badge {
+    position: absolute; right: 14px; bottom: 14px; font-size: 11.5px; font-weight: 700;
+    letter-spacing: .04em; color: #fff; background: var(--accent);
+    border-radius: 999px; padding: 5px 11px; box-shadow: 0 4px 12px rgba(109,91,208,.35);
   }
-  .threshold .lab {
-    position: absolute; right: 18px; top: -22px;
-    font-size: 12px; color: #c9483f; background: rgba(255,255,255,.9);
-    border: 1px solid rgba(203,72,63,.35); border-radius: 999px; padding: 2px 10px;
-  }
+  .paircard .divider-mini { position: absolute; left: 50%; top: 50%; transform: translate(-50%,-50%); width: 22px; height: 46px; border-radius: 11px; background: rgba(255,255,255,.9); box-shadow: 0 3px 10px rgba(20,22,28,.18); display: flex; align-items: center; justify-content: center; gap: 3px; }
+  .paircard .divider-mini b { width: 2px; height: 14px; background: #c8ccd4; border-radius: 1px; }
 
-  /* 边界情况表 */
-  .edge { margin-top: 70px; }
-  .edge h2 { font-size: 22px; font-weight: 650; }
-  table { width: 100%; border-collapse: collapse; margin-top: 18px; font-size: 13.5px; }
-  th, td { text-align: left; padding: 12px 14px; border-bottom: 1px solid #e4e6ec; vertical-align: top; line-height: 1.65; }
-  th { color: #7a7f8d; font-weight: 560; font-size: 12.5px; letter-spacing: .04em; }
-  td:first-child { color: #23242a; font-weight: 560; white-space: nowrap; }
-  td { color: #5a5f6d; }
-  .foot { margin-top: 60px; padding-top: 22px; border-top: 1px solid #e4e6ec; color: #8a8f9c; font-size: 12.5px; line-height: 1.8; }
+  .legend { display: flex; gap: 26px; margin-top: 16px; font-size: 12.5px; color: #6b7080; }
+  .legend .sw { display: inline-block; width: 12px; height: 12px; border-radius: 4px; margin-right: 6px; vertical-align: -1px; }
 </style>
 </head>
 <body>
 <div class="doc">
-
-  <h1>Denial 平板分屏 — 设计稿</h1>
+  <h1>平板分屏 · 重设计</h1>
   <p class="sub">
-    交互对齐 Android 平板：从现有「上划任务预览」进入，把任务卡片拖向屏幕一侧完成首屏分配，
-    再在另一侧挑第二个应用。分屏方向由输出宽高比自动决定——横屏左右、竖屏上下。
-    <b>手势消歧</b>：横屏上划=关闭、拖向左右边缘=分屏；竖屏拖到顶部触发区=上分屏、拖到底部=下分屏，
-    未过线松手=关闭（轻划手感保留）。本稿只定义 mobile shell（内置面板）行为；外接显示器仍走桌面布局。
+    把分屏从“屏幕被切成两半”改成<b>两张卡片并排</b>：应用各自保留圆角和内容，中间留 14px 的间隙，
+    分割条是浮在间隙里的一个把手。所有手势和状态都围绕这一个模型展开，入口只有一处（recents 拿起卡片），
+    第二侧铺的是应用缩略图。取消“分界线/三种阈值”，放置区本身就是预览。
   </p>
 
-  <div class="steps">
-    <div class="step">
-      <div class="n">STEP 1</div>
-      <div class="t">进入任务预览</div>
-      <div class="d">上划手势打开现有 recents，所有任务以卡片排列。此时仍是普通全屏态。</div>
+  <div class="principles">
+    <div class="principle">
+      <div class="k">01 · 两张卡片</div>
+      <div class="t">不是两半屏幕</div>
+      <div class="d">14px 间隙 + 两张圆角卡片，激活侧 1.5px accent 内描边，未激活侧降 6% 亮度。</div>
     </div>
-    <div class="step">
-      <div class="n">STEP 2</div>
-      <div class="t">拖卡片到一侧</div>
-      <div class="d">拖向屏幕左/右（竖屏为拖到顶/底）出现虚线放置区，松手即固定。轻划上滑仍是关闭，两手势靠方向和到达区域区分。</div>
+    <div class="principle">
+      <div class="k">02 · 一个入口</div>
+      <div class="t">长按 recents 卡片</div>
+      <div class="d">拿起 → 两侧放置区亮起 → 松手固定。没有独立的“分屏模式”，也没有红色分界线。</div>
     </div>
-    <div class="step">
-      <div class="n">STEP 3</div>
-      <div class="t">补齐另一侧</div>
-      <div class="d">剩余任务以列表形式铺在被遮的半屏上，点选一个即完成分屏，分割条出现。</div>
+    <div class="principle">
+      <div class="k">03 · 一个分割条</div>
+      <div class="t">把手即操作</div>
+      <div class="d">拖动 20–80%，50% 磁吸，双击复位；把手顶部的 ✕ 直接退出分屏。</div>
+    </div>
+    <div class="principle">
+      <div class="k">04 · 配对卡片</div>
+      <div class="t">recents 里仍是一张</div>
+      <div class="d">双预览 + 分屏徽标；点按恢复、上划关整对、长按拖出一侧变全屏。</div>
     </div>
   </div>
 
-  <!-- ============ 画板 1：任务预览 ============ -->
+  <!-- A. 主态 -->
   <div class="board">
-    <div class="cap"><span class="tag">STEP 1</span><span class="t">任务预览（现有功能，入口不变）</span><span class="n">横屏 · 1707×1067</span></div>
+    <div class="cap"><span class="tag">A 主态</span><span class="t">横屏分屏：两张卡片 + 间隙分割条</span><span class="n">1600 × 1000</span></div>
     <div class="device land">
-      <div class="app a-weread" style="inset:0;">
-        <div class="label">微信读书</div>
-        <div class="fake-rows"><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="statusbar"><span>10:24 · 11月12日</span><span class="batt"></span></div>
+      <div class="split">
+        <div class="pane active">
+          <div class="chrome"><span class="dot" style="background:#6d5bd0"></span>微信读书<span class="r"><i></i><i></i><i></i></span></div>
+          <div class="body pad">
+            <div class="line w70"></div><div class="line w88"></div><div class="line"></div><div class="line w45"></div>
+            <div class="line w88"></div><div class="line w70"></div><div class="line"></div><div class="line w45"></div>
+            <div class="line w88"></div><div class="line w70"></div>
+          </div>
+        </div>
+        <div class="pane term inactive">
+          <div class="chrome"><span class="dot" style="background:#9ad0a8"></span>终端<span class="r"><i></i><i></i><i></i></span></div>
+          <div class="body"><div class="mono"><span class="prompt">user@alarm ~</span>$ ls<br>Documents  Downloads  Pictures<br><span class="prompt">user@alarm ~</span>$ ▍</div></div>
+        </div>
       </div>
-      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
-      <div class="homebar"></div>
+      <div class="divider">
+        <div class="close"></div>
+        <div class="grip"><b></b><b></b></div>
+      </div>
+    </div>
+    <p class="note">
+      <b>激活侧</b>：读字的一侧获得 accent 内描边，键盘、返回键、通知都归属它；点另一侧即切换。
+      <b>分割条</b>只占 38px，把手悬在两张卡片中间，不占内容宽度。默认 <span class="k">50 : 50</span>，拖动范围 20–80%，靠近中线 ±3% 自动吸附。
+    </p>
+  </div>
 
+  <!-- B. 拿起 -->
+  <div class="board">
+    <div class="cap"><span class="tag">B 入口</span><span class="t">recents 拿起卡片：两侧放置区同时亮起</span><span class="n">1600 × 1000</span></div>
+    <div class="device land">
+      <div class="statusbar"><span>10:24 · 11月12日</span><span class="batt"></span></div>
       <div class="recents">
-        <div class="strip">
-          <div class="hint">最近任务 <span class="pill">长按卡片拖向屏幕一侧 → 分屏</span></div>
-          <div class="cards">
-            <div class="card a-weread"><span class="cap">微信读书</span></div>
-            <div class="card a-cloudmusic"><span class="cap">网易云音乐</span></div>
-            <div class="card a-fushi light"><span class="cap">复逝</span></div>
-            <div class="card a-home"><span class="cap">桌面</span></div>
+        <div class="dropzone" style="left:14px; top:58px; bottom:14px; width:626px;">
+          放到左侧
+          <span class="ratio">50% · 约 800 × 952</span>
+        </div>
+        <div class="dropzone quiet" style="right:14px; top:58px; bottom:14px; width:626px;">
+          放到右侧
+          <span class="ratio">50% · 约 800 × 952</span>
+        </div>
+        <div class="cancel-hint">松手取消</div>
+        <div class="card lifted" style="left:620px; top:270px; width:360px; height:460px; background:linear-gradient(160deg,#ffffff,#f4f5fb)">
+          <div class="title">微信读书</div>
+          <div class="lines">
+            <i style="width:72%"></i><i style="width:88%"></i><i style="width:60%"></i>
+            <i style="width:84%"></i><i style="width:70%"></i><i style="width:46%"></i>
+            <i style="width:88%"></i><i style="width:64%"></i>
           </div>
         </div>
+        <div class="hint">松手固定到左侧 · 卡片仍可拖回中间取消</div>
       </div>
     </div>
     <p class="note">
-      复用现有 recents 视图，<b>不新增入口</b>。提示 pill 常驻在 strip 顶部，首次分屏后不再显示（用户已学习）。
-      卡片排列沿用现有 recents 的布局，拖拽阈值与现有窗口抓取一致。
+      拿起的手感：卡片 <span class="k">scale .94 / rotate -2°</span> 并缩小到约 360 × 460，其余卡片淡到 25%。
+      左右放置区各占 <span class="k">40% 屏宽</span>，中间 20% 留空——松手在中间就是取消，回到 recents。
+      放置区里直接给出<b>该侧的像素尺寸</b>，松手前就知道结果。
     </p>
   </div>
 
-  <!-- ============ 画板 2：拖拽中 ============ -->
+  <!-- C. 选择第二侧 -->
   <div class="board">
-    <div class="cap"><span class="tag">STEP 2</span><span class="t">拖拽中：左半屏出现放置区</span><span class="n">横屏 · 左右方向</span></div>
+    <div class="cap"><span class="tag">C 补齐</span><span class="t">固定一侧后：另一侧铺应用缩略图</span><span class="n">1600 × 1000</span></div>
     <div class="device land">
-      <div class="app a-cloudmusic" style="inset:0;">
-        <div class="label">网易云音乐</div>
-        <div class="fake-rows on-dark"><i></i><i></i><i></i><i></i><i></i></div>
-      </div>
-      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
-      <div class="homebar on-dark"></div>
-
-      <!-- 左半屏放置区 -->
-      <div class="dropzone" style="left:24px; top:76px; bottom:24px; width:46%;">
-        <div>
-          <div class="t">放到左侧</div>
-          <div class="s">松手固定到左半屏</div>
-        </div>
-      </div>
-
-      <!-- recents 背景 -->
-      <div class="recents" style="background:rgba(16,16,24,.3);">
-        <div class="strip" style="height:300px;">
-          <div class="hint">剩余任务</div>
-          <div class="cards">
-            <div class="card a-fushi light" style="opacity:.55;"><span class="cap">复逝</span></div>
-            <div class="card a-home" style="opacity:.55;"><span class="cap">桌面</span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 被拖拽的卡片（视觉上离开 strip，跟手） -->
-      <div class="drag-ghost a-weread" style="left:150px; top:300px;">
-        <span class="cap">微信读书</span>
-      </div>
-
-      <div class="anno" style="left:120px; top:120px;">
-        <b>拖拽判定</b><br>卡片中心越过屏幕宽度 28% 即激活放置区；未达到则松手弹回，取消分屏。
-      </div>
-      <div class="anno" style="right:120px; top:120px;">
-        <b>方向由朝向决定</b><br>横屏输出出现左右放置区，竖屏输出出现上下放置区，无需用户选择。
-      </div>
-    </div>
-    <p class="note">
-      拖拽期间其余任务卡片降透明度作为背景层，避免误触。<b>放置区用 accent 虚线 + 软填充</b>，
-      与 Denial 现有的窗口抓取反馈同一套视觉语言（参考 dock / 键盘稿的 accent 用法）。
-    </p>
-  </div>
-
-  <!-- ============ 画板 2b：横屏手势消歧 ============ -->
-  <div class="board">
-    <div class="cap"><span class="tag">STEP 2 · 横屏</span><span class="t">手势消歧：上划关闭 vs 拖向边缘分屏</span><span class="n">横屏 · 方向天然分离</span></div>
-    <div class="device land">
-      <div class="app a-home" style="inset:0;"></div>
-      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
-
-      <div class="recents">
-        <div class="strip" style="height:340px;">
-          <div class="hint">最近任务</div>
-          <div class="cards">
-            <!-- 卡片 1：上划关闭 -->
-            <div class="card a-weread" style="transform:translateY(-58px);">
-              <span class="cap">微信读书 · 上划关闭</span>
-            </div>
-            <!-- 卡片 2：拖向左侧分屏 -->
-            <div class="card a-cloudmusic" style="transform:translateX(-120px) rotate(-1.5deg);">
-              <span class="cap">网易云音乐 · 拖向左</span>
-            </div>
-            <div class="card a-fushi light" style="opacity:.5;"><span class="cap">复逝</span></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 左侧放置区 -->
-      <div class="gesture-zone split" style="left:24px; top:76px; bottom:24px; width:44%;">
-        <div class="t">放到左侧</div>
-        <div class="s">松手固定到左半屏</div>
-      </div>
-
-      <!-- 上划关闭反馈 -->
-      <div class="gesture-zone close" style="left:400px; top:120px; width:300px; height:120px;">
-        <div class="t">松手关闭</div>
-        <div class="s">上划超过卡片高度 40%</div>
-      </div>
-
-      <div class="swipe close-sw" style="left:505px; top:290px;">
-        <span class="arrow">↑</span><span>轻划上滑 = 关闭</span>
-      </div>
-      <div class="swipe split-sw" style="left:790px; top:290px;">
-        <span class="arrow">←</span><span>拖向边缘 = 分屏</span>
-      </div>
-
-      <div class="anno" style="right:110px; bottom:390px;">
-        <b>横屏无歧义</b><br>横屏没有上下分屏，上划永远是关闭，水平拖拽永远是分屏。
-      </div>
-    </div>
-    <p class="note">
-      消歧规则以<b>主位移方向 + 到达区域</b>判定，跟手实时预览，松手才提交。
-      关闭阈值低（轻划即走），分屏阈值高（必须拖到边缘放置区）——避免想关闭却误入分屏。
-    </p>
-  </div>
-
-  <!-- ============ 画板 2c：竖屏手势消歧 ============ -->
-  <div class="board">
-    <div class="cap"><span class="tag">STEP 2 · 竖屏</span><span class="t">手势消歧：拖到顶/底才分屏，轻划即关闭</span><span class="n">竖屏 · 800×1280</span></div>
-    <div class="device port">
-      <div class="app a-home" style="inset:0;"></div>
-      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
-
-      <div class="recents">
-        <div class="strip" style="height:420px;">
-          <div class="hint">最近任务</div>
-          <div class="cards" style="flex-direction:column; gap:18px;">
-            <div class="card a-weread" style="width:100%; height:150px; transform:translateY(-30px);">
-              <span class="cap">微信读书 · 上划中</span>
-            </div>
-            <div class="card a-cloudmusic" style="width:100%; height:150px; opacity:.5;">
-              <span class="cap">网易云音乐</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 顶部触发区：上分屏 -->
-      <div class="gesture-zone split" style="left:24px; right:24px; top:80px; height:170px;">
-        <div class="t">拖到这里 = 上分屏</div>
-        <div class="s">屏幕顶部 25% 触发区</div>
-      </div>
-
-      <!-- 分界线 -->
-      <div class="threshold" style="top:560px;">
-        <span class="lab">分界线 · 约 55% 屏高</span>
-      </div>
-
-      <!-- 关闭提示区 -->
-      <div class="gesture-zone close" style="left:24px; right:24px; top:600px; height:130px;">
-        <div class="t">未过线松手 = 关闭</div>
-        <div class="s">轻划关闭的手感保留</div>
-      </div>
-
-      <!-- 底部触发区：下分屏 -->
-      <div class="gesture-zone split" style="left:24px; right:24px; bottom:24px; height:170px;">
-        <div class="t">拖到这里 = 下分屏</div>
-        <div class="s">屏幕底部 25% 触发区</div>
-      </div>
-
-      <div class="anno" style="left:50%; transform:translateX(-50%); top:940px;">
-        <b>竖屏三区</b><br>上拖过线 → 上分屏；未过线松手 → 关闭；下拖到底 → 下分屏。向下轻划无操作，弹回。
-      </div>
-    </div>
-    <p class="note">
-      竖屏是唯一需要"分界线"的场景：向上拖时卡片越过约 <b>55% 屏高</b>，顶部触发区点亮——
-      <b>点亮前松手 = 关闭，点亮后松手 = 上分屏</b>。分界线用红色虚线 + 标签明示，拖拽中实时显示，
-      用户每次都能看到"再拖一点就变成分屏了"的临界点。关闭走原有的轻划手感，分屏必须拖到底，两者不会误判。
-    </p>
-  </div>
-
-  <!-- ============ 画板 3：右侧选择器 ============ -->
-  <div class="board">
-    <div class="cap"><span class="tag">STEP 3</span><span class="t">左应用已固定，右侧待选</span><span class="n">横屏 · 选择第二个应用</span></div>
-    <div class="device land">
-      <!-- 左侧：已固定的应用 -->
-      <div class="app a-weread" style="left:0; top:0; bottom:0; width:53%;">
-        <div class="label">微信读书</div>
-        <div class="fake-rows"><i></i><i></i><i></i><i></i><i></i></div>
-      </div>
-      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
-
-      <!-- 右侧：选择器 -->
+      <div class="statusbar"><span>10:24 · 11月12日</span><span class="batt"></span></div>
       <div class="picker">
-        <div class="h">选择右侧应用
-          <span class="s">左侧已固定：微信读书</span>
-        </div>
-        <div class="list">
-          <div class="item">
-            <div class="thumb a-cloudmusic"></div>
-            <div><div class="nm">网易云音乐</div><div class="sb">正在播放 · 2 分钟前</div></div>
-            <div class="go">打开 →</div>
-          </div>
-          <div class="item">
-            <div class="thumb a-fushi"></div>
-            <div><div class="nm">复逝</div><div class="sb">10 分钟前</div></div>
-            <div class="go">打开 →</div>
-          </div>
-          <div class="item">
-            <div class="thumb a-home"></div>
-            <div><div class="nm">桌面</div><div class="sb">Home</div></div>
-            <div class="go">打开 →</div>
+        <div class="pane">
+          <div class="chrome"><span class="dot" style="background:#6d5bd0"></span>微信读书<span class="r"><i></i><i></i><i></i></span></div>
+          <div class="body pad">
+            <div class="line w70"></div><div class="line w88"></div><div class="line"></div><div class="line w45"></div>
+            <div class="line w88"></div><div class="line w70"></div><div class="line"></div>
           </div>
         </div>
-      </div>
-      <div class="homebar" style="left:26%;"></div>
-    </div>
-    <p class="note">
-      右侧选择器是<b>半透明浮层</b>，不是独立输出——左侧应用保持实时渲染（视频/动画不暂停）。
-      点击空白处或向下划关闭选择器，此时进入「单应用分屏态」：左应用占据 53%，余下区域留空，
-      之后可从 recents 再拖一个进来补齐（见边界表）。
-    </p>
-  </div>
-
-  <!-- ============ 画板 4：分屏完成 ============ -->
-  <div class="board">
-    <div class="cap"><span class="tag">DONE</span><span class="t">双应用分屏（可拖动分割条）</span><span class="n">横屏 · 默认 53 : 47</span></div>
-    <div class="device land">
-      <div class="split-root">
-        <div class="app a-weread">
-          <div class="label">微信读书</div>
-          <div class="fake-rows"><i></i><i></i><i></i><i></i><i></i></div>
+        <div class="choose">
+          <div class="h">选择右侧应用</div>
+          <div class="tiles">
+            <div class="tile">
+              <div class="shot" style="background:linear-gradient(160deg,#ffffff,#eef1fb)">
+                <div class="mini-chrome"><i></i></div>
+                <div class="mini-lines"><b style="width:64%"></b><b style="width:86%"></b><b style="width:48%"></b></div>
+              </div>
+              <div class="name">Firefox</div>
+            </div>
+            <div class="tile">
+              <div class="shot" style="background:#23272e">
+                <div class="mini-chrome" style="border-color:#333944"><i style="background:#3a404a"></i></div>
+                <div class="mini-term">user@alarm ~<br>$ ▍</div>
+              </div>
+              <div class="name">终端</div>
+            </div>
+            <div class="tile">
+              <div class="shot" style="background:linear-gradient(160deg,#ffffff,#f4f5fa)">
+                <div class="mini-chrome"><i></i></div>
+                <div class="mini-lines"><b style="width:72%"></b><b style="width:88%"></b><b style="width:56%"></b><b style="width:80%"></b></div>
+              </div>
+              <div class="name">文本编辑器</div>
+            </div>
+            <div class="tile all-tile">
+              <div class="shot all">
+                <div class="grid-dots">
+                  <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+                </div>
+              </div>
+              <div class="name">全部应用</div>
+            </div>
+          </div>
         </div>
-        <div class="divider"><div class="grip">⋮⋮</div></div>
-        <div class="app a-cloudmusic">
-          <div class="label">网易云音乐</div>
-          <div class="fake-rows on-dark"><i></i><i></i><i></i><i></i><i></i></div>
-        </div>
-      </div>
-      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
-      <div class="homebar"></div>
-
-      <div class="anno" style="left:50%; top:120px; transform:translateX(-50%);">
-        <b>分割条</b><br>拖动调节比例（20%–80% 限制）；双击复位 50 : 50；拖到极限退出分屏。
       </div>
     </div>
     <p class="note">
-      两个应用都通过 per-app virtual output scaling 获得各自的虚拟尺寸——<b>与 commit <span class="k">176514c</span> 的机制同源</b>：
-      合成器告诉客户端「你面对一块更小/更大的屏幕」，configure、insets、IME 光标矩形全部按区域换算。
-      分割条拖动时两端应用实时收到新 configure，动画走 liquid motion 曲线。
+      空的一侧直接铺<b>应用缩略图</b>——和 recents 用的是同一套实时预览，2 列排布，点哪个就把哪个放进来；
+      最后一张「全部应用」把 launcher 铺进这一侧。左侧保持实时渲染，视频/动画不暂停。
     </p>
   </div>
 
-  <!-- ============ 画板 5：竖屏 ============ -->
+  <!-- D. 竖屏 -->
   <div class="board">
-    <div class="cap"><span class="tag">PORTRAIT</span><span class="t">竖屏：上下分屏（同一逻辑，自动转向）</span><span class="n">竖屏 · 800×1280</span></div>
+    <div class="cap"><span class="tag">D 竖屏</span><span class="t">上下分屏：同一套卡片与分割条，方向随输出翻转</span><span class="n">760 × 1216</span></div>
     <div class="device port">
-      <div class="split-root vert" style="inset:0;">
-        <div class="app a-weread">
-          <div class="label">微信读书</div>
-          <div class="fake-rows"><i></i><i></i><i></i></div>
+      <div class="statusbar"><span>10:24 · 11月12日</span><span class="batt"></span></div>
+      <div class="split" style="flex-direction:column;">
+        <div class="pane active">
+          <div class="chrome"><span class="dot" style="background:#6d5bd0"></span>微信读书<span class="r"><i></i><i></i></span></div>
+          <div class="body pad">
+            <div class="line w70"></div><div class="line w88"></div><div class="line"></div><div class="line w45"></div>
+            <div class="line w88"></div><div class="line w70"></div>
+          </div>
         </div>
-        <div class="divider" style="flex:0 0 10px;"><div class="grip">⋯</div></div>
-        <div class="app a-cloudmusic">
-          <div class="label">网易云音乐</div>
-          <div class="fake-rows on-dark"><i></i><i></i><i></i></div>
+        <div class="pane term">
+          <div class="chrome"><span class="dot" style="background:#9ad0a8"></span>终端<span class="r"><i></i><i></i></span></div>
+          <div class="body"><div class="mono"><span class="prompt">user@alarm ~</span>$ ▍</div></div>
         </div>
       </div>
-      <div class="statusbar"><span class="clock">14:32</span><span class="dots"><span class="dot"></span><span class="dot"></span><span class="batt"></span></span></div>
-      <div class="homebar"></div>
+      <div class="divider">
+        <div class="grip" style="width:86px; height:38px; flex-direction:row;"><b style="width:22px; height:3px;"></b><b style="width:22px; height:3px;"></b></div>
+        <div class="close"></div>
+      </div>
     </div>
     <p class="note">
-      <b>旋转时行为</b>：分屏进行中旋转，方向跟随宽高比翻转（左右 ↔ 上下），两侧应用按新区域重新 configure，
-      比例记忆不变（按短边占比保持）。为避免旋转途中的抖动，旋转动画期间冻结 configure 更新，落地后一次性下发。
+      竖屏时卡片上下叠，把手旋转 90°。放置区变成屏幕的上下两条；比例与磁吸规则完全一样，只是坐标轴翻转。
+      旋转时方向跟着宽高比走，比例按短边保持。
     </p>
   </div>
 
-  <!-- ============ 边界情况 ============ -->
-  <div class="edge">
-    <h2>边界与取舍</h2>
-    <table>
-      <tr><th>场景</th><th>行为</th></tr>
-      <tr>
-        <td>拖拽未过阈值松手</td>
-        <td>卡片弹回 strip，放置区淡出，不进入分屏。无确认弹窗。</td>
-      </tr>
-      <tr>
-        <td>右侧未选应用就关闭选择器</td>
-        <td>进入单应用分屏态（左应用占 53%，余区留空显示壁纸）。之后随时可从 recents 再拖入第二个应用，或把首个应用拖全屏退出。</td>
-      </tr>
-      <tr>
-        <td>只有一个任务</td>
-        <td>recents 中该卡片仍可拖向一侧，右侧选择器显示「打开其他应用」入口（launcher），允许分屏 + 新应用。</td>
-      </tr>
-      <tr>
-        <td>Droidloom 的 Android 应用</td>
-        <td>Android 窗口作为普通 Wayland 客户端参与分屏，按区域获得 configure；微信读书等会重新布局。Android 自身的分屏功能不使用——由 Denial 统一管理，避免两层分屏互相干扰。</td>
-      </tr>
-      <tr>
-        <td>IME / 软键盘</td>
-        <td>键盘归属当前焦点所在区域，该区域内容上推，另一区域不动。与正在接入的 fcitx 输入法共用同一焦点事件源，不需要额外状态。</td>
-      </tr>
-      <tr>
-        <td>接外接显示器</td>
-        <td>分屏只存在于 mobile 输出。外接显示器上的桌面布局不受影响，窗口可跨屏拖动（拖到 desk 即按桌面策略放置）。</td>
-      </tr>
-      <tr>
-        <td>分屏进行中，从 recents 关闭一侧</td>
-        <td>上划关掉一侧应用 → 另一侧平滑扩展为全屏，分割条收起。与 Android 行为一致；扩展动画走 liquid motion 曲线，被关闭侧即时消失不拖慢动画。</td>
-      </tr>
-      <tr>
-        <td>竖屏向下轻划</td>
-        <td>无操作，卡片弹回。竖屏的关闭只保留"上划"一个方向，避免与下分屏抢手势。</td>
-      </tr>
-      <tr>
-        <td>分屏中拖入第三个应用</td>
-        <td>MVP：替换同侧应用（拖到左替换左、拖到右替换右），被替换方回到 recents。不提供三应用分屏。</td>
-      </tr>
-      <tr>
-        <td>暂不做（YAGNI）</td>
-        <td>三应用分屏、画中画浮窗、自由窗口（freeform）、分屏内直接交换两侧应用（先用「拖出到全屏再拖回」替代）。</td>
-      </tr>
-    </table>
+  <!-- E. 配对卡片 -->
+  <div class="board">
+    <div class="cap"><span class="tag">E recents</span><span class="t">分屏对在 recents 里是一张卡片</span><span class="n">1600 × 1000</span></div>
+    <div class="device land">
+      <div class="statusbar"><span>10:24 · 11月12日</span><span class="batt"></span></div>
+      <div class="recents" style="background:rgba(18,18,26,.42)">
+        <div class="paircard" style="left:250px; top:190px; width:700px; height:640px;">
+          <div class="half" style="background:linear-gradient(160deg,#ffffff,#f3f4fa)">
+            <div style="position:absolute;left:20px;right:20px;top:22px;">
+              <div style="height:11px;width:64%;border-radius:6px;background:#e9ebf2;margin-bottom:12px"></div>
+              <div style="height:11px;width:86%;border-radius:6px;background:#eef0f6;margin-bottom:12px"></div>
+              <div style="height:11px;width:48%;border-radius:6px;background:#eef0f6;margin-bottom:12px"></div>
+              <div style="height:11px;width:78%;border-radius:6px;background:#eef0f6"></div>
+            </div>
+          </div>
+          <div class="half" style="background:#23272e">
+            <div class="mono" style="padding:22px 24px; font:14px/1.7 'JetBrains Mono',monospace; color:#cdd3dc;">
+              <span class="prompt" style="color:#9ad0a8">user@alarm ~</span>$ ▍
+            </div>
+          </div>
+          <div class="divider-mini"><b></b><b></b></div>
+          <div class="badge">分屏 50:50</div>
+        </div>
+        <div class="hint">点按恢复分屏 · 上划关闭两侧 · 长按拖出一侧变全屏</div>
+      </div>
+    </div>
+    <p class="note">
+      配对卡片只显示一张，缩略图就是两侧的实时预览。上划 = 关两侧；长按拖出 = 先把一侧变全屏（拖哪侧就展开哪侧）。
+      分屏进行中从 recents 再拖入第三个应用 → 拒绝，提示「先退出当前分屏」。
+    </p>
   </div>
 
-  <div class="foot">
-    设计稿 · Denial 平板分屏 · 2026-11-11<br>
-    视觉约定沿用 docs/designs/ 现有稿件：深色画布 + 亮色设备、accent #6d5bd0、48px 状态栏占位。<br>
-    实现层面两个落点：compositor 新增 Split 布局（window_layout.rs 可插拔系统）+ shell 侧 recents 拖拽与选择器（plugins/denial_desktop）。
+  <!-- F. 关闭预览 -->
+  <div class="board">
+    <div class="cap"><span class="tag">F 退出</span><span class="t">分割条拖到边缘：关闭预览，松手才生效</span><span class="n">1600 × 1000</span></div>
+    <div class="device land">
+      <div class="statusbar"><span>10:24 · 11月12日</span><span class="batt"></span></div>
+      <div class="closing">
+        <div class="pane" style="flex:0 0 180px;">
+          <div class="chrome"><span class="dot" style="background:#6d5bd0"></span></div>
+          <div class="body"><div class="pad" style="padding:20px;"><div class="line w88"></div><div class="line w70"></div><div class="line w45"></div></div></div>
+          <div class="ghost" style="position:absolute; inset:0; flex:none;">松手关闭<br>这一侧</div>
+        </div>
+        <div class="pane term" style="flex:1">
+          <div class="chrome"><span class="dot" style="background:#9ad0a8"></span>终端</div>
+          <div class="body"><div class="mono"><span class="prompt">user@alarm ~</span>$ ▍</div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      把分割条拖到 <span class="k">≤ 10%</span>，被挤的一侧缩成 180px 并出现「松手关闭这一侧」；拖回区间内预览消失，分屏保持。
+      把手上方的 <b>✕</b> 直接退出分屏（两侧都回到全屏，前台保留激活侧）。
+    </p>
   </div>
 
+  <div class="legend">
+    <span><span class="sw" style="background:#6d5bd0"></span>accent（描边 / 放置区 / 徽标）</span>
+    <span><span class="sw" style="background:#eef0f3"></span>卡片内容占位</span>
+    <span><span class="sw" style="background:rgba(18,18,26,.72)"></span>recents / 选择器遮罩</span>
+    <span><span class="sw" style="background:#23272e"></span>终端类深色应用</span>
+  </div>
 </div>
 </body>
 </html>
