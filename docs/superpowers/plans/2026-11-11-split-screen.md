@@ -55,13 +55,13 @@
 - Consumes: `onSplitSide(window, side)`（已有）
 - Produces: `SplitDropSide`（已有）、`_sideAt(Offset)` 改为 40/20/40
 
-- [ ] **Step 1: 默认比例改 50:50**
+- [x] **Step 1: 默认比例改 50:50**
 
 `split_pair.dart`：`const double splitDefaultFraction = 0.5;`
 `mobile_split.rs`：`pub(super) const DEFAULT_RATIO: f32 = 0.5;`
 更新 `split_pair_test.dart` 里依赖 0.53 的断言（`swapped()` 仍为 `1 - ratio`）。
 
-- [ ] **Step 2: 放置区判定改 40/20/40**
+- [x] **Step 2: 放置区判定改 40/20/40**
 
 ```dart
   SplitDropSide? _sideAt(Offset point) {
@@ -73,20 +73,20 @@
   }
 ```
 
-- [ ] **Step 3: 拿起卡片缩小**
+- [x] **Step 3: 拿起卡片缩小**
 
 拿起时 `scale` 从 `0.92` 改为 `0.72`，`rotate -2°` 保持；其余卡片淡到 `0.25`（当前 0.35）。
 
-- [ ] **Step 4: 放置区文案与尺寸**
+- [x] **Step 4: 放置区文案与尺寸**
 
 `SplitDropOverlay` 的左右区域改为 `0.4 * 屏宽`（竖屏 `0.4 * 屏高`），中间留空；文案按设计稿：
 「放到左侧 / 放到右侧 / 拖到这里 = 上分屏 / 下分屏」，下方小字 `50% · 约 800 × 952`（取当屏逻辑尺寸计算）。
 
-- [ ] **Step 5: 设备验证**
+- [x] **Step 5: 设备验证**
 
 打开两个应用 → recents → 长按卡片：卡片缩小、其它淡出、左右各 40% 亮起；中间松手取消；左侧松手进入单应用分屏。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git add ... && git commit -m "feat(split): 40/20/40 pickup zones with a smaller lifted card"
@@ -104,7 +104,7 @@ git add ... && git commit -m "feat(split): 40/20/40 pickup zones with a smaller 
 - Produces: `SplitPicker({required SplitPair pair, required VoidCallback onAllApps})`
 - Consumes: `state.openAppWindows`、`controller.pickSplitSecond(window)`
 
-- [ ] **Step 1: 2 列缩略图网格**
+- [x] **Step 1: 2 列缩略图网格**
 
 `GridView(crossAxisCount: 2, childAspectRatio: 4/3)`，每项：
 
@@ -126,19 +126,19 @@ GestureDetector(
 
 最后一项「全部应用」：虚线框 + 九宫格点阵，`onTap: onAllApps`。
 
-- [ ] **Step 2: 深色底 + 模糊**
+- [x] **Step 2: 深色底 + 模糊**
 
 容器：`BackdropFilter(blur 22)` + `rgba(18,18,26,.72)`，顶部标题「选择右侧/下方应用」，下边距 45（与窗口状态栏对齐）。
 
-- [ ] **Step 3: 空列表**
+- [x] **Step 3: 空列表**
 
 没有其他应用时显示「没有其他打开的应用」，只保留取消（✕ 或点固定侧）。
 
-- [ ] **Step 4: 设备验证**
+- [x] **Step 4: 设备验证**
 
 固定左侧 → 右侧列出 2 列实时缩略图；点一个补齐；空列表文案正确。
 
-- [ ] **Step 5: 提交**
+- [x] **Step 5: 提交**
 
 ```bash
 git commit -m "feat(split): thumbnail picker for the second pane"
@@ -155,7 +155,7 @@ git commit -m "feat(split): thumbnail picker for the second pane"
 **Interfaces:**
 - Produces: `SplitDivider({required SplitPair pair, required ValueChanged<double> onRatio, required VoidCallback onReset, required VoidCallback onClose})`
 
-- [ ] **Step 1: 拖动比例**
+- [x] **Step 1: 拖动比例**
 
 ```dart
   void _update(DragUpdateDetails details, Size size) {
@@ -168,23 +168,23 @@ git commit -m "feat(split): thumbnail picker for the second pane"
 
 `onRatio` → `controller.updateSplitRatio`。
 
-- [ ] **Step 2: 双击复位 / ✕ 退出**
+- [x] **Step 2: 双击复位 / ✕ 退出**
 
 `onDoubleTap: onReset`（50:50）；✕ 圆钮 `onTap: onClose` → `controller.endSplit()`。
 
-- [ ] **Step 3: 关闭预览**
+- [x] **Step 3: 关闭预览**
 
 拖动比例 ≤0.10：把手进入「退出预览」态（红色虚线覆盖被压一侧，文案「松手关闭这一侧」）；松手时若 ≤0.10 → `endSplit()`，否则恢复。
 
-- [ ] **Step 4: 视觉**
+- [x] **Step 4: 视觉**
 
 38×86 圆钮、两条 3×22 拖拽条、`0 6px 20px rgba(20,22,28,.22)`；竖屏旋转 90°；`MouseRegion` 光标 `col-resize/row-resize`。
 
-- [ ] **Step 5: 设备验证**
+- [x] **Step 5: 设备验证**
 
 拖动改比例、吸附 50:50、双击复位、✕ 退出、拖到边缘出现预览且松手才退出。
 
-- [ ] **Step 6: 提交**
+- [x] **Step 6: 提交**
 
 ```bash
 git commit -m "feat(split): floating divider with snap, reset and close preview"
