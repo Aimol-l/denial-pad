@@ -124,10 +124,18 @@ class ReferenceInputLayoutCoordinator {
         quickSettingsActive ||
         interactions.capturesFullScene;
     // Two apps side by side: each card takes its own touches, the margins and
-    // the gutter stay with the shell's divider. Recents, a launch or the shade
-    // put the shell in charge of the whole canvas instead.
+    // the gutter stay with the shell's divider. Only a full-shell presentation
+    // (recents, the lock layer, a launch, the shade) may take the canvas from
+    // them — the keyboard is an overlay, not a reason to drop a pane, or the
+    // other pane would stop receiving touches and frames while typing.
     final split = state.splitPair;
-    if (split != null && split.isComplete && !shellOwnsCanvas) {
+    final splitHidden =
+        state.overviewVisible ||
+        state.lockLayerVisible ||
+        state.launchTransitionActive ||
+        appsMoving ||
+        quickSettingsActive;
+    if (split != null && split.isComplete && !splitHidden) {
       final cards =
           splitPaneRects(
                 viewSize.width,
