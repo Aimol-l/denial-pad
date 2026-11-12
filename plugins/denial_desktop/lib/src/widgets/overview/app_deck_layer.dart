@@ -161,7 +161,9 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
   /// The pair whose first pane is [id], when recents draws the split card.
   SplitPair? _pairAt(int id) {
     final split = widget.split;
-    if (split == null || !split.isComplete || split.first != id) return null;
+    if (split == null || !split.isComplete || split.leadingWindow != id) {
+      return null;
+    }
     return split;
   }
 
@@ -169,7 +171,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
   DenialWindow? _pairWindowAt(int id) {
     final pair = _pairAt(id);
     if (pair == null) return null;
-    return _windows[pair.second];
+    return _windows[pair.otherWindow];
   }
 
   void _indexWindows() {

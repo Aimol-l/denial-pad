@@ -26,12 +26,16 @@ class WindowContentRect extends ConsumerWidget {
     this.active = false,
     this.applyBackdrop = true,
     this.contentPadding = EdgeInsets.zero,
+    this.fit = BoxFit.cover,
   });
 
   final DenialWindow window;
   final BorderRadius borderRadius;
   final bool active;
   final bool applyBackdrop;
+
+  /// How the window fills its parent; see [WindowTextureRect.fit].
+  final BoxFit fit;
 
   /// Insets supplied by the shell for in-bundle application content.
   final EdgeInsets contentPadding;
@@ -43,6 +47,7 @@ class WindowContentRect extends ConsumerWidget {
         window: window,
         borderRadius: borderRadius,
         applyBackdrop: applyBackdrop,
+        fit: fit,
       );
     }
 
@@ -58,7 +63,7 @@ class WindowContentRect extends ConsumerWidget {
     final translucent = applyBackdrop && (application?.translucent ?? false);
     final cache = translucent ? WindowBackdropCache.maybeOf(context) : null;
     Widget content = FittedBox(
-      fit: BoxFit.cover,
+      fit: fit,
       alignment: Alignment.topCenter,
       child: SizedBox.fromSize(
         size: layoutSize,

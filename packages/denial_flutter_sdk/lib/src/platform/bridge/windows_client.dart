@@ -140,9 +140,12 @@ final class BridgeWindowsClient {
     required bool vertical,
     double ratio = 0.53,
   }) {
-    // A zero second side means the shell has fixed one pane and is still
-    // showing the picker for the other.
-    if (first <= 0 || first == second) {
+    // A zero side is the pane the picker still holds; at least one of the two
+    // has an app in it.
+    if (first < 0 || second < 0 || (first == 0 && second == 0)) {
+      return;
+    }
+    if (first != 0 && first == second) {
       return;
     }
     _context.sendWire(

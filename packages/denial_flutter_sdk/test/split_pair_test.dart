@@ -47,7 +47,7 @@ void main() {
   test('an incomplete pair reports the pane still missing', () {
     const pair = SplitPair(first: 3, second: 0, vertical: false);
     expect(pair.isComplete, isFalse);
-    expect(pair.withSecond(9).isComplete, isTrue);
+    expect(pair.filled(9).isComplete, isTrue);
   });
 
   test('landscape cards keep the margins and the gutter', () {

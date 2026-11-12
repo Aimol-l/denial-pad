@@ -377,8 +377,9 @@ impl WireBridge {
                 let second = request.split_window_id();
                 let ratio = request.split_ratio();
                 // Zero means the shell has fixed one side and is still picking
-                // the other; it sends both ids once the picker resolves.
-                if first == 0 || first == second {
+                // the other; it sends both ids once the picker resolves. The
+                // empty side may lead, when the app was dropped on the right.
+                if (first == 0 && second == 0) || first == second {
                     return Err(WireError::Identity);
                 }
                 if !ratio.is_finite() || ratio <= 0.0 {

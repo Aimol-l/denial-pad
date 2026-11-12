@@ -44,7 +44,7 @@ impl MobileSplit {
         full: Rectangle<i32, Logical>,
     ) -> Option<Rectangle<i32, Logical>> {
         let [first, second] = split_rects(full, self.vertical, self.ratio);
-        if window_id == self.first {
+        if self.first != 0 && window_id == self.first {
             return Some(first);
         }
         if self.second != 0 && window_id == self.second {
@@ -54,7 +54,8 @@ impl MobileSplit {
     }
 
     pub(super) fn contains(&self, window_id: u64) -> bool {
-        window_id == self.first || (self.second != 0 && window_id == self.second)
+        (self.first != 0 && window_id == self.first)
+            || (self.second != 0 && window_id == self.second)
     }
 }
 

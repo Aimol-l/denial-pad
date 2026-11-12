@@ -112,16 +112,30 @@ class ReferenceInputLayoutCoordinator {
     final inputBottom = edgePanelActive
         ? edgePanelRect.top.clamp(0.0, viewSize.height).toDouble()
         : viewSize.height;
+    final inputWindow = state.inputWindow;
+    final canvas = Offset.zero & viewSize;
+    final shellOwnsCanvas =
+        inputWindow == null ||
+        state.overviewVisible ||
+        // While the apps move no app takes a touch, as in Launcher3's
+        // recents animation: the shell holds them until they rest.
+        appsMoving ||
+        state.launchTransitionActive ||
+        quickSettingsActive ||
+        interactions.capturesFullScene;
     // Two apps side by side: each card takes its own touches, the margins and
-    // the gutter stay with the shell's divider.
+    // the gutter stay with the shell's divider. Recents, a launch or the shade
+    // put the shell in charge of the whole canvas instead.
     final split = state.splitPair;
-    if (split != null && split.isComplete) {
+    if (split != null && split.isComplete && !shellOwnsCanvas) {
       final cards =
           splitPaneRects(
                 viewSize.width,
                 viewSize.height,
                 split,
-                topInset: topInset,
+                // The cards in the split stage are drawn below the status bar,
+                // whatever the scene hands the single-window path.
+                topInset: ReferenceShellMetrics.appStatusInset(viewSize),
               )
               .map(
                 (card) =>
@@ -160,17 +174,6 @@ class ReferenceInputLayoutCoordinator {
       return;
     }
 
-    final inputWindow = state.inputWindow;
-    final canvas = Offset.zero & viewSize;
-    final shellOwnsCanvas =
-        inputWindow == null ||
-        state.overviewVisible ||
-        // While the apps move no app takes a touch, as in Launcher3's
-        // recents animation: the shell holds them until they rest.
-        appsMoving ||
-        state.launchTransitionActive ||
-        quickSettingsActive ||
-        interactions.capturesFullScene;
     final scrollStripVisible =
         state.edgePanelVisible && (shellOwnsCanvas || appLifted);
     // A landscape view shows no status bar, so over an app its strip lets

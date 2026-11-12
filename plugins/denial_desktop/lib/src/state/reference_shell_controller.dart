@@ -807,18 +807,21 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   /// recents card, at the first pane's slot.
   int? _deckIdOf(int? objectId) {
     final pair = state.splitPair;
-    if (objectId == null || pair == null || !pair.isComplete) return objectId;
-    return pair.contains(objectId) ? pair.first : objectId;
+    if (objectId == null || pair == null || pair.leadingWindow == 0) {
+      return objectId;
+    }
+    return pair.contains(objectId) ? pair.leadingWindow : objectId;
   }
 
   /// A split pair is one card in recents: the row keeps its first side and
   /// forgets the second, which the card draws itself.
   List<int> _collapsedOrder(List<int> order) {
     final pair = state.splitPair;
-    if (pair == null || !pair.isComplete) return order;
+    if (pair == null || pair.leadingWindow == 0) return order;
+    final other = pair.otherWindow;
     return [
       for (final id in order)
-        if (id != pair.second) id,
+        if (other == 0 || id != other) id,
     ];
   }
 
@@ -889,13 +892,21 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   /// Fixes one app to a side; the other side shows the picker until a second
   /// app is chosen.
-  void beginSingleSplit(DenialWindow window, {required bool vertical}) {
+  void beginSingleSplit(
+    DenialWindow window, {
+    required bool vertical,
+    bool first = true,
+  }) {
     if (!window.isUserApp) return;
-    final pair = SplitPair(
-      first: window.objectId,
-      second: 0,
-      vertical: vertical,
-    );
+    // The app stays on the side it was dropped on; the picker takes the other.
+    final pair = first
+        ? SplitPair(first: window.objectId, second: 0, vertical: vertical)
+        : SplitPair(
+            first: 0,
+            second: window.objectId,
+            vertical: vertical,
+            active: SplitSide.second,
+          );
     _endFingerGesture();
     state = state.copyWith(
       splitPair: pair,
@@ -912,8 +923,8 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     );
     _syncSplitDeck();
     _platform.splitWindowsByIds(
-      first: window.objectId,
-      second: 0,
+      first: pair.first,
+      second: pair.second,
       vertical: vertical,
       ratio: pair.ratio,
     );
@@ -929,7 +940,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   }) {
     final pair = state.splitPair;
     if (pair == null || !pair.contains(window.objectId)) {
-      beginSingleSplit(window, vertical: vertical);
+      beginSingleSplit(window, vertical: vertical, first: first);
       return;
     }
     final target = state.windowByObjectId(first ? pair.first : pair.second);
@@ -940,12 +951,10 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   /// The picker's choice: the second pane joins the first.
   void pickSplitSecond(DenialWindow second) {
     final pair = state.splitPair;
-    if (pair == null || !second.isUserApp || second.objectId == pair.first) {
+    if (pair == null || !second.isUserApp || pair.contains(second.objectId)) {
       return;
     }
-    final first = state.windowByObjectId(pair.first);
-    if (first == null) return;
-    final next = pair.withSecond(second.objectId);
+    final next = pair.filled(second.objectId);
     state = state.copyWith(
       splitPair: next,
       foregroundObjectId: next.activeWindow,
@@ -957,7 +966,8 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       vertical: next.vertical,
       ratio: next.ratio,
     );
-    _platform.focusWindow(first);
+    final placed = state.windowByObjectId(next.activeWindow);
+    if (placed != null) _platform.focusWindow(placed);
   }
 
   /// Rotating the phone flips a split's axis; the panes keep their order and

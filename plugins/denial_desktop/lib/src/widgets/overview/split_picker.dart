@@ -41,7 +41,12 @@ class SplitPicker extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
                 child: Text(
-                  pair.vertical ? '选择下方应用' : '选择右侧应用',
+                  switch ((pair.vertical, pair.first > 0)) {
+                    (true, true) => '选择下方应用',
+                    (true, false) => '选择上方应用',
+                    (false, true) => '选择右侧应用',
+                    (false, false) => '选择左侧应用',
+                  },
                   style: const TextStyle(
                     color: Color(0xFFF3F4F7),
                     fontSize: 16,
@@ -85,8 +90,7 @@ class SplitPicker extends ConsumerWidget {
                             label: window.title.isEmpty
                                 ? window.appId
                                 : window.title,
-                            onTap: () =>
-                                controller.pickSplitSecond(window),
+                            onTap: () => controller.pickSplitSecond(window),
                             child: WindowContentRect(
                               window: window,
                               applyBackdrop: false,
@@ -104,11 +108,7 @@ class SplitPicker extends ConsumerWidget {
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({
-    required this.label,
-    required this.child,
-    required this.onTap,
-  });
+  const _Tile({required this.label, required this.child, required this.onTap});
 
   final String label;
   final Widget child;

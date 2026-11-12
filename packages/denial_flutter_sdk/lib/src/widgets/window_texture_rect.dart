@@ -23,11 +23,17 @@ class WindowTextureRect extends StatelessWidget {
     required this.window,
     this.borderRadius = BorderRadius.zero,
     this.applyBackdrop = true,
+    this.fit = BoxFit.cover,
   });
 
   final DenialWindow window;
   final BorderRadius borderRadius;
   final bool applyBackdrop;
+
+  /// How the window fills its parent. Recents and the app stage cover it;
+  /// a split card shows the whole window when the client kept a size of its
+  /// own, which keeps its icons and window buttons on screen.
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
@@ -59,12 +65,16 @@ class WindowTextureRect extends StatelessWidget {
         // its on-screen size and maps the buffer itself: its material is
         // resolved in the plane's own units and must not sit under a
         // buffer-to-screen scale.
-        final size =
-            windowSize *
-            math.max(
-              parent.width / windowSize.width,
-              parent.height / windowSize.height,
-            );
+        final scale = fit == BoxFit.contain
+            ? math.min(
+                parent.width / windowSize.width,
+                parent.height / windowSize.height,
+              )
+            : math.max(
+                parent.width / windowSize.width,
+                parent.height / windowSize.height,
+              );
+        final size = windowSize * scale;
         final radius = borderRadius.topLeft.x;
         final backdrop = glass && cache == null
             ? theme.backdropFilterConfigAt(

@@ -13,8 +13,8 @@ import '../../widgets/overview/split_picker.dart';
 ///
 /// The compositor configures each window to its card, so this stage only has to
 /// place the windows where `splitPaneRects` says and dim the inactive side. It
-/// never computes a window rectangle itself. While the second app is still
-/// unchosen, the free card shows the picker over the first app.
+/// never computes a window rectangle itself. While one side is still unchosen,
+/// its card shows the picker over the app that was dropped first.
 class MobileSplitStage extends ConsumerWidget {
   const MobileSplitStage({super.key, required this.pair});
 
@@ -31,7 +31,8 @@ class MobileSplitStage extends ConsumerWidget {
       ),
     );
     final first = windows.first;
-    if (first == null) return const SizedBox.shrink();
+    final second = windows.second;
+    if (first == null && second == null) return const SizedBox.shrink();
     final size = MediaQuery.sizeOf(context);
     // Rotating swaps the axis after this frame, so the pair follows the
     // screen without reconfiguring the clients twice mid-rotation.
@@ -72,7 +73,14 @@ class MobileSplitStage extends ConsumerWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(splitCardRadius),
-                  child: WindowContentRect(window: window, active: active),
+                  child: WindowContentRect(
+                    window: window,
+                    active: active,
+                    // A client that refused the pane size is shown whole
+                    // instead of cropped: its own title bar and buttons stay
+                    // reachable.
+                    fit: BoxFit.contain,
+                  ),
                 ),
                 if (active)
                   const IgnorePointer(
@@ -95,12 +103,15 @@ class MobileSplitStage extends ConsumerWidget {
     }
 
     if (!pair.isComplete) {
+      // The picker takes the side the app was not dropped on.
+      final pickerOnFirst = first == null;
       return Stack(
         fit: StackFit.expand,
         children: [
-          card(first, 0),
+          if (first != null) card(first, 0),
+          if (second != null) card(second, 1),
           Positioned.fromRect(
-            rect: rectAt(1),
+            rect: rectAt(pickerOnFirst ? 0 : 1),
             child: ClipRRect(
               borderRadius: BorderRadius.circular(splitCardRadius),
               child: SplitPicker(
@@ -118,8 +129,7 @@ class MobileSplitStage extends ConsumerWidget {
       );
     }
 
-    final second = windows.second;
-    if (second == null) return const SizedBox.shrink();
+    if (first == null || second == null) return const SizedBox.shrink();
     return Stack(
       fit: StackFit.expand,
       children: [

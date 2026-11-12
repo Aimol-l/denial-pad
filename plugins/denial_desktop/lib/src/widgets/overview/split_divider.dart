@@ -81,8 +81,10 @@ class SplitDividerState extends State<SplitDivider> {
     widget.onRatio(splitFractions(clamped).first);
   }
 
-  void _end() {
+  void _end({String reason = 'drag'}) {
+    if (_drag == null && _closing == null) return;
     final closing = _closing;
+    debugPrint('divider end ($reason) closing=$closing');
     setState(() {
       _drag = null;
       _closing = null;
@@ -108,48 +110,55 @@ class SplitDividerState extends State<SplitDivider> {
         : (first.top + first.bottom) / 2;
     final center = vertical ? Offset(cross, along) : Offset(along, cross);
     final gripSize = vertical ? const Size(86, 38) : const Size(38, 86);
-    return Stack(
-      children: [
-        if (_closing case final side?)
-          Positioned.fromRect(
-            rect: widget.panes[side],
-            child: const _ClosingPreview(),
+    return Listener(
+      // A release the drag recognizer never reports still ends the gesture:
+      // the preview and the dragged ratio must never outlive the finger.
+      behavior: HitTestBehavior.translucent,
+      onPointerUp: (_) => _end(reason: 'up'),
+      onPointerCancel: (_) => _end(reason: 'cancel'),
+      child: Stack(
+        children: [
+          if (_closing case final side?)
+            Positioned.fromRect(
+              rect: widget.panes[side],
+              child: const _ClosingPreview(),
+            ),
+          Positioned(
+            left: center.dx - _hit / 2,
+            top: center.dy - _closeOffset - _hit / 2,
+            width: _hit,
+            height: _hit,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: widget.onClose,
+              child: const Center(child: _CloseButton()),
+            ),
           ),
-        Positioned(
-          left: center.dx - _hit / 2,
-          top: center.dy - _closeOffset - _hit / 2,
-          width: _hit,
-          height: _hit,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: widget.onClose,
-            child: const Center(child: _CloseButton()),
+          Positioned(
+            left: center.dx - gripSize.width / 2,
+            top: center.dy - gripSize.height / 2,
+            width: gripSize.width,
+            height: gripSize.height,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onDoubleTap: widget.onReset,
+              onHorizontalDragStart: vertical ? null : (_) {},
+              onHorizontalDragUpdate: vertical
+                  ? null
+                  : (details) => _update(details.globalPosition),
+              onHorizontalDragEnd: vertical ? null : (_) => _end(),
+              onHorizontalDragCancel: vertical ? null : _end,
+              onVerticalDragStart: vertical ? (_) {} : null,
+              onVerticalDragUpdate: vertical
+                  ? (details) => _update(details.globalPosition)
+                  : null,
+              onVerticalDragEnd: vertical ? (_) => _end() : null,
+              onVerticalDragCancel: vertical ? _end : null,
+              child: _Grip(vertical: vertical),
+            ),
           ),
-        ),
-        Positioned(
-          left: center.dx - gripSize.width / 2,
-          top: center.dy - gripSize.height / 2,
-          width: gripSize.width,
-          height: gripSize.height,
-          child: GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onDoubleTap: widget.onReset,
-            onHorizontalDragStart: vertical ? null : (_) {},
-            onHorizontalDragUpdate: vertical
-                ? null
-                : (details) => _update(details.globalPosition),
-            onHorizontalDragEnd: vertical ? null : (_) => _end(),
-            onHorizontalDragCancel: vertical ? null : _end,
-            onVerticalDragStart: vertical ? (_) {} : null,
-            onVerticalDragUpdate: vertical
-                ? (details) => _update(details.globalPosition)
-                : null,
-            onVerticalDragEnd: vertical ? (_) => _end() : null,
-            onVerticalDragCancel: vertical ? _end : null,
-            child: _Grip(vertical: vertical),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

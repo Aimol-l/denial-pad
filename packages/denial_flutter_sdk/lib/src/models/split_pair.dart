@@ -27,7 +27,9 @@ class SplitPair {
     this.active = SplitSide.first,
   });
 
-  /// The left (landscape) or top (portrait) window.
+  /// The left (landscape) or top (portrait) window; zero while that side is
+  /// still showing the picker, which happens when the app was dropped on the
+  /// other side.
   final int first;
 
   /// The right or bottom window; zero while the picker is still open.
@@ -36,10 +38,18 @@ class SplitPair {
   final double ratio;
   final SplitSide active;
 
-  bool get isComplete => second > 0;
+  bool get isComplete => first > 0 && second > 0;
 
   bool contains(int windowId) =>
-      windowId == first || (second > 0 && windowId == second);
+      (first > 0 && windowId == first) || (second > 0 && windowId == second);
+
+  /// The window recents draws its card for: the left/top app, or the other
+  /// app while the leading side is still empty.
+  int get leadingWindow => first > 0 ? first : second;
+
+  /// The app on the side that is not [leadingWindow]; zero when that side is
+  /// still empty.
+  int get otherWindow => first > 0 ? second : 0;
 
   SplitPair withRatio(double ratio) => SplitPair(
     first: first,
@@ -57,13 +67,23 @@ class SplitPair {
     active: side,
   );
 
-  SplitPair withSecond(int windowId) => SplitPair(
-    first: first,
-    second: windowId,
-    vertical: vertical,
-    ratio: ratio,
-    active: active,
-  );
+  /// Fills the side the picker still holds, keeping the ratio and the active
+  /// side, so the app the person dropped does not move.
+  SplitPair filled(int windowId) => first > 0
+      ? SplitPair(
+          first: first,
+          second: windowId,
+          vertical: vertical,
+          ratio: ratio,
+          active: active,
+        )
+      : SplitPair(
+          first: windowId,
+          second: second,
+          vertical: vertical,
+          ratio: ratio,
+          active: active,
+        );
 
   SplitPair swapped() => SplitPair(
     first: second,
