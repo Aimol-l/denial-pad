@@ -134,4 +134,20 @@ void main() {
     expect(pairSurvivor(pair, 5), 3);
     expect(pairSurvivor(pair, 9), 0);
   });
+
+  test('a rotated split that cannot fit is refused', () {
+    expect(
+      splitFits(
+        width: 800,
+        height: 1000,
+        topInset: 45,
+        vertical: true,
+        firstMinWidth: 300,
+        firstMinHeight: 500,
+        secondMinWidth: 300,
+        secondMinHeight: 500,
+      ),
+      isFalse,
+    );
+  });
 }

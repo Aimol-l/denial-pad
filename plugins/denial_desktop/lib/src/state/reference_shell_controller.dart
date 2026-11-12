@@ -1040,6 +1040,15 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       ratio: pair.ratio,
       active: pair.active,
     );
+    // A rotated split must still host both clients; otherwise the app keeps
+    // the screen and the split ends.
+    if (next.isComplete &&
+        !_splitFits(next.first, next.second, vertical: vertical)) {
+      final survivor = state.windowByObjectId(next.activeWindow);
+      endSplit();
+      if (survivor != null) focusWindow(survivor);
+      return;
+    }
     state = state.copyWith(splitPair: next);
     // An open picker is still a single-pane split: the compositor has to move
     // its pane to the new axis too.
@@ -1193,6 +1202,9 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
                   ratio: split.ratio,
                   active: SplitSide.first,
                 );
+          if (!_splitFits(next.first, next.second, vertical: next.vertical)) {
+            return;
+          }
           state = state.copyWith(
             splitPair: next,
             foregroundObjectId: next.activeWindow,
