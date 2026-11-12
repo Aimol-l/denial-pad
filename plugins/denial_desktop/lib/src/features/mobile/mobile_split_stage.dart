@@ -6,6 +6,7 @@ import 'package:denial_flutter_sdk/rendering.dart' show WindowContentRect;
 
 import '../../state/reference_shell_controller.dart';
 import '../../state/reference_shell_metrics.dart';
+import '../../state/split_debug.dart';
 import '../../widgets/overview/split_picker.dart';
 
 /// Two apps sharing the phone screen, each taking half of it.
@@ -58,6 +59,12 @@ class MobileSplitStage extends ConsumerWidget {
 
     Widget pane(DenialWindow window, int index) {
       final active = (pair.active == SplitSide.first) == (index == 0);
+      splitDebug(
+        'pane $index "${window.appId}" ${rectAt(index)} '
+        'geometry=${window.geometryWidth.round()}x'
+        '${window.geometryHeight.round()} '
+        'min=${window.minWidth.round()}x${window.minHeight.round()}',
+      );
       return Positioned.fromRect(
         rect: rectAt(index),
         child: GestureDetector(
@@ -67,13 +74,7 @@ class MobileSplitStage extends ConsumerWidget {
           ),
           child: Opacity(
             opacity: active ? 1 : 0.94,
-            child: WindowContentRect(
-              window: window,
-              active: active,
-              // A client that refused the pane size is shown whole instead
-              // of cropped: its own title bar and buttons stay reachable.
-              fit: BoxFit.contain,
-            ),
+            child: WindowContentRect(window: window, active: active),
           ),
         ),
       );

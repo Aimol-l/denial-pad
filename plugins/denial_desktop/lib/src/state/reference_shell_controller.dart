@@ -18,6 +18,7 @@ import 'input_deck.dart';
 import 'phone_desk.dart';
 import 'phone_desk_input.dart';
 import 'reference_shell_metrics.dart';
+import 'split_debug.dart';
 import 'reference_shell_profile.dart';
 import 'reference_input_layout_coordinator.dart';
 
@@ -1037,10 +1038,11 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   void dismissSplitPicker() => endSplit();
 
   void updateSplitRatio(double ratio) {
-    final pair = state.splitPair?.withRatio(ratio);
+    final pair = state.splitPair;
     if (pair == null) return;
-    state = state.copyWith(splitPair: pair);
-    _platform.updateSplitRatio(pair.ratio);
+    splitDebug('ratio ${ratio.toStringAsFixed(3)}');
+    state = state.copyWith(splitPair: pair.withRatio(ratio));
+    _platform.updateSplitRatio(state.splitPair!.ratio);
   }
 
   void setSplitActive(SplitSide side) {
