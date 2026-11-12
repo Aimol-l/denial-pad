@@ -892,12 +892,46 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   /// Fixes one app to a side; the other side shows the picker until a second
   /// app is chosen.
-  void beginSingleSplit(
+  /// Whether a pane of the current screen can host [window] at 50:50.
+  bool _appFitsPane(DenialWindow window, {required bool vertical}) {
+    final size = _deck.geometry.size;
+    if (size.width <= 0 || size.height <= 0) return true;
+    final status = ReferenceShellMetrics.appStatusInset(size);
+    final paneWidth = vertical ? size.width : size.width / 2;
+    final paneHeight = vertical
+        ? (size.height - status) / 2
+        : size.height - status;
+    return window.minWidth <= paneWidth && window.minHeight <= paneHeight;
+  }
+
+  /// Whether a pair at 50:50 can host both apps; the split is refused when it
+  /// cannot, so the panes always draw at their native size.
+  bool _splitFits(int firstId, int secondId, {required bool vertical}) {
+    final size = _deck.geometry.size;
+    if (size.width <= 0 || size.height <= 0) return true;
+    final first = state.windowByObjectId(firstId);
+    final second = state.windowByObjectId(secondId);
+    if (first == null || second == null) return true;
+    return splitFits(
+      width: size.width,
+      height: size.height,
+      topInset: ReferenceShellMetrics.appStatusInset(size),
+      vertical: vertical,
+      firstMinWidth: first.minWidth,
+      firstMinHeight: first.minHeight,
+      secondMinWidth: second.minWidth,
+      secondMinHeight: second.minHeight,
+    );
+  }
+
+  /// Starts one side of a split; false when that app cannot live in a pane.
+  bool beginSingleSplit(
     DenialWindow window, {
     required bool vertical,
     bool first = true,
   }) {
-    if (!window.isUserApp) return;
+    if (!window.isUserApp) return false;
+    if (!_appFitsPane(window, vertical: vertical)) return false;
     // The app stays on the side it was dropped on; the picker takes the other.
     final pair = first
         ? SplitPair(first: window.objectId, second: 0, vertical: vertical)
@@ -929,32 +963,36 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       ratio: pair.ratio,
     );
     _platform.focusWindow(window);
+    return true;
   }
 
   /// A recents card dropped on a side: a split card hands the side under the
   /// finger the whole screen, a single app starts a fresh split.
-  void dropCardOnSide(
+  bool dropCardOnSide(
     DenialWindow window, {
     required bool vertical,
     required bool first,
   }) {
     final pair = state.splitPair;
     if (pair == null || !pair.contains(window.objectId)) {
-      beginSingleSplit(window, vertical: vertical, first: first);
-      return;
+      return beginSingleSplit(window, vertical: vertical, first: first);
     }
     final target = state.windowByObjectId(first ? pair.first : pair.second);
     endSplit();
     if (target != null) focusWindow(target);
+    return true;
   }
 
   /// The picker's choice: the second pane joins the first.
-  void pickSplitSecond(DenialWindow second) {
+  bool pickSplitSecond(DenialWindow second) {
     final pair = state.splitPair;
     if (pair == null || !second.isUserApp || pair.contains(second.objectId)) {
-      return;
+      return false;
     }
     final next = pair.filled(second.objectId);
+    if (!_splitFits(next.first, next.second, vertical: next.vertical)) {
+      return false;
+    }
     state = state.copyWith(
       splitPair: next,
       foregroundObjectId: next.activeWindow,
@@ -968,6 +1006,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     );
     final placed = state.windowByObjectId(next.activeWindow);
     if (placed != null) _platform.focusWindow(placed);
+    return true;
   }
 
   /// Rotating the phone flips a split's axis; the panes keep their order and

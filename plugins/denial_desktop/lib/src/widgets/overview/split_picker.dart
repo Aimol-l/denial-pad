@@ -29,6 +29,11 @@ class SplitPicker extends ConsumerWidget {
             .toList(growable: false),
       ),
     );
+    final fixed = ref.watch(
+      referenceShellProvider.select(
+        (state) => state.windowByObjectId(pair.first),
+      ),
+    );
     final controller = ref.read(referenceShellProvider.notifier);
     return ClipRect(
       child: BackdropFilter(
@@ -67,34 +72,63 @@ class SplitPicker extends ConsumerWidget {
                           ),
                         ),
                       )
-                    : GridView.builder(
-                        padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              mainAxisSpacing: 14,
-                              crossAxisSpacing: 14,
-                              childAspectRatio: 4 / 3.5,
-                            ),
-                        itemCount: candidates.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == candidates.length) {
-                            return _Tile(
-                              label: '全部应用',
-                              onTap: onAllApps,
-                              child: const _AllAppsMark(),
-                            );
-                          }
-                          final window = candidates[index];
-                          return _Tile(
-                            label: window.title.isEmpty
-                                ? window.appId
-                                : window.title,
-                            onTap: () => controller.pickSplitSecond(window),
-                            child: WindowContentRect(
-                              window: window,
-                              applyBackdrop: false,
-                            ),
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          final pane = constraints.biggest;
+                          return GridView.builder(
+                            padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                                  crossAxisCount: 2,
+                                  mainAxisSpacing: 14,
+                                  crossAxisSpacing: 14,
+                                  childAspectRatio: 4 / 3.5,
+                                ),
+                            itemCount: candidates.length + 1,
+                            itemBuilder: (context, index) {
+                              if (index == candidates.length) {
+                                return _Tile(
+                                  label: '全部应用',
+                                  onTap: onAllApps,
+                                  child: const _AllAppsMark(),
+                                );
+                              }
+                              final window = candidates[index];
+                              final fits = fixed == null
+                                  ? true
+                                  : (splitRatioBounds(
+                                          extent: pair.vertical
+                                              ? pane.height
+                                              : pane.width,
+                                          firstMin: pair.vertical
+                                              ? fixed.minHeight
+                                              : fixed.minWidth,
+                                          secondMin: pair.vertical
+                                              ? window.minHeight
+                                              : window.minWidth,
+                                        ) !=
+                                        null);
+                              return _Tile(
+                                label: window.title.isEmpty
+                                    ? window.appId
+                                    : window.title,
+                                detail: fits
+                                    ? null
+                                    : '最小需要 '
+                                          '${window.minWidth.round()}×'
+                                          '${window.minHeight.round()}',
+                                onTap: fits
+                                    ? () => controller.pickSplitSecond(window)
+                                    : null,
+                                child: Opacity(
+                                  opacity: fits ? 1 : 0.4,
+                                  child: WindowContentRect(
+                                    window: window,
+                                    applyBackdrop: false,
+                                  ),
+                                ),
+                              );
+                            },
                           );
                         },
                       ),
@@ -108,14 +142,21 @@ class SplitPicker extends ConsumerWidget {
 }
 
 class _Tile extends StatelessWidget {
-  const _Tile({required this.label, required this.child, required this.onTap});
+  const _Tile({
+    required this.label,
+    required this.child,
+    required this.onTap,
+    this.detail,
+  });
 
   final String label;
+  final String? detail;
   final Widget child;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
+    final detail = this.detail;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: onTap,
@@ -143,6 +184,17 @@ class _Tile extends StatelessWidget {
               decoration: TextDecoration.none,
             ),
           ),
+          if (detail != null)
+            Text(
+              detail,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xB3F3F4F7),
+                fontSize: 11,
+                decoration: TextDecoration.none,
+              ),
+            ),
         ],
       ),
     );

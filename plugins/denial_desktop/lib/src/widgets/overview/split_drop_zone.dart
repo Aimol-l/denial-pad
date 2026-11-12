@@ -25,10 +25,18 @@ enum SplitDropSide {
 /// as split screen before the finger travels anywhere; the side under the
 /// finger brightens.
 class SplitDropOverlay extends StatelessWidget {
-  const SplitDropOverlay({super.key, required this.side, required this.vertical});
+  const SplitDropOverlay({
+    super.key,
+    required this.side,
+    required this.vertical,
+    this.refusal,
+  });
 
   final SplitDropSide? side;
   final bool vertical;
+
+  /// Why the last drop could not start a split, if it could not.
+  final String? refusal;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +55,36 @@ class SplitDropOverlay extends StatelessWidget {
                 label: candidate.label,
                 detail: _detail(size, MediaQuery.devicePixelRatioOf(context)),
                 active: candidate == active,
+              ),
+            ),
+          if (refusal case final message?)
+            Positioned(
+              left: 24,
+              right: 24,
+              bottom: 96,
+              child: Center(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0xE614161C),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 14,
+                      vertical: 10,
+                    ),
+                    child: Text(
+                      message,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xFFF2F3F7),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        decoration: TextDecoration.none,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
           if (active == null)
@@ -81,8 +119,8 @@ class SplitDropOverlay extends StatelessWidget {
     final usableWidth = width - margin * 2 - gutter;
     final usableHeight = height - status - margin;
     final paneWidth = (vertical ? usableWidth : usableWidth / 2).round();
-    final paneHeight =
-        (vertical ? (usableHeight - gutter) / 2 : usableHeight).round();
+    final paneHeight = (vertical ? (usableHeight - gutter) / 2 : usableHeight)
+        .round();
     return '50% · 约 $paneWidth × $paneHeight';
   }
 

@@ -129,6 +129,45 @@ typedef SplitPaneRect = ({
   double height,
 });
 
+/// The ratio interval that keeps both panes at or above their minimum size,
+/// intersected with the draggable range. Null when no ratio can host both.
+({double min, double max})? splitRatioBounds({
+  required double extent,
+  required double firstMin,
+  required double secondMin,
+  double minRatio = splitMinFraction,
+  double maxRatio = splitMaxFraction,
+}) {
+  final span = extent <= 0 ? 1.0 : extent;
+  final first = firstMin < 1 ? 1.0 : firstMin;
+  final second = secondMin < 1 ? 1.0 : secondMin;
+  if (first + second > span) return null;
+  final low = (first / span).clamp(minRatio, maxRatio);
+  final high = (1 - second / span).clamp(minRatio, maxRatio);
+  return low <= high ? (min: low, max: high) : null;
+}
+
+/// Whether a split of [width] × [height] (status bar [topInset] tall) can host
+/// both clients at their minimum size.
+bool splitFits({
+  required double width,
+  required double height,
+  required double topInset,
+  required bool vertical,
+  required double firstMinWidth,
+  required double firstMinHeight,
+  required double secondMinWidth,
+  required double secondMinHeight,
+}) {
+  final extent = vertical ? height - topInset : width;
+  return splitRatioBounds(
+        extent: extent,
+        firstMin: vertical ? firstMinHeight : firstMinWidth,
+        secondMin: vertical ? secondMinHeight : secondMinWidth,
+      ) !=
+      null;
+}
+
 /// The two panes of [pair] inside a view whose status bar is [topInset] tall.
 ///
 /// Mirrors the compositor's `split_rects`, so the shell draws each window at

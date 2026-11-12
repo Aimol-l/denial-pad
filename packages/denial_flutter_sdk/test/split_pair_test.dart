@@ -67,4 +67,47 @@ void main() {
     expect(bottom.top, top.top + top.height);
     expect(bottom.top + bottom.height, 1245);
   });
+
+  test('a split is refused when both minimums cannot fit', () {
+    expect(
+      splitRatioBounds(extent: 1600, firstMin: 900, secondMin: 800),
+      isNull,
+    );
+    final bounds = splitRatioBounds(
+      extent: 1600,
+      firstMin: 700,
+      secondMin: 600,
+    )!;
+    expect(bounds.min, closeTo(0.4375, 1e-9));
+    expect(bounds.max, closeTo(0.625, 1e-9));
+  });
+
+  test('a landscape split asks for the width, a portrait one the height', () {
+    expect(
+      splitFits(
+        width: 1600,
+        height: 1000,
+        topInset: 45,
+        vertical: false,
+        firstMinWidth: 700,
+        firstMinHeight: 600,
+        secondMinWidth: 600,
+        secondMinHeight: 600,
+      ),
+      isTrue,
+    );
+    expect(
+      splitFits(
+        width: 800,
+        height: 1000,
+        topInset: 45,
+        vertical: true,
+        firstMinWidth: 1,
+        firstMinHeight: 500,
+        secondMinWidth: 1,
+        secondMinHeight: 500,
+      ),
+      isFalse,
+    );
+  });
 }

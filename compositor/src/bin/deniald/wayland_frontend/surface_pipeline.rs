@@ -1527,6 +1527,15 @@ impl WaylandFrontend {
             let minimum = super::managed_window::ManagedWindow::new(window)
                 .map(|managed| managed.facts().minimum_size)
                 .unwrap_or_else(|| Size::from((0, 0)));
+            // A split forces the app to 1.0 scale, so the shell has to judge
+            // the pane against the minimum at that scale, not the user's.
+            let app_scale = window
+                .wl_surface()
+                .map(|surface| {
+                    super::application_scale::application_scale_for_surface(surface.as_ref())
+                })
+                .filter(|scale| scale.is_finite() && *scale > 0.0)
+                .unwrap_or(1.0);
             let description = WindowDescription {
                 object_id: stable_id,
                 surface_id: stable_id,
@@ -1549,8 +1558,8 @@ impl WaylandFrontend {
                 geometry_y: f64::from(geometry.loc.y) - self.atlas_origin.y,
                 geometry_width: f64::from(geometry.size.w),
                 geometry_height: f64::from(geometry.size.h),
-                min_width: f64::from(minimum.w),
-                min_height: f64::from(minimum.h),
+                min_width: f64::from(minimum.w) / app_scale,
+                min_height: f64::from(minimum.h) / app_scale,
                 monitor_id,
                 workspace_id,
                 transient_parent_id: transient_parent_id.unwrap_or(0),

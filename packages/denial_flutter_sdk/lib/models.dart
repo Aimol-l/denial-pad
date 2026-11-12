@@ -18,7 +18,9 @@ export 'src/models/split_pair.dart'
         splitMinFraction,
         splitSnapWindow,
         SplitPaneRect,
-        splitPaneRects;
+        splitPaneRects,
+        splitFits,
+        splitRatioBounds;
 export 'src/models/audio.dart'
     show AppAudioStream, AudioLevelState, AudioOutputDevice;
 export 'src/models/clipboard_history.dart'

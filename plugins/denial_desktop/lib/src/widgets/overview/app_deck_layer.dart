@@ -70,8 +70,9 @@ class AppDeckLayer extends StatefulWidget {
   final ValueChanged<DenialWindow>? onMoveWindowToDesk;
 
   /// A card picked up by a long press was dropped on a side: start a split
-  /// with that app fixed to the side.
-  final void Function(DenialWindow window, SplitDropSide side)? onSplitSide;
+  /// with that app fixed to the side. False when the app cannot live in a
+  /// pane at the current ratio.
+  final bool Function(DenialWindow window, SplitDropSide side)? onSplitSide;
 
   @override
   State<AppDeckLayer> createState() => _AppDeckLayerState();
@@ -88,6 +89,9 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
   static const double _longestGlide = 1.1;
 
   final _open = ValueNotifier(0.0);
+
+  /// Why the last drop was refused, shown over the drop zone.
+  String? _splitRefusal;
 
   /// The card being carried to a side, and the side under the finger.
   DenialWindow? _splitPickup;
@@ -250,6 +254,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
   void _pickupStart(DenialWindow window, Offset global) {
     setState(() {
       _splitPickup = window;
+      _splitRefusal = null;
       _pickupOrigin = global;
       // A long press alone must not choose a side: the card usually sits over
       // one already. The drop only arms after the finger actually travels.
@@ -273,7 +278,14 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
       _splitSide = null;
       _pickupOrigin = null;
     });
-    if (window != null && side != null) widget.onSplitSide?.call(window, side);
+    if (window == null || side == null) return;
+    final accepted = widget.onSplitSide?.call(window, side) ?? true;
+    if (!accepted) {
+      setState(() {
+        _splitRefusal =
+            '该应用最小需要 ${window.minWidth.round()}×${window.minHeight.round()}';
+      });
+    }
   }
 
   SplitDropSide? _sideAt(Offset point) {
@@ -421,6 +433,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
                   if (_splitPickup != null)
                     SplitDropOverlay(
                       side: _splitSide,
+                      refusal: _splitRefusal,
                       vertical:
                           MediaQuery.sizeOf(context).height >
                           MediaQuery.sizeOf(context).width,
