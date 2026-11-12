@@ -28,6 +28,10 @@ class MobileSplitStage extends ConsumerWidget {
         (state) => (
           first: state.windowByObjectId(pair.first),
           second: state.windowByObjectId(pair.second),
+          // `DenialWindow` equality is about presentation, so a new buffer
+          // would not rebuild the panes; the snapshot sequence does. Without
+          // it the pane that just took focus keeps showing the old texture.
+          sequence: state.windowSnapshotSequence,
         ),
       ),
     );
