@@ -39,6 +39,7 @@ class ReferenceShellState {
     required this.platform,
     required this.desk,
     required this.overviewVisible,
+    this.splitNotice,
     required this.gesture,
     required this.quickSettingsVisible,
     required this.quickSettingsDragged,
@@ -123,6 +124,9 @@ class ReferenceShellState {
   bool get locked => platform.locked;
 
   final bool overviewVisible;
+
+  /// A short message for the person, such as why a split was dropped.
+  final String? splitNotice;
   final GestureDragPhase gesture;
   final bool quickSettingsVisible;
 
@@ -168,6 +172,8 @@ class ReferenceShellState {
     ShellState? platform,
     ShellState? desk,
     bool? overviewVisible,
+    String? splitNotice,
+    bool clearSplitNotice = false,
     GestureDragPhase? gesture,
     bool? quickSettingsVisible,
     bool? quickSettingsDragged,
@@ -192,6 +198,7 @@ class ReferenceShellState {
       platform: platform ?? this.platform,
       desk: desk ?? this.desk,
       overviewVisible: overviewVisible ?? this.overviewVisible,
+      splitNotice: clearSplitNotice ? null : (splitNotice ?? this.splitNotice),
       gesture: gesture ?? this.gesture,
       quickSettingsVisible: quickSettingsVisible ?? this.quickSettingsVisible,
       quickSettingsDragged: quickSettingsDragged ?? this.quickSettingsDragged,

@@ -18,6 +18,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../widgets/app_flight_layer.dart';
+import '../../widgets/overview/split_notice.dart';
 import '../../widgets/back_gesture_layer.dart';
 import '../../widgets/bottom_gesture_handle.dart';
 import '../../widgets/mobile_keyboard_viewport.dart';
@@ -139,6 +140,7 @@ class _MobileApplicationSceneState
               // Above recents: a card leaving recents for home keeps
               // flying over the cards that settle away.
               const AppFlightLayer(),
+              const SplitNotice(),
             ],
           ),
         ),

@@ -1066,6 +1066,16 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   void dismissSplitPicker() => endSplit();
 
   Timer? _splitCompliance;
+  Timer? _splitNoticeTimer;
+
+  /// Tells the person why the shell did something they did not ask for.
+  void showSplitNotice(String message) {
+    state = state.copyWith(splitNotice: message);
+    _splitNoticeTimer?.cancel();
+    _splitNoticeTimer = Timer(const Duration(milliseconds: 2600), () {
+      state = state.copyWith(clearSplitNotice: true);
+    });
+  }
 
   /// A client that will not adopt its pane rectangle (GNOME Console, for one)
   /// cannot live in a split without being cropped; the split ends instead and
@@ -1098,8 +1108,10 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
           'adopted=$adopted',
         );
         if (!adopted && window.contentWidth > 0) {
+          final name = window.title.isEmpty ? window.appId : window.title;
           endSplit();
           focusWindow(window);
+          showSplitNotice('“$name” 无法调整到分屏尺寸');
           return;
         }
       }
