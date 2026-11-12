@@ -662,7 +662,7 @@ impl WaylandFrontend {
         textures: &mut [ExternalTextureFrame],
     ) -> Rectangle<i32, Logical> {
         let top = self.mobile_window_inset(window);
-        if top <= 0 {
+        if top <= 0 && !self.mobile_shell {
             return content;
         }
         let Some(root_id) = self
