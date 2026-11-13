@@ -56,7 +56,10 @@ class StatusTelemetry extends ConsumerWidget {
         ),
         const SizedBox(width: 12),
         _Readout(icon: Icons.memory_rounded, value: '$memory%', color: color),
-        if (!airplane) ...<Widget>[
+        if (airplane) ...<Widget>[
+          const SizedBox(width: 12),
+          Icon(Icons.airplanemode_active_rounded, size: 16, color: color),
+        ] else ...<Widget>[
           const SizedBox(width: 12),
           if (mobile.showCellular && (hasModem ? mobileOn : true))
             _MobileMark(color: color, snapshot: mobile),
@@ -257,18 +260,6 @@ class StatusTicker extends ConsumerWidget {
         (state) => (active: state.active, history: state.history),
       ),
     );
-    final network = ref.watch(networkConnectivityProvider);
-    final bluetooth = ref.watch(bluetoothProvider);
-    final mobile =
-        ref.watch(mobileNetworkProvider).value ?? const MobileNetworkSnapshot();
-    final airplane = radiosOff(
-      wifiOn:
-          network.snapshot.wirelessEnabled &&
-          network.snapshot.wifiDeviceAvailable,
-      bluetoothOn: bluetooth.powered && bluetooth.available,
-      hasModem: mobile.modemPath != null,
-      mobileOn: mobile.enabled,
-    );
     final (IconData? icon, String text) = switch (playback) {
       final playback?
           when playback.title.isNotEmpty &&
@@ -285,7 +276,6 @@ class StatusTicker extends ConsumerWidget {
           Icons.notifications_none_rounded,
           '${newest.appName} · ${newest.summary}',
         ),
-        _ when airplane => (Icons.airplanemode_active_rounded, '飞行模式已开启'),
         _ => (null, ''),
       },
     };
