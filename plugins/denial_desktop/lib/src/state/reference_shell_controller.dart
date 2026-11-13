@@ -453,6 +453,9 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
         : _matchingLaunchWindow(state.windows, request);
     if (launchWindow != null) {
       final shouldActivate = state.launchingObjectId != launchWindow.objectId;
+      // Launching an app while two apps share the screen gives the newcomer
+      // the whole screen, as opening it from the launcher would.
+      _leaveSplitFor(launchWindow);
       // A gesture holding the opening card keeps holding it.
       state = state.copyWith(
         overviewVisible: false,
@@ -488,6 +491,26 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     endSplit();
     final window = state.windowByObjectId(survivor);
     if (window != null) focusWindow(window);
+  }
+
+  /// Ends the split so [window] can take the whole screen.
+  ///
+  /// A split holds the pair the person put there: an app from the launcher, a
+  /// notification, or the shell's own settings opens fullscreen rather than
+  /// replacing a pane, the way Android leaves a split alone when something
+  /// else comes to the front. Both former members go back to the background
+  /// and stay in recents. Returns whether it ended a split.
+  bool _leaveSplitFor(DenialWindow window) {
+    final pair = state.splitPair;
+    if (pair == null || pair.contains(window.objectId)) return false;
+    final members = [
+      for (final id in [pair.first, pair.second]) ?state.windowByObjectId(id),
+    ];
+    endSplit();
+    for (final member in members) {
+      if (!member.minimized) _bridge.minimizeWindow(member);
+    }
+    return true;
   }
 
   DenialWindow? _matchingLaunchWindow(
@@ -1221,42 +1244,10 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
           }
           return;
         }
-        // A window the shell did not ask for, such as a notification's app,
-        // takes the side of the split that is not in use; the window it
-        // replaces goes back to the background.
-        if (split != null &&
-            split.isComplete &&
-            !split.contains(window.objectId)) {
-          final next = split.active == SplitSide.first
-              ? SplitPair(
-                  first: split.first,
-                  second: window.objectId,
-                  vertical: split.vertical,
-                  ratio: split.ratio,
-                  active: SplitSide.second,
-                )
-              : SplitPair(
-                  first: window.objectId,
-                  second: split.second,
-                  vertical: split.vertical,
-                  ratio: split.ratio,
-                  active: SplitSide.first,
-                );
-          if (!_splitFits(next.first, next.second, vertical: next.vertical)) {
-            return;
-          }
-          state = state.copyWith(
-            splitPair: next,
-            foregroundObjectId: next.activeWindow,
-          );
-          _syncSplitDeck();
-          _platform.splitWindowsByIds(
-            first: next.first,
-            second: next.second,
-            vertical: next.vertical,
-            ratio: next.ratio,
-          );
-          _platform.focusWindow(window);
+        // A split holds the pair the person put there; anything else that
+        // comes to the front takes the whole screen instead of a pane.
+        if (_leaveSplitFor(window)) {
+          _activateWindowInShell(window);
           return;
         }
         // Activation of the switch target confirms it and changes nothing
