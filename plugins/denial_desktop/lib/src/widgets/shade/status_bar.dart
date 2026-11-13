@@ -16,7 +16,7 @@ import 'package:denial_flutter_sdk/tokens.dart';
 
 import 'shade_expansion_motion.dart';
 import 'shade_reference_geometry.dart';
-import 'status_glyphs.dart';
+import 'status_bar_extras.dart';
 
 /// The status row's geometry and its path into the shade header, shared by
 /// [ShadeStatusBar] and [ShadeHeaderStatusLayer].
@@ -32,6 +32,7 @@ class _StatusGeometry {
   static const collapsedHeight = ReferenceShellMetrics.statusBarHeight - 18;
   double get expandedTop => math.max(40 * referenceScale, topPadding);
   double get expandedHeight => 18 * referenceScale;
+
   /// The status row at [progress] of the shade, in screen coordinates.
   List<Widget> foreground(
     BuildContext context,
@@ -47,25 +48,62 @@ class _StatusGeometry {
       foreground,
       collapsed ? 1.0 : progress,
     );
-    return [_cluster(fraction, color), ..._clock(context, fraction, color)];
+    return [
+      _right(fraction, color),
+      _ticker(fraction, color),
+      ..._clock(context, fraction, color),
+    ];
   }
 
-  /// The icons rise with the row into the shade header.
-  Widget _cluster(double fraction, Color color) {
+  /// Speed, memory, the radios and the battery. They leave the row as the
+  /// shade opens: the header has its own tiles to show.
+  Widget _right(double fraction, Color color) {
     final horizontal = 20 + (35 * referenceScale - 20) * fraction;
     return Positioned(
       top: collapsedTop + (expandedTop - collapsedTop) * fraction,
       left: horizontal,
       right: horizontal,
       height: collapsedHeight + (expandedHeight - collapsedHeight) * fraction,
-      child: Row(
-        children: [
-          const Spacer(),
-          _StatusCluster(color: color),
-        ],
+      child: Opacity(
+        opacity: _restOpacity(fraction),
+        child: IgnorePointer(
+          child: Row(
+            children: [
+              const Spacer(),
+              StatusTelemetry(color: color),
+            ],
+          ),
+        ),
       ),
     );
   }
+
+  /// The media or newest notification, centred on the screen: the two side
+  /// groups share the space left over, so it sits on the middle line whatever
+  /// their widths.
+  Widget _ticker(double fraction, Color color) {
+    return Positioned(
+      top: collapsedTop,
+      left: 0,
+      right: 0,
+      height: collapsedHeight,
+      child: Opacity(
+        opacity: _restOpacity(fraction),
+        child: IgnorePointer(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 520),
+              child: StatusTicker(color: color),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// 1 at rest, 0 once the shade has pulled a quarter of the way.
+  double _restOpacity(double fraction) =>
+      (1 - fraction * 4).clamp(0.0, 1.0).toDouble();
 
   /// The clock leaves the status row: it grows from its slot into the shade
   /// header, in line with the tiles, and carries the date.
@@ -88,7 +126,34 @@ class _StatusGeometry {
         child: Transform.scale(
           scale: clockScale,
           alignment: AlignmentDirectional.topStart,
-          child: _StatusClock(color: color),
+          child: Opacity(
+            opacity: 1,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                _StatusClock(color: color),
+                Opacity(
+                  opacity: _restOpacity(fraction),
+                  child: IgnorePointer(
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const SizedBox(width: 10),
+                        Container(
+                          width: 1,
+                          height: 17,
+                          color: color.withValues(alpha: 0.22),
+                        ),
+                        const SizedBox(width: 10),
+                        StatusNotificationTiles(color: color),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
       if (dateAlpha > 0)
@@ -325,21 +390,6 @@ class _StatusDate extends ConsumerWidget {
         height: 1,
         fontWeight: FontWeight.w500,
       ),
-    );
-  }
-}
-
-class _StatusCluster extends ConsumerWidget {
-  const _StatusCluster({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return StatusCluster(
-      battery: ref.watch(batteryProvider),
-      color: color,
-      scale: 1.1,
     );
   }
 }
