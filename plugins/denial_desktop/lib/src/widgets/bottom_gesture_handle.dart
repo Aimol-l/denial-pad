@@ -229,6 +229,13 @@ class _BottomGestureHandleState extends ConsumerState<BottomGestureHandle>
         controller.closeOverview();
         return true;
       }
+      // Upward leaves recents for home, the way Android takes the next swipe
+      // after a lift that stopped in recents. A split travels with it: the
+      // pair waits in the background, still one card.
+      if (drag.dy < -_closeDistance || velocity.dy < -_flickVelocity) {
+        controller.goHome(releaseVelocity: velocity.dy);
+        return true;
+      }
       controller.resetGestureDrag(releaseVelocity: velocity.dy);
       return false;
     }

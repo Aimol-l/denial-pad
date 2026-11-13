@@ -888,3 +888,11 @@ Tasks 1–8 已实现并提交（`3b41438` … `d12c3f3`），Task 9 验收部�
   4. 桌面再上划 → recents 里分屏卡还在（`sa1`），点开仍是完整分屏（`sa2`）。
 
 **关于触摸注入**：设备这次是「未旋转的竖屏」（`outputs.conf` 无 transform），触摸映射是恒等（raw = logical），之前按 `transform=90` 推导的 `/tmp/pinput.py` 坐标系已失效；本轮改用 `/tmp/ptouch.py`（tap/drag/flick，恒等映射）。另外从桌面起步的上划只有从**最底边**（y≈2557）开始才命中手势条，从 dock 上方（y≈2540）会被 dock 吃掉。
+
+**4. recents 里上划回不到桌面 —— 2026-11-13 21:40**
+- 根因：`BottomGestureHandle._resolvePan` 的 recents 分支只处理**下划**（`closeOverview()`，回到应用），上划直接落到 `resetGestureDrag()`——**什么也不做**。用户在 recents 里上划想回桌面，怎么划都没反应。分屏驻留之后 recents 更常出现（一张分屏卡），这个空洞暴露得更明显。
+- 改法：recents 里上划（超过 `_closeDistance` 或甩速超过 `_flickVelocity`）→ `goHome()`；`goHome()` 会 `_parkSplit()`，所以分屏随之外驻留、recents 里仍是一张卡。
+- 验证（用伪造的 `net.hadess.SensorProxy` 精确复现旋转）：分屏 → 转竖屏 → 转回横屏 → 上划（recents，一张双窗格卡）→ 再上划（桌面）→ 上划（卡还在）→ 点卡（分屏恢复）。
+
+**测试基建：伪造加速度计**
+平板的方向来自 D-Bus `net.hadess.SensorProxy`（iio-sensor-proxy）。`sudo systemctl stop iio-sensor-proxy` 后运行一个同名 D-Bus 服务（`/tmp/fakeorient.py`），读 `/tmp/orient` 并广播 `PropertiesChanged`，就能随时把输出旋到 `normal`/`left-up`，无需真的转动设备。测完要 `sudo systemctl start iio-sensor-proxy` 并删除 `/tmp/orient`。
