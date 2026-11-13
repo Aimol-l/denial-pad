@@ -510,16 +510,27 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     final pair = state.splitPair;
     if (pair == null || state.splitParked) return false;
     if (pair.contains(window.objectId)) return false;
+    return _parkSplit();
+  }
+
+  /// Leaves the pair in the background, still one recents card.
+  ///
+  /// The panes give up the shared geometry, the compositor takes them off the
+  /// screen and both apps are parked; the pair's two apps, its axis and its
+  /// ratio stay in the shell, so coming back to either side restores it. A
+  /// pair still waiting for its second app has nothing worth keeping.
+  bool _parkSplit() {
+    final pair = state.splitPair;
+    if (pair == null) return false;
     if (!pair.isComplete) {
       endSplit();
       return false;
     }
+    if (state.splitParked) return true;
     final members = [
       for (final id in [pair.first, pair.second]) ?state.windowByObjectId(id),
     ];
     state = state.copyWith(splitParked: true);
-    // The panes leave their shared geometry behind; the compositor gives the
-    // newcomer the screen. Both apps stay parked as they were.
     _platform.endSplit();
     for (final member in members) {
       if (!member.minimized) _bridge.minimizeWindow(member);
@@ -767,11 +778,12 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       );
       return;
     }
-    // Home is a single-app place for now: the pair ends with the app.
-    if (state.splitPair != null) endSplit();
-    // The app in front flies into its icon from wherever the deck has it;
-    // the rest of the deck settles away.
-    final front = state.foregroundWindow?.objectId;
+    // Home keeps a split together: the pair waits in the background, one card
+    // in recents, exactly as it does when another app opens over it.
+    _parkSplit();
+    // The app in front flies into its icon from wherever the deck has it; the
+    // rest of the deck settles away. A split flies its one card, not a side.
+    final front = _deckIdOf(state.foregroundWindow?.objectId);
     if (front != null) _deck.sendHome(front, openRate: rate);
     _deck.open.settle(
       0,

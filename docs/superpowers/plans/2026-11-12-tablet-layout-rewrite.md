@@ -877,3 +877,14 @@ Tasks 1–8 已实现并提交（`3b41438` … `d12c3f3`），Task 9 验收部�
 - 实机验证（竖屏 1600×2560，终端 + 文件分屏）：在下半屏上划 → recents 正常打开。
 
 用户确认两条均修复。
+
+**3. 上划（回桌面）会解散分屏 —— 2026-11-13 20:45**
+- 根因：`goHome()` 里还留着分屏早期的 `if (state.splitPair != null) endSplit();`（注释写着“Home is a single-app place for now”）。上一轮做了分屏驻留，但回桌面这条路径没跟上。
+- 改法：抽 `_parkSplit()`（决定“驻留还是结束”），`_parkSplitFor(window)` 复用它；`goHome()` 改为 `_parkSplit()`。飞回图标的 app 取 `_deckIdOf(...)`，所以分屏是**一张卡**整体飞回，而不是飞一侧。
+- 实机验证（竖屏 1600×2560，文本编辑器 + 终端）：
+  1. 分屏上划 → recents 里是**一张包含两个窗格的分屏卡**（`rz2`）；
+  2. 点这张卡 → 分屏原样恢复（`rz3`）；
+  3. 快速上甩 → 回桌面（`rz4`），分屏驻留；
+  4. 桌面再上划 → recents 里分屏卡还在（`sa1`），点开仍是完整分屏（`sa2`）。
+
+**关于触摸注入**：设备这次是「未旋转的竖屏」（`outputs.conf` 无 transform），触摸映射是恒等（raw = logical），之前按 `transform=90` 推导的 `/tmp/pinput.py` 坐标系已失效；本轮改用 `/tmp/ptouch.py`（tap/drag/flick，恒等映射）。另外从桌面起步的上划只有从**最底边**（y≈2557）开始才命中手势条，从 dock 上方（y≈2540）会被 dock 吃掉。
