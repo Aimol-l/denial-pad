@@ -222,13 +222,7 @@ class _MobileNotificationHistoryState
                     cachedGlass: cachedGlass,
                     child: switch (row) {
                       NotificationGroupHeaderRow(:final group) =>
-                        _HistoryGroupHeader(
-                          key: key,
-                          group: group,
-                          onCollapse: () => ref
-                              .read(expandedNotificationGroupsProvider.notifier)
-                              .collapse(group.key),
-                        ),
+                        _HistoryGroupHeader(key: key, group: group),
                       NotificationGroupRow(:final group) =>
                         _HistoryNotification(
                           key: key,
@@ -454,14 +448,9 @@ class _HistoryNotification extends StatelessWidget {
 /// Above an opened group's members: its app and count, and a button that
 /// folds it back into one card.
 class _HistoryGroupHeader extends StatelessWidget {
-  const _HistoryGroupHeader({
-    required this.group,
-    required this.onCollapse,
-    super.key,
-  });
+  const _HistoryGroupHeader({required this.group, super.key});
 
   final DesktopNotificationGroup group;
-  final VoidCallback onCollapse;
 
   @override
   Widget build(BuildContext context) {
@@ -497,11 +486,6 @@ class _HistoryGroupHeader extends StatelessWidget {
                     height: 1.2,
                   ),
                 ),
-              ),
-              _HistoryButton(
-                label: l10n.notificationGroupCollapse(appName),
-                icon: Icons.expand_less_rounded,
-                onPressed: onCollapse,
               ),
             ],
           ),

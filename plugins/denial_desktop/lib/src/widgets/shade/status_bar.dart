@@ -355,21 +355,7 @@ class _StatusClock extends ConsumerWidget {
       fontWeight: FontWeight.w700,
       letterSpacing: 0.2,
     );
-    final separator = time.indexOf(':');
-    return Text.rich(
-      TextSpan(
-        children: separator <= 0 || separator == time.length - 1
-            ? <InlineSpan>[TextSpan(text: time)]
-            : <InlineSpan>[
-                TextSpan(text: time.substring(0, separator + 1)),
-                TextSpan(
-                  text: time.substring(separator + 1),
-                  style: TextStyle(color: color.withValues(alpha: 0.62)),
-                ),
-              ],
-      ),
-      style: base.copyWith(color: color),
-    );
+    return Text(time, style: base.copyWith(color: color));
   }
 }
 

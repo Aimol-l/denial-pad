@@ -927,8 +927,8 @@ class _QuickSettingsTilesSection extends ConsumerWidget {
         desktopNotificationsProvider.select((state) => state.doNotDisturb),
       ),
       loaded:
-          ref.watch(shellSettingsSyncStatusProvider).phase ==
-          ShellSettingsSyncPhase.ready,
+          ref.watch(shellSettingsSyncStatusProvider).phase !=
+          ShellSettingsSyncPhase.loading,
     );
     final notificationController = ref.read(
       desktopNotificationsProvider.notifier,
@@ -1268,9 +1268,7 @@ class _HorizontalRangeCard extends StatelessWidget {
             ),
             // Slightly more air before the percentage on the brightness row
             // so both rows end on the same right edge.
-            SizedBox(
-              width: onSecondaryTap == null ? 6 : 5,
-            ),
+            SizedBox(width: onSecondaryTap == null ? 6 : 5),
             if (onSecondaryTap case final open?)
               GestureDetector(
                 behavior: HitTestBehavior.opaque,

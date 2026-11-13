@@ -46,6 +46,9 @@ class StatusTelemetry extends ConsumerWidget {
     final rate = ref.watch(downloadSpeedProvider);
     final memory = ref.watch(memoryPercentProvider);
     final battery = ref.watch(batteryProvider);
+    final muted = ref.watch(
+      desktopNotificationsProvider.select((state) => state.doNotDisturb),
+    );
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
@@ -56,6 +59,10 @@ class StatusTelemetry extends ConsumerWidget {
         ),
         const SizedBox(width: 12),
         _Readout(icon: Icons.memory_rounded, value: '$memory%', color: color),
+        if (muted) ...<Widget>[
+          const SizedBox(width: 12),
+          Icon(Icons.notifications_off_rounded, size: 16, color: color),
+        ],
         if (airplane) ...<Widget>[
           const SizedBox(width: 12),
           Icon(Icons.airplanemode_active_rounded, size: 16, color: color),
