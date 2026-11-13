@@ -1072,6 +1072,23 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   /// Leaving the picker without a second app returns to fullscreen.
   void dismissSplitPicker() => endSplit();
 
+  /// The rectangle both panes tile: the screen below the status bar. The
+  /// divider spends its ratio across this area, not the whole screen, or in
+  /// portrait the handle would sit above the seam it is meant to move.
+  Rect? splitAreaFor(SplitPair pair) {
+    final size = _deck.geometry.size;
+    if (size.width <= 0 || size.height <= 0) return null;
+    final panes = splitPaneRects(
+      size.width,
+      size.height,
+      pair,
+      topInset: ReferenceShellMetrics.appStatusInset(size),
+    );
+    Rect rect(SplitPaneRect pane) =>
+        Rect.fromLTWH(pane.left, pane.top, pane.width, pane.height);
+    return rect(panes.first).expandToInclude(rect(panes.last));
+  }
+
   /// The ratio interval that keeps both panes at their clients' minimum size.
   ({double min, double max})? splitBoundsFor(SplitPair pair) {
     final size = _deck.geometry.size;

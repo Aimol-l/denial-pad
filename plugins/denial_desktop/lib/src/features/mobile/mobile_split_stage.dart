@@ -135,13 +135,15 @@ class MobileSplitStage extends ConsumerWidget {
 
     if (first == null || second == null) return const SizedBox.shrink();
     final bounds = controller.splitBoundsFor(pair);
+    final area = controller.splitAreaFor(pair);
     return Stack(
       fit: StackFit.expand,
       children: [
         pane(first, 0),
         pane(second, 1),
-        if (bounds != null)
-          Positioned.fill(
+        if (bounds != null && area != null)
+          Positioned.fromRect(
+            rect: area,
             child: SplitDivider(
               vertical: pair.vertical,
               ratio: pair.ratio,
