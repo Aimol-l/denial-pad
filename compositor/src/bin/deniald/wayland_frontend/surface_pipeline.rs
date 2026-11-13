@@ -2075,6 +2075,11 @@ impl WaylandFrontend {
         let first_generation_layout = self.input_layout.is_none();
         let routing_changed = input_routing_changed(self.input_layout.as_ref(), &layout);
         let visibility_changed = input_visibility_changed(self.input_layout.as_ref(), &layout);
+        tracing::info!(
+            target: "deniald::sampling",
+            "visible={:?} changed={visibility_changed}",
+            layout.visible_surface_ids,
+        );
         if visibility_changed {
             self.sampled_surface_ids.clear();
             self.sampled_surface_ids

@@ -554,6 +554,14 @@ impl WaylandFrontend {
         let previous = self.mobile_split;
         self.mobile_split = split;
         self.sync_split_app_scales(previous, split);
+        // A pane is on screen even when it is not the focused side; a
+        // minimized window keeps its last frame and would freeze.
+        for window in self.mobile_windows() {
+            if let Some(root) = self.window_root_surface(&window) {
+                let root = root.id();
+                self.minimized_changed(&root, false);
+            }
+        }
         let windows = self.space.elements().cloned().collect::<Vec<_>>();
         for window in windows {
             self.configure_mobile_window(&window);

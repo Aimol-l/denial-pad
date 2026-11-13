@@ -121,6 +121,10 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
         previous == next.foregroundObjectId) {
       return;
     }
+    // Both panes of a split stay on screen: suspending the pane that lost
+    // focus would freeze it on its last frame while the person watches it.
+    final pair = next.splitPair;
+    if (pair != null && pair.contains(previous)) return;
     final window = next.openAppWindowsByObjectId[previous];
     if (window == null || window.minimized) return;
     _bridge.minimizeWindow(window);
