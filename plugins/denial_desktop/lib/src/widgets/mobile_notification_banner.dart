@@ -3,6 +3,10 @@ part of 'notification_banner.dart';
 /// A single mobile heads-up card. The top inset travels with the card, so its
 /// starting position is above the screen rather than clipped at the safe area.
 class MobileNotificationBannerView extends StatefulWidget {
+  /// The widest the card grows: wide screens centre it instead of stretching
+  /// it across the whole display.
+  static const double maximumWidth = 560;
+
   const MobileNotificationBannerView({
     required this.notification,
     required this.onHide,
@@ -124,9 +128,20 @@ class _MobileNotificationBannerViewState
                   padding.right + MobileNotificationCard.horizontalMargin,
                   12,
                 ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: _card(notification),
+                // A tablet has room to spare: the card keeps a readable
+                // width and sits on the middle line. A phone is narrower than
+                // the cap and still fills the row.
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: MobileNotificationBannerView.maximumWidth,
+                    ),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: _card(notification),
+                    ),
+                  ),
                 ),
               ),
       ),
