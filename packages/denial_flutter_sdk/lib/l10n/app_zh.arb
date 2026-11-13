@@ -914,7 +914,7 @@
   "settingsDisplayScale": "缩放",
   "settingsDisplayScaleInvalid": "请输入 50 到 600 之间的数值。",
   "settingsDisplayScalePreset": "预设",
-  "settingsDisplayScaleRange": "输入 50–600%。数值会舍入到最接近的受支持缩放比例。低于 100% 时画面可能较柔和。",
+  "settingsDisplayScaleRange": "输入 50–300%。数值会舍入到最接近的受支持缩放比例。低于 100% 时画面可能较柔和。",
   "settingsDisplayScrollingLayoutAxis": "滚动布局轴",
   "settingsDisplayScrollingLayoutAxisAuto": "自动（跟随旋转）",
   "settingsDisplayScrollingLayoutAxisDescription": "选择滚动窗口在此显示器上的排列方向。",

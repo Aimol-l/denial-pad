@@ -5509,7 +5509,7 @@ abstract class AppLocalizations {
   /// Guidance shown below the editable monitor scale percentage.
   ///
   /// In en, this message translates to:
-  /// **'Enter 50–600%. Values are rounded to the nearest supported scale. Below 100% may look softer.'**
+  /// **'Enter 50–300%. Values are rounded to the nearest supported scale. Below 100% may look softer.'**
   String get settingsDisplayScaleRange;
 
   /// Label for choosing the scrolling window layout axis on one monitor.

@@ -444,7 +444,6 @@ class _SettingsEnvironmentPageState extends State<SettingsEnvironmentPage> {
       _valueController.clear();
       _mode = _EnvironmentOverrideMode.add;
     });
-    _nameFocus.requestFocus();
   }
 
   void _selectScope(String? desktopFileId, {required bool openNarrowDetail}) {
@@ -457,11 +456,6 @@ class _SettingsEnvironmentPageState extends State<SettingsEnvironmentPage> {
       _mode = _EnvironmentOverrideMode.add;
       if (openNarrowDetail) {
         _narrowDetailOpen = true;
-      }
-    });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _nameFocus.requestFocus();
       }
     });
   }
@@ -1463,8 +1457,7 @@ class _ApplicationScaleCardState extends State<_ApplicationScaleCard> {
                                     20)
                                 .round(),
                         label: '${(_sliderValue * 100).round()}%',
-                        onChanged: (value) =>
-                            setState(() => _pending = value),
+                        onChanged: (value) => setState(() => _pending = value),
                         onChangeEnd: widget.onChanged,
                       ),
                     ),
@@ -1477,9 +1470,7 @@ class _ApplicationScaleCardState extends State<_ApplicationScaleCard> {
                         style: ShellText.base.copyWith(
                           color: context.applicationColors.foreground,
                           fontSize: 12,
-                          fontFeatures: const [
-                            FontFeature.tabularFigures(),
-                          ],
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
                     ),

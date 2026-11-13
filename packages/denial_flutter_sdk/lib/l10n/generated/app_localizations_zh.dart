@@ -2938,7 +2938,7 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get settingsDisplayScaleRange =>
-      '输入 50–600%。数值会舍入到最接近的受支持缩放比例。低于 100% 时画面可能较柔和。';
+      '输入 50–300%。数值会舍入到最接近的受支持缩放比例。低于 100% 时画面可能较柔和。';
 
   @override
   String get settingsDisplayScrollingLayoutAxis => '滚动布局轴';

@@ -4201,7 +4201,7 @@
   "@settingsDisplayScalePreset": {
     "description": "Label for the common monitor scale preset selector."
   },
-  "settingsDisplayScaleRange": "Enter 50–600%. Values are rounded to the nearest supported scale. Below 100% may look softer.",
+  "settingsDisplayScaleRange": "Enter 50–300%. Values are rounded to the nearest supported scale. Below 100% may look softer.",
   "@settingsDisplayScaleRange": {
     "description": "Guidance shown below the editable monitor scale percentage."
   },

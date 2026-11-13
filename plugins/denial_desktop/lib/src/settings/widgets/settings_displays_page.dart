@@ -51,9 +51,6 @@ const settingsDisplayScaleFieldKey = ValueKey<String>(
 const settingsDisplayScaleInputKey = ValueKey<String>(
   'settings-display-scale-input',
 );
-const settingsDisplayScalePresetKey = ValueKey<String>(
-  'settings-display-scale-preset',
-);
 const settingsDisplayConfirmationDialogKey = ValueKey<String>(
   'settings-display-confirmation-dialog',
 );
@@ -1162,6 +1159,12 @@ class _MonitorControls extends StatelessWidget {
                 ],
                 onChanged: onTransformChanged,
               ),
+              SettingsDisplayScaleControl(
+                key: ValueKey<String>('${output.name}-scale'),
+                scale: output.scale,
+                enabled: configurationEnabled && capabilities.scale,
+                onChanged: onScaleChanged,
+              ),
             ];
             final Widget fieldLayout;
             if (compact) {
@@ -1192,19 +1195,7 @@ class _MonitorControls extends StatelessWidget {
                 ],
               );
             }
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                fieldLayout,
-                const SizedBox(height: 10),
-                SettingsDisplayScaleControl(
-                  key: ValueKey<String>('${output.name}-scale'),
-                  scale: output.scale,
-                  enabled: configurationEnabled && capabilities.scale,
-                  onChanged: onScaleChanged,
-                ),
-              ],
-            );
+            return fieldLayout;
           },
         ),
         const SizedBox(height: 14),
@@ -1356,12 +1347,15 @@ class _SettingsDisplayScaleControlState
   @override
   Widget build(BuildContext context) {
     final choices = <double>{..._commonScales, widget.scale}.toList()..sort();
-    final field = _ScalePercentField(
+    return _ScalePercentField(
+      scale: widget.scale,
       controller: _controller,
       focusNode: _focusNode,
       enabled: widget.enabled,
       focused: _focused,
       invalid: _invalid,
+      choices: choices,
+      onPreset: _selectPreset,
       onChanged: (_) {
         if (_invalid) {
           setState(() => _invalid = false);
@@ -1369,77 +1363,31 @@ class _SettingsDisplayScaleControlState
       },
       onSubmitted: _focusNode.unfocus,
     );
-    final presets = _DisplayDropdown<double>(
-      key: settingsDisplayScalePresetKey,
-      label: context.l10n.settingsDisplayScalePreset,
-      value: widget.scale,
-      enabled: widget.enabled,
-      choices: <SettingsChoice<double>>[
-        for (final scale in choices)
-          SettingsChoice<double>(scale, _scalePercentLabel(scale)),
-      ],
-      onChanged: _selectPreset,
-    );
-    final message = _invalid
-        ? context.l10n.settingsDisplayScaleInvalid
-        : context.l10n.settingsDisplayScaleRange;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < _scaleControlsRowWidth;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            if (compact) ...<Widget>[
-              SizedBox(width: double.infinity, child: field),
-              const SizedBox(height: 10),
-              SizedBox(width: double.infinity, child: presets),
-            ] else
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  SizedBox(width: _scaleInputWidth, child: field),
-                  const SizedBox(width: 10),
-                  SizedBox(width: _scalePresetWidth, child: presets),
-                ],
-              ),
-            const SizedBox(height: 6),
-            Semantics(
-              liveRegion: _invalid,
-              child: Text(
-                message,
-                style: ShellText.base.copyWith(
-                  color: _invalid
-                      ? context.shellColors.performanceBad
-                      : context.applicationColors.secondary,
-                  fontSize: 11,
-                  height: 1.3,
-                ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
   }
 }
 
 class _ScalePercentField extends StatelessWidget {
   const _ScalePercentField({
+    required this.scale,
     required this.controller,
     required this.focusNode,
     required this.enabled,
     required this.focused,
     required this.invalid,
+    required this.choices,
+    required this.onPreset,
     required this.onChanged,
     required this.onSubmitted,
   });
 
+  final double scale;
   final TextEditingController controller;
   final FocusNode focusNode;
   final bool enabled;
   final bool focused;
   final bool invalid;
+  final List<double> choices;
+  final ValueChanged<double> onPreset;
   final ValueChanged<String> onChanged;
   final VoidCallback onSubmitted;
 
@@ -1468,7 +1416,7 @@ class _ScalePercentField extends StatelessWidget {
           duration: MediaQuery.disableAnimationsOf(context)
               ? Duration.zero
               : Motion.tile,
-          padding: const EdgeInsets.fromLTRB(12, 8, 9, 8),
+          padding: const EdgeInsets.fromLTRB(12, 8, 4, 9),
           decoration: BoxDecoration(
             color: context.applicationColors.control,
             borderRadius: DenialSurfaceGeometry.borderRadiusOf(context),
@@ -1491,14 +1439,21 @@ class _ScalePercentField extends StatelessWidget {
               const SizedBox(height: 3),
               Row(
                 children: <Widget>[
+                  // EditableText, not TextField: a text field carries its own
+                  // 48 px tap target, and this field has to be exactly as tall
+                  // as the dropdowns beside it.
                   Expanded(
-                    child: TextField(
+                    child: EditableText(
                       key: settingsDisplayScaleFieldKey,
                       controller: controller,
                       focusNode: focusNode,
-                      enabled: enabled,
-                      autocorrect: false,
-                      enableSuggestions: false,
+                      readOnly: !enabled,
+                      maxLines: 1,
+                      style: valueStyle,
+                      cursorColor: accent,
+                      backgroundCursorColor:
+                          context.applicationColors.secondary,
+                      selectionColor: accent.withValues(alpha: .28),
                       keyboardType: const TextInputType.numberWithOptions(
                         decimal: true,
                       ),
@@ -1509,14 +1464,6 @@ class _ScalePercentField extends StatelessWidget {
                       ],
                       onChanged: onChanged,
                       onSubmitted: (_) => onSubmitted(),
-                      style: valueStyle,
-                      decoration: const InputDecoration(
-                        isCollapsed: true,
-                        border: InputBorder.none,
-                        enabledBorder: InputBorder.none,
-                        focusedBorder: InputBorder.none,
-                        disabledBorder: InputBorder.none,
-                      ),
                     ),
                   ),
                   const SizedBox(width: 4),
@@ -1526,9 +1473,113 @@ class _ScalePercentField extends StatelessWidget {
                       color: context.applicationColors.secondary,
                     ),
                   ),
+                  const SizedBox(width: 4),
+                  // The arrow is a button of its own: the number to its left
+                  // stays an editable field, and the two are separated so one
+                  // is not mistaken for the other.
+                  SizedBox(
+                    height: 20,
+                    child: VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: context.applicationColors.separator,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  _ScalePresetButton(
+                    enabled: enabled,
+                    current: scale,
+                    choices: choices,
+                    onPreset: onPreset,
+                  ),
                 ],
               ),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// The arrow at the edge of the scale field: opens the preset list under the
+/// field. A plain 20 px target, so the field keeps the height of the
+/// dropdowns beside it.
+class _ScalePresetButton extends StatelessWidget {
+  const _ScalePresetButton({
+    required this.enabled,
+    required this.current,
+    required this.choices,
+    required this.onPreset,
+  });
+
+  final bool enabled;
+  final double current;
+  final List<double> choices;
+  final ValueChanged<double> onPreset;
+
+  Future<void> _open(BuildContext context) async {
+    final field = context.findRenderObject();
+    final overlay = Overlay.of(context).context.findRenderObject();
+    if (field is! RenderBox || overlay is! RenderBox) {
+      return;
+    }
+    final offset = field.localToGlobal(Offset.zero, ancestor: overlay);
+    final selected = await showMenu<double>(
+      context: context,
+      position: RelativeRect.fromRect(
+        Rect.fromLTWH(offset.dx, offset.dy + field.size.height, 1, 1),
+        Offset.zero & overlay.size,
+      ),
+      items: <PopupMenuEntry<double>>[
+        for (final scale in choices)
+          PopupMenuItem<double>(
+            value: scale,
+            child: Row(
+              children: <Widget>[
+                Text(
+                  _scalePercentLabel(scale),
+                  style: ShellText.base.copyWith(
+                    color: scale == current
+                        ? ShellTheme.of(context).accent
+                        : context.applicationColors.foreground,
+                    fontWeight: scale == current
+                        ? FontWeight.w600
+                        : FontWeight.w400,
+                  ),
+                ),
+                if (scale == current) ...<Widget>[
+                  const Spacer(),
+                  Icon(
+                    Icons.check_rounded,
+                    size: 16,
+                    color: ShellTheme.of(context).accent,
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
+    );
+    if (selected != null) onPreset(selected);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: context.l10n.settingsDisplayScalePreset,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? () => _open(context) : null,
+        child: SizedBox(
+          width: 30,
+          height: 20,
+          child: Icon(
+            Icons.expand_more_rounded,
+            size: 18,
+            color: context.applicationColors.secondary,
           ),
         ),
       ),
@@ -2349,13 +2400,10 @@ const _rotations = <DenialOutputTransform>[
   DenialOutputTransform.rotate270,
 ];
 
-const _commonScales = <double>[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 4, 6];
+const _commonScales = <double>[0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 
 const _minimumScalePercent = 50.0;
-const _maximumScalePercent = 600.0;
-const _scaleInputWidth = 132.0;
-const _scalePresetWidth = 176.0;
-const _scaleControlsRowWidth = _scaleInputWidth + 10 + _scalePresetWidth;
+const _maximumScalePercent = 300.0;
 
 class _Resolution {
   const _Resolution(this.width, this.height);

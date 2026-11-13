@@ -3074,7 +3074,7 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get settingsDisplayScaleRange =>
-      'Enter 50–600%. Values are rounded to the nearest supported scale. Below 100% may look softer.';
+      'Enter 50–300%. Values are rounded to the nearest supported scale. Below 100% may look softer.';
 
   @override
   String get settingsDisplayScrollingLayoutAxis => 'Scrolling layout axis';
