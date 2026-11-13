@@ -1625,6 +1625,7 @@ impl WaylandFrontend {
 
     pub(super) fn remove_surface_state(&mut self, surface: &WlSurface, remove_identity: bool) {
         let object_id = surface.id();
+        super::application_scale::forget_surface(&object_id);
         #[cfg(feature = "flutter")]
         self.remove_window_output_membership(surface);
         #[cfg(feature = "flutter")]

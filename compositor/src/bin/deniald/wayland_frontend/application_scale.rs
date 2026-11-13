@@ -10,7 +10,11 @@
 //!
 //! `k = 1` is the identity everywhere.
 
+use std::collections::{HashMap, VecDeque};
+use std::sync::{Mutex, OnceLock};
+
 use smithay::desktop::Window;
+use smithay::reexports::wayland_server::backend::ObjectId;
 use smithay::reexports::wayland_server::protocol::wl_surface::WlSurface;
 use smithay::reexports::wayland_server::{Client, Resource};
 use smithay::utils::{Logical, Point, Rectangle, Size};
@@ -29,6 +33,60 @@ pub(super) const MIN_APPLICATION_SCALE: f64 = 0.5;
 pub(super) const MAX_APPLICATION_SCALE: f64 = 3.0;
 
 const DEBUG_SCALE_ENV: &str = "DENIAL_APP_SCALE_DEBUG";
+
+/// How many sizes asked of one window are remembered: the ones in flight.
+const ASKED_SIZES: usize = 4;
+
+/// Sizes asked of the windows still open, keyed by root surface.
+///
+/// Kept beside the surfaces rather than in their state: a commit holds the
+/// surface's cached state while Denial reads it, so taking it again here
+/// would wait on itself.
+type AskedSizes = HashMap<ObjectId, VecDeque<(Size<i32, Logical>, Size<i32, Logical>)>>;
+
+fn asked_sizes() -> &'static Mutex<AskedSizes> {
+    static ASKED: OnceLock<Mutex<AskedSizes>> = OnceLock::new();
+    ASKED.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+/// Remembers `logical` as asked of the client in its own `sent` units.
+fn remember_asked(
+    asked: &mut VecDeque<(Size<i32, Logical>, Size<i32, Logical>)>,
+    sent: Size<i32, Logical>,
+    logical: Size<i32, Logical>,
+) {
+    asked.retain(|&(previous, _)| previous != sent);
+    if asked.len() == ASKED_SIZES {
+        asked.pop_front();
+    }
+    asked.push_back((sent, logical));
+}
+
+/// The size asked of a client that committed `size`, if it is one of them.
+fn recall_asked(
+    asked: &VecDeque<(Size<i32, Logical>, Size<i32, Logical>)>,
+    size: Size<i32, Logical>,
+) -> Option<Size<i32, Logical>> {
+    asked
+        .iter()
+        .find(|&&(sent, _)| sent == size)
+        .map(|&(_, logical)| logical)
+}
+
+fn asked_size(surface: &WlSurface, committed: Size<i32, Logical>) -> Option<Size<i32, Logical>> {
+    let asked = asked_sizes()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    recall_asked(asked.get(&surface.id())?, committed)
+}
+
+/// Drops what was asked of a surface that is leaving.
+pub(super) fn forget_surface(id: &ObjectId) {
+    asked_sizes()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .remove(id);
+}
 
 /// Parses the temporary debugging override, such as
 /// `DENIAL_APP_SCALE_DEBUG="org.gnome.Nautilus=1.5"`. Entries are comma
@@ -129,7 +187,12 @@ pub(super) fn client_size(surface: &WlSurface, size: Size<i32, Logical>) -> Size
         return size;
     }
     let inverse = 1.0 / factor;
-    Size::from((scaled(size.w, inverse), scaled(size.h, inverse)))
+    let client = Size::from((scaled(size.w, inverse), scaled(size.h, inverse)));
+    let mut asked = asked_sizes()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    remember_asked(asked.entry(surface.id()).or_default(), client, size);
+    client
 }
 
 pub(super) fn scale_rect(
@@ -203,7 +266,12 @@ pub(super) fn window_geometry(window: &Window) -> Rectangle<i32, Logical> {
     });
     match declared {
         Some(geometry) => {
-            let scaled_geometry = scale_rect(surface, geometry);
+            // A size the client committed because Denial asked for it maps
+            // back to the exact logical size asked: rounding through the
+            // client scale must not turn it into a size one pixel away.
+            let size = asked_size(surface, geometry.size)
+                .unwrap_or_else(|| scale_size(surface, geometry.size));
+            let scaled_geometry = Rectangle::new(scale_point(surface, geometry.loc), size);
             scaled_geometry.intersection(bbox).unwrap_or(bbox)
         }
         None => bbox,
@@ -291,6 +359,47 @@ pub(super) fn apply_window_scale(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn an_asked_size_comes_back_exactly() {
+        let mut asked = VecDeque::new();
+        remember_asked(&mut asked, Size::from((640, 400)), Size::from((960, 600)));
+        assert_eq!(
+            recall_asked(&asked, Size::from((640, 400))),
+            Some(Size::from((960, 600)))
+        );
+        assert_eq!(recall_asked(&asked, Size::from((641, 400))), None);
+    }
+
+    #[test]
+    fn only_the_sizes_in_flight_are_remembered() {
+        let mut asked = VecDeque::new();
+        for index in 0..(ASKED_SIZES as i32 + 1) {
+            remember_asked(
+                &mut asked,
+                Size::from((100 + index, 100)),
+                Size::from((200 + index, 200)),
+            );
+        }
+        assert_eq!(asked.len(), ASKED_SIZES);
+        assert_eq!(recall_asked(&asked, Size::from((100, 100))), None);
+        assert_eq!(
+            recall_asked(&asked, Size::from((100 + ASKED_SIZES as i32, 100))),
+            Some(Size::from((200 + ASKED_SIZES as i32, 200)))
+        );
+    }
+
+    #[test]
+    fn asking_the_same_size_again_keeps_one_entry() {
+        let mut asked = VecDeque::new();
+        remember_asked(&mut asked, Size::from((640, 400)), Size::from((960, 600)));
+        remember_asked(&mut asked, Size::from((640, 400)), Size::from((961, 601)));
+        assert_eq!(asked.len(), 1);
+        assert_eq!(
+            recall_asked(&asked, Size::from((640, 400))),
+            Some(Size::from((961, 601)))
+        );
+    }
 
     #[test]
     fn parses_exact_debug_overrides() {
