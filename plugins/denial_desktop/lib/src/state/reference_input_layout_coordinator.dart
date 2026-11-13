@@ -128,7 +128,7 @@ class ReferenceInputLayoutCoordinator {
     // (recents, the lock layer, a launch, the shade) may take the canvas from
     // them — the keyboard is an overlay, not a reason to drop a pane, or the
     // other pane would stop receiving touches and frames while typing.
-    final split = state.splitPair;
+    final split = state.onScreenSplit;
     final splitHidden =
         state.overviewVisible ||
         state.lockLayerVisible ||

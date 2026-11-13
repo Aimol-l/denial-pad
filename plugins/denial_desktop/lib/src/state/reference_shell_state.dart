@@ -53,6 +53,7 @@ class ReferenceShellState {
     required this.launchingObjectId,
     required this.launchRequest,
     required this.splitPair,
+    required this.splitParked,
     required this.homeTransitionActive,
     required this.appSwitchOrder,
   });
@@ -75,6 +76,7 @@ class ReferenceShellState {
       launchingObjectId: null,
       launchRequest: null,
       splitPair: null,
+      splitParked: false,
       homeTransitionActive: false,
       appSwitchOrder: const <int>[],
     );
@@ -146,6 +148,12 @@ class ReferenceShellState {
   /// The two apps sharing the screen, or null while the shell is fullscreen.
   final SplitPair? splitPair;
 
+  /// The pair is still the person's split, but it sits in the background: an
+  /// app opened over it took the whole screen. The pair keeps its ratio and
+  /// axis, recents keeps one card for it, and coming back to either side puts
+  /// both back on screen.
+  final bool splitParked;
+
   /// True while the foreground app is flying away to reveal home, so the
   /// fullscreen primary stage stays hidden until the transition resolves.
   final bool homeTransitionActive;
@@ -191,6 +199,7 @@ class ReferenceShellState {
     bool clearLaunchRequest = false,
     SplitPair? splitPair,
     bool clearSplitPair = false,
+    bool? splitParked,
     bool? homeTransitionActive,
     List<int>? appSwitchOrder,
   }) {
@@ -220,6 +229,7 @@ class ReferenceShellState {
           ? null
           : launchRequest ?? this.launchRequest,
       splitPair: clearSplitPair ? null : splitPair ?? this.splitPair,
+      splitParked: clearSplitPair ? false : splitParked ?? this.splitParked,
       homeTransitionActive: homeTransitionActive ?? this.homeTransitionActive,
       appSwitchOrder: appSwitchOrder ?? this.appSwitchOrder,
     );
@@ -237,8 +247,11 @@ class ReferenceShellState {
 
   bool get launchTransitionActive => launchRequest != null;
 
+  /// The pair the screen is showing, or null when it is parked or absent.
+  SplitPair? get onScreenSplit => splitParked ? null : splitPair;
+
   DenialWindow? get primaryWindow {
-    if (launchTransitionActive || splitPair != null) {
+    if (launchTransitionActive || onScreenSplit != null) {
       return null;
     }
 
@@ -249,7 +262,7 @@ class ReferenceShellState {
   /// (denial-insets-v1 keyboard inset), so the shell does not lift it.
   /// An app owns the screen: single fullscreen or a split pair (complete or
   /// still picking its second side).
-  bool get appOnScreen => primaryWindow != null || splitPair != null;
+  bool get appOnScreen => primaryWindow != null || onScreenSplit != null;
 
   bool get primaryWindowHandlesKeyboard =>
       // A split's active pane reflows around the keyboard through the
@@ -258,7 +271,7 @@ class ReferenceShellState {
 
   /// The pane of a split pair that takes input: the active side.
   DenialWindow? get splitActiveWindow {
-    final pair = splitPair;
+    final pair = onScreenSplit;
     if (pair == null || pair.isComplete == false) return null;
     return windowByObjectId(pair.activeWindow);
   }

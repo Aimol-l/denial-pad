@@ -818,8 +818,16 @@ Tasks 1–8 已实现并提交（`3b41438` … `d12c3f3`），Task 9 验收部�
 - 已知观察：分屏进行中从快捷设置打开「设置」，新应用直接**替换了激活侧窗格**（Text Editor 被换掉），而不是新开全屏或结束分屏。需要用户确认期望行为。
 - P2 未动：点标题栏弹键盘、「全部应用」行为、退出入口、比例持久化。
 
-**改：分屏中打开别的应用 → 全屏（按用户要求，Android 做法）**
+**改：分屏中打开别的应用 → 新应用全屏，分屏驻留在后台（用户定的 Android 做法）**
 - 旧行为：外壳没请求的窗口（通知、设置等）会**替换掉不用的那一侧窗格**。
-- 现行为：`_leaveSplitFor(window)` 结束分屏、新应用全屏，两个原成员 `minimizeWindow()` 回后台（仍在 recents）。触发点两处：合成器激活（通知 / 外部启动 / 快捷设置的设置）与 `launchRequest`（应用列表启动）。
-- 实机验证（横屏）：Text Editor + Console 分屏 → 外部启动 Nautilus → Files 全屏、分屏消失；recents 里 Text Editor 与 Console 两张卡都在；点 Console 卡片回到全屏且 ticker 恢复走时（10:52:19 → 10:52:25）。
-- 未实机覆盖：应用列表（launcher）启动这条 `launchRequest` 分支只做了同构改动与静态检查。
+- 中间试过「结束分屏」，用户否决：那样 recents 回不到分屏。
+- 现行为：`state.splitParked`。非成员应用激活时（唯一出口是 `_activateWindowInShell` → `_parkSplitFor`）：
+  1. 位置留给新应用全屏，`_platform.endSplit()` 释放窗格几何；
+  2. 两个成员 `minimizeWindow()` 回家后台，但 `splitPair`（含 axial/ratio/active）留在状态里；
+  3. recents 里这对应用仍是**一张合并卡**（`_deckIdOf`/`_collapsedOrder` 早就有这套）；
+  4. 点这张卡 → `openFromRecents` → `focusWindow` → `_restoreParkedSplitFor`：`splitParked=false` + `splitWindowsByIds` 重建窗格，两个应用都恢复绘制。
+- 没选完第二个应用的半成品分屏没有保留价值，仍按旧逻辑结束。
+- 成员在驻留期间被关闭：只清分屏，**不**把幸存者拉到前台。
+- 旋转时若分屏在驻留：只更新 pair 的 axis，不动客户端几何。
+- 实机验证（横屏）：Text Editor + Console 分屏 → 外部启动 Nautilus → Files 全屏、recents 只剩「Files + 一张分屏卡」→ 点分屏卡 → 两窗格回来且 ticker 继续走（11:17:28 → 11:17:34）→ 再点 Files 卡 → Files 全屏、分屏再次驻留 → recents 仍是两张卡（往返稳定）。
+- 未实机覆盖：应用列表（launcher）启动这条 `launchRequest` 分支（同样调 `_parkSplitFor`，只做了静态检查）。

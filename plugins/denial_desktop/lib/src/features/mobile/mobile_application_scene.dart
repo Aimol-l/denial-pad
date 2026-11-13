@@ -190,7 +190,7 @@ class _MobileSceneWallpaperState extends ConsumerState<_MobileSceneWallpaper> {
         final window = state.primaryWindow;
         // A split pair covers the wallpaper the same way one app does.
         final windowCovers = window != null && window.isOpaque;
-        return (windowCovers || state.splitPair != null) &&
+        return (windowCovers || state.onScreenSplit != null) &&
             state.launchRequest == null &&
             state.gesture == GestureDragPhase.idle &&
             !state.overviewVisible &&

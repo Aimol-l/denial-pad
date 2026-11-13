@@ -25,7 +25,7 @@ class MobilePrimaryWindowLayer extends ConsumerWidget {
       referenceShellProvider.select(
         (state) => (
           window: state.primaryWindow,
-          split: state.splitPair,
+          split: state.onScreenSplit,
           homeActive: state.homeTransitionActive,
         ),
       ),

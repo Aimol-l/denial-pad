@@ -455,7 +455,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       final shouldActivate = state.launchingObjectId != launchWindow.objectId;
       // Launching an app while two apps share the screen gives the newcomer
       // the whole screen, as opening it from the launcher would.
-      _leaveSplitFor(launchWindow);
+      _parkSplitFor(launchWindow);
       // A gesture holding the opening card keeps holding it.
       state = state.copyWith(
         overviewVisible: false,
@@ -488,29 +488,58 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     if (firstOpen && secondOpen) return;
     final closed = firstOpen ? pair.second : pair.first;
     final survivor = pairSurvivor(pair, closed);
+    final parked = state.splitParked;
     endSplit();
+    // A parked pair is in the background: its survivor must not come
+    // forward over whatever the person is using.
+    if (parked) return;
     final window = state.windowByObjectId(survivor);
     if (window != null) focusWindow(window);
   }
 
-  /// Ends the split so [window] can take the whole screen.
+  /// Puts the pair in the background so [window] can take the whole screen.
   ///
   /// A split holds the pair the person put there: an app from the launcher, a
   /// notification, or the shell's own settings opens fullscreen rather than
-  /// replacing a pane, the way Android leaves a split alone when something
-  /// else comes to the front. Both former members go back to the background
-  /// and stay in recents. Returns whether it ended a split.
-  bool _leaveSplitFor(DenialWindow window) {
+  /// replacing a pane, the way Android keeps a split together. The pair keeps
+  /// its two apps, its axis and its ratio, recents keeps showing it as one
+  /// card, and coming back to it puts both apps on screen again. A pair that
+  /// never got its second app has nothing worth keeping, so it ends.
+  /// Returns whether the pair went to the background.
+  bool _parkSplitFor(DenialWindow window) {
     final pair = state.splitPair;
-    if (pair == null || pair.contains(window.objectId)) return false;
+    if (pair == null || state.splitParked) return false;
+    if (pair.contains(window.objectId)) return false;
+    if (!pair.isComplete) {
+      endSplit();
+      return false;
+    }
     final members = [
       for (final id in [pair.first, pair.second]) ?state.windowByObjectId(id),
     ];
-    endSplit();
+    state = state.copyWith(splitParked: true);
+    // The panes leave their shared geometry behind; the compositor gives the
+    // newcomer the screen. Both apps stay parked as they were.
+    _platform.endSplit();
     for (final member in members) {
       if (!member.minimized) _bridge.minimizeWindow(member);
     }
     return true;
+  }
+
+  /// Brings a parked pair back when its side comes to the front again.
+  void _restoreParkedSplitFor(DenialWindow window) {
+    final pair = state.splitPair;
+    if (!state.splitParked || pair == null || !pair.contains(window.objectId)) {
+      return;
+    }
+    state = state.copyWith(splitParked: false);
+    _platform.splitWindowsByIds(
+      first: pair.first,
+      second: pair.second,
+      vertical: pair.vertical,
+      ratio: pair.ratio,
+    );
   }
 
   DenialWindow? _matchingLaunchWindow(
@@ -987,8 +1016,10 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
             active: SplitSide.second,
           );
     _endFingerGesture();
+    // A new pair replaces whatever the person had, including a parked one.
     state = state.copyWith(
       splitPair: pair,
+      splitParked: false,
       foregroundObjectId: window.objectId,
       homeTransitionActive: false,
       overviewVisible: false,
@@ -1065,6 +1096,18 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   void syncSplitAxis({required bool vertical}) {
     final pair = state.splitPair;
     if (pair == null || pair.vertical == vertical) return;
+    if (state.splitParked) {
+      state = state.copyWith(
+        splitPair: SplitPair(
+          first: pair.first,
+          second: pair.second,
+          vertical: vertical,
+          ratio: pair.ratio,
+          active: pair.active,
+        ),
+      );
+      return;
+    }
     final next = SplitPair(
       first: pair.first,
       second: pair.second,
@@ -1174,6 +1217,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       AppLaunchRequest.normalizeAppId(window.appId),
     );
     _releaseAppSwitchOrder();
+    _restoreParkedSplitFor(window);
     _activateWindowInShell(window);
     _platform.focusWindow(window);
   }
@@ -1190,11 +1234,9 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   void _activateWindowInShell(DenialWindow window) {
     _endFingerGesture();
-    final pair = state.splitPair;
-    if (pair != null && !pair.contains(window.objectId)) {
-      // Another app takes the screen; the pair is left behind.
-      endSplit();
-    }
+    // Another app takes the whole screen; a split keeps its pair in the
+    // background instead of losing it.
+    _parkSplitFor(window);
     // A deck in motion brings the app to fill the screen from where it is.
     final index = _deck.indexOf(window.objectId);
     if (_deck.presenting.value && index != null) {
@@ -1232,6 +1274,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
         // A tap inside the split moves the active side with the focus.
         final split = state.splitPair;
         if (split != null && split.contains(window.objectId)) {
+          _restoreParkedSplitFor(window);
           final side = window.objectId == split.first
               ? SplitSide.first
               : SplitSide.second;
@@ -1242,12 +1285,6 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
               foregroundObjectId: window.objectId,
             );
           }
-          return;
-        }
-        // A split holds the pair the person put there; anything else that
-        // comes to the front takes the whole screen instead of a pane.
-        if (_leaveSplitFor(window)) {
-          _activateWindowInShell(window);
           return;
         }
         // Activation of the switch target confirms it and changes nothing
