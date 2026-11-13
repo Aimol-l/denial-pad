@@ -126,6 +126,16 @@ class BatteryMark extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        // The capsule first, then the percentage: the icon is what the eye
+        // finds first in a busy row.
+        _BatteryCapsule(
+          level: level,
+          fill: _batteryFill(status, foreground),
+          charging: status.charging,
+          scale: scale,
+          foreground: foreground,
+        ),
+        SizedBox(width: 4.5 * scale),
         Text(
           status.capacity == null
               ? context.l10n.batteryCapacityUnavailable
@@ -138,14 +148,6 @@ class BatteryMark extends StatelessWidget {
             letterSpacing: 0.2,
             decoration: TextDecoration.none,
           ),
-        ),
-        SizedBox(width: 4.5 * scale),
-        _BatteryCapsule(
-          level: level,
-          fill: _batteryFill(status, foreground),
-          charging: status.charging,
-          scale: scale,
-          foreground: foreground,
         ),
       ],
     );

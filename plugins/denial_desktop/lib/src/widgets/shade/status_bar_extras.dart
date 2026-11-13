@@ -6,6 +6,7 @@ import 'package:flutter/material.dart' show Icons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../notification_media.dart' show NotificationAppIcon;
 import 'status_glyphs.dart';
 
 /// Whether the radios are all off: airplane mode, as the shade's tile reads it.
@@ -186,14 +187,14 @@ class StatusNotificationTiles extends ConsumerWidget {
       ),
     );
     final seen = <String>{};
-    final apps = <String>[];
+    final apps = <DesktopNotification>[];
     for (final record in state.history) {
       final notification = record.notification;
       if (state.active[notification.id] == null) {
         continue;
       }
       if (seen.add(notification.appName)) {
-        apps.add(notification.appName);
+        apps.add(notification);
       }
     }
     if (apps.isEmpty) {
@@ -205,7 +206,7 @@ class StatusNotificationTiles extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
         for (final app in shown) ...<Widget>[
-          _AppTile(app: app, color: color),
+          _AppTile(notification: app),
           const SizedBox(width: 4),
         ],
         if (more > 0)
@@ -223,43 +224,20 @@ class StatusNotificationTiles extends ConsumerWidget {
   }
 }
 
+/// One notification's application icon, as the shade draws it: the real
+/// desktop-entry icon, rounded to the tile.
 class _AppTile extends StatelessWidget {
-  const _AppTile({required this.app, required this.color});
+  const _AppTile({required this.notification});
 
-  final String app;
-  final Color color;
-
-  static const List<Color> _palette = <Color>[
-    Color(0xFF2F7DE1),
-    Color(0xFF2E9E63),
-    Color(0xFFE1663D),
-    Color(0xFF8E6BD1),
-    Color(0xFFD1A02E),
-    Color(0xFFD14A6B),
-  ];
+  final DesktopNotification notification;
 
   @override
   Widget build(BuildContext context) {
-    final letter = app.isEmpty
-        ? '•'
-        : String.fromCharCode(app.runes.first).toUpperCase();
-    final tint = _palette[app.hashCode.abs() % _palette.length];
-    return Container(
-      width: 17,
-      height: 17,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: tint,
-        borderRadius: BorderRadius.circular(5),
-      ),
-      child: Text(
-        letter,
-        style: const TextStyle(
-          color: Color(0xFFFFFFFF),
-          fontSize: 10,
-          height: 1,
-          fontWeight: FontWeight.w700,
-        ),
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(5),
+      child: SizedBox.square(
+        dimension: 17,
+        child: NotificationAppIcon(notification: notification),
       ),
     );
   }
