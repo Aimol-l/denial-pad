@@ -182,6 +182,10 @@ class ReferenceInputLayoutCoordinator {
             );
       final shellRegions = <Rect>[
         Rect.fromLTRB(0, 0, viewSize.width, first.top),
+        // The home swipe belongs to the shell even though a pane owns the
+        // space around it: without this strip a pull up from the bottom of a
+        // pane goes to the client, and recents never opens from a split.
+        ReferenceShellMetrics.gestureRect(viewSize),
         Rect.fromLTRB(0, second.bottom, viewSize.width, viewSize.height),
         Rect.fromLTRB(0, first.top, first.left, first.bottom),
         Rect.fromLTRB(first.right, first.top, second.left, first.bottom),

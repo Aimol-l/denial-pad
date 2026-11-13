@@ -8,6 +8,7 @@ import 'package:denial_flutter_sdk/keyboard_policy.dart'
 import 'package:denial_flutter_sdk/platform.dart';
 import 'package:denial_flutter_sdk/state.dart';
 import 'package:denial_keyboard/denial_keyboard.dart';
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -47,6 +48,9 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
   Timer? _saveTimer;
   Rect? _published;
 
+  /// The deck starts presenting the moment the swipe up begins.
+  ValueListenable<bool>? _presenting;
+
   @override
   void initState() {
     super.initState();
@@ -60,7 +64,16 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
       '${ref.read(runtimePathsProvider).configHome}/denial/'
       'keyboard-placement.json',
     );
+    // Recents is reached by the same swipe that takes the app away: the panel
+    // goes as the deck starts moving, not when recents has already landed.
+    _presenting = ref.read(referenceShellProvider.notifier).deck.presenting
+      ..addListener(_leaveForRecents);
     unawaited(_restorePlacement());
+  }
+
+  void _leaveForRecents() {
+    if (!(_presenting?.value ?? false) || !_visible) return;
+    setState(() => _visible = false);
   }
 
   /// The touch count the panel last saw; null until the first state.
@@ -115,6 +128,7 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
 
   @override
   void dispose() {
+    _presenting?.removeListener(_leaveForRecents);
     _candidates?.cancel();
     _saveTimer?.cancel();
     _storePlacement();
