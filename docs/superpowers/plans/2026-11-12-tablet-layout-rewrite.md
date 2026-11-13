@@ -831,3 +831,22 @@ Tasks 1–8 已实现并提交（`3b41438` … `d12c3f3`），Task 9 验收部�
 - 旋转时若分屏在驻留：只更新 pair 的 axis，不动客户端几何。
 - 实机验证（横屏）：Text Editor + Console 分屏 → 外部启动 Nautilus → Files 全屏、recents 只剩「Files + 一张分屏卡」→ 点分屏卡 → 两窗格回来且 ticker 继续走（11:17:28 → 11:17:34）→ 再点 Files 卡 → Files 全屏、分屏再次驻留 → recents 仍是两张卡（往返稳定）。
 - 未实机覆盖：应用列表（launcher）启动这条 `launchRequest` 分支（同样调 `_parkSplitFor`，只做了静态检查）。
+
+## P2-1：点标题栏弹键盘（2026-11-13 下午）
+
+**根因（两层）**
+- 外壳 `keyboard_layer.dart`：客户端应用原本是 `wants = touched || pending`——应用里有活跃编辑器时，窗口内**任何一次触摸**都弹面板。Text Editor 的正文、Firefox 地址栏、终端输入行都算活跃编辑器，点标题栏自然弹。
+- 合成器 `text_input.rs`：`commit` 把「提交里带光标矩形」当作编辑器对这次触摸的回应，而客户端每次提交都会重复同一个光标，于是重复上报也被当成「点了输入框」。
+
+**改法**
+- 新增纯函数 `softwareKeyboardWanted()`（`packages/denial_flutter_sdk/lib/keyboard_policy.dart`）：
+  - 客户端应用：只有编辑器对触摸作出反应（`activated`，即光标移动 / 启用编辑器）或「触摸先于应用启用编辑器」（`pendingTouch`，点进去的那一下）才弹；
+  - 外壳自己的输入框：不变（点外壳即点输入框），仅手动关闭时安静。
+- 合成器：engagement 要求**光标真的移动**（`caret_moved`），重复光标不再算。
+- 测试：SDK 5 条（含「标题栏式触摸不弹」）+ Rust 2 条（`a_touch_that_leaves_the_caret_alone_does_not_open_the_panel` 改动前为红）。Rust **690 passed**，SDK **17 passed**，`flutter analyze lib` 无问题。
+
+**待实机验证（阻塞：平板重启后未回网络，`arp` 一直 FAILED）**
+1. 装 `deniald` + `libapp.so` 后：Text Editor → 点标题栏（期望不弹）→ 点正文（期望弹）→ 再点标题栏（期望不弹）；
+2. 用临时日志 `deniald::ime`（重加方法与补丁见 `.superpowers/sdd/2026-11-12-tablet-layout-rewrite/ime-diagnostics.md`）确认标题栏点击的提交序列：无提交 / 重复光标 / 新的光标；
+3. 若客户端在标题栏点击时确实发出**新**光标（caret 规则不够用），改用「触摸后的第一个 commit 若没有产生编辑变化，就消费掉这次授权」；
+4. 外壳自己的 Flutter 输入框仍走旧规则（`touched` 也算），设备上要顺带确认点设置页标题栏不会再弹；若也弹，再单独收紧。

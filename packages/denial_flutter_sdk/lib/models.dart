@@ -8,6 +8,8 @@ export 'package:denial_sdk/windows.dart' show DenialWindowAction;
 
 export 'panels.dart' show PanelEdge;
 export 'src/models/app_launch_request.dart' show AppLaunchRequest;
+export 'src/models/software_keyboard_policy.dart'
+    show softwareKeyboardWanted;
 export 'src/models/split_pair.dart'
     show
         SplitPair,

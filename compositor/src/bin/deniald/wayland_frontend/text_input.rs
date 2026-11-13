@@ -350,10 +350,18 @@ where
         }
 
         let pending = mem::take(&mut self.instances[index].pending);
+        // A caret that lands somewhere new is the client saying the person
+        // tapped into the text. A client that only repeats the caret it
+        // already had is keeping its editor up to date after a touch that
+        // went elsewhere — a title bar, a toolbar — and that touch must not
+        // bring the panel back.
+        let caret_moved = pending.cursor_rectangle.is_some_and(|next| {
+            self.instances[index].current.cursor_rectangle != Some(next)
+        });
         let editor_engaged = pending.enabled == Some(true)
             || pending.surrounding.is_some()
             || pending.content_type.is_some()
-            || pending.cursor_rectangle.is_some();
+            || caret_moved;
         match pending.enabled {
             Some(true) => {
                 if self.active.as_ref().is_some_and(|active| active != id) {
@@ -1352,6 +1360,68 @@ mod tests {
             sessions.activation_serial + broker.activation_serial,
             serial
         );
+    }
+
+    #[test]
+    fn a_touch_that_leaves_the_caret_alone_does_not_open_the_panel() {
+        let mut sessions = focused();
+        sessions.begin_touch_authorization();
+        enable(&mut sessions);
+        let caret = CursorRectangle {
+            x: 10,
+            y: 20,
+            width: 1,
+            height: 18,
+        };
+        sessions.set_cursor_rectangle(&1, caret.clone());
+        sessions.commit(&1);
+        assert!(!sessions.instances[0].touch_dismissed);
+        // The person hides the panel, then taps a part of the window that is
+        // not the field: the client keeps its editor and only repeats the
+        // caret it already had, so nothing says the tap asked to type.
+        sessions.dismiss_touch_authorization();
+        sessions.begin_touch_authorization();
+        sessions.set_cursor_rectangle(
+            &1,
+            CursorRectangle {
+                x: 10,
+                y: 20,
+                width: 1,
+                height: 18,
+            },
+        );
+        sessions.commit(&1);
+        assert!(sessions.instances[0].touch_dismissed);
+    }
+
+    #[test]
+    fn a_touch_that_moves_the_caret_opens_the_panel() {
+        let mut sessions = focused();
+        sessions.begin_touch_authorization();
+        enable(&mut sessions);
+        sessions.set_cursor_rectangle(
+            &1,
+            CursorRectangle {
+                x: 10,
+                y: 20,
+                width: 1,
+                height: 18,
+            },
+        );
+        sessions.commit(&1);
+        sessions.dismiss_touch_authorization();
+        sessions.begin_touch_authorization();
+        sessions.set_cursor_rectangle(
+            &1,
+            CursorRectangle {
+                x: 200,
+                y: 420,
+                width: 1,
+                height: 18,
+            },
+        );
+        sessions.commit(&1);
+        assert!(!sessions.instances[0].touch_dismissed);
     }
 
     #[test]

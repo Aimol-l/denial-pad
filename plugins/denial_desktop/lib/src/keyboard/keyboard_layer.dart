@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:denial_flutter_sdk/applications.dart';
+import 'package:denial_flutter_sdk/keyboard_policy.dart'
+    show softwareKeyboardWanted;
 import 'package:denial_flutter_sdk/platform.dart';
 import 'package:denial_flutter_sdk/state.dart';
 import 'package:denial_keyboard/denial_keyboard.dart';
@@ -87,11 +89,17 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
         _pendingTouch != null &&
         DateTime.now().difference(_pendingTouch!) < const Duration(seconds: 1);
     if (pending) _pendingTouch = null;
-    // Applications only open the keyboard on a person's tap: focus alone is
-    // the app talking, not the user. Shell fields were tapped by definition.
-    final wants = state.flutterEditor
-        ? (!_dismissed || touched || activated)
-        : (touched || pending);
+    // Applications only open the keyboard when the tap landed in a field, not
+    // because focus or a tap somewhere else in the window happened: the editor
+    // answering the touch is what counts. Shell fields were tapped by
+    // definition, so only a manual dismissal keeps them quiet.
+    final wants = softwareKeyboardWanted(
+      shellEditor: state.flutterEditor,
+      dismissed: _dismissed,
+      touched: touched,
+      activated: activated,
+      pendingTouch: pending,
+    );
     if (wants && !_visible) {
       setState(() {
         _visible = true;
@@ -198,19 +206,16 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
     }
     final view = MediaQuery.sizeOf(context);
     final screen = (width: view.width, height: view.height);
-    final defaultSize = clampPanelSize(
-      screen,
-      (width: view.width * 0.58, height: view.height * 0.30),
-    );
+    final defaultSize = clampPanelSize(screen, (
+      width: view.width * 0.58,
+      height: view.height * 0.30,
+    ));
     final size = _size ?? defaultSize;
     final position = clampPanelPosition(
       screen,
       (width: size.width, height: size.height),
       _position ??
-          (
-            x: (view.width - size.width) / 2,
-            y: view.height - size.height - 20,
-          ),
+          (x: (view.width - size.width) / 2, y: view.height - size.height - 20),
     );
     // A drag alone must persist a complete placement, so adopt the effective
     // defaults the first time instead of requiring a resize first.
@@ -237,10 +242,10 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
 
     void resize(Offset delta) {
       final currentSize = _size ?? size;
-      final next = clampPanelSize(
-        screen,
-        (width: currentSize.width + delta.dx, height: currentSize.height + delta.dy),
-      );
+      final next = clampPanelSize(screen, (
+        width: currentSize.width + delta.dx,
+        height: currentSize.height + delta.dy,
+      ));
       setState(() {
         _size = next;
         _position = _position ?? position;
@@ -297,8 +302,14 @@ class _KeyboardLayerState extends ConsumerState<KeyboardLayer> {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             border: Border(
-                              right: BorderSide(color: Color(0x66FFFFFF), width: 2),
-                              bottom: BorderSide(color: Color(0x66FFFFFF), width: 2),
+                              right: BorderSide(
+                                color: Color(0x66FFFFFF),
+                                width: 2,
+                              ),
+                              bottom: BorderSide(
+                                color: Color(0x66FFFFFF),
+                                width: 2,
+                              ),
                             ),
                           ),
                         ),
