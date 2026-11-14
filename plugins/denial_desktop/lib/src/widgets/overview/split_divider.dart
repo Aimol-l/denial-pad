@@ -82,13 +82,13 @@ class _SplitDividerState extends State<SplitDivider> {
         final line = DecoratedBox(
           decoration: BoxDecoration(
             color: _dragging
-                ? const Color(0x8C6D5BD0)
-                : const Color(0x336D5BD0),
+                ? const Color(0xE66D5BD0)
+                : const Color(0x8C6D5BD0),
             borderRadius: BorderRadius.circular(1),
           ),
           child: SizedBox(
-            width: widget.vertical ? null : 1.5,
-            height: widget.vertical ? 1.5 : null,
+            width: widget.vertical ? null : 2,
+            height: widget.vertical ? 2 : null,
           ),
         );
         return Stack(

@@ -90,8 +90,23 @@ class MobileSplitStage extends ConsumerWidget {
                   active: active,
                   fit: BoxFit.contain,
                 ),
-                // The active side owns the keyboard and Back; a hairline on
-                // the seam says so without taking any geometry.
+                // An outline around each pane makes the two apps read as two
+                // windows; it is drawn over the content, so it costs the
+                // clients no geometry.
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        border: Border.all(
+                          color: const Color(0x736D5BD0),
+                          width: 1,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                // The active side owns the keyboard and Back; a stronger line
+                // on the seam says so without taking any geometry.
                 if (active)
                   Align(
                     alignment: index == 0
@@ -102,10 +117,10 @@ class MobileSplitStage extends ConsumerWidget {
                               ? Alignment.topCenter
                               : Alignment.centerLeft),
                     child: SizedBox(
-                      width: pair.vertical ? null : 1.5,
-                      height: pair.vertical ? 1.5 : null,
+                      width: pair.vertical ? null : 2,
+                      height: pair.vertical ? 2 : null,
                       child: const DecoratedBox(
-                        decoration: BoxDecoration(color: Color(0x8C6D5BD0)),
+                        decoration: BoxDecoration(color: Color(0xB36D5BD0)),
                       ),
                     ),
                   ),
