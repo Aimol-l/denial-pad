@@ -12,6 +12,10 @@ class const DesktopApp({
   final String? icon,
   final String? iconPath,
   final String? startupWmClass,
+
+  /// Set by the entries Denial generates for its built-in applications: the
+  /// shell launches the in-process app instead of executing [exec].
+  final String? localAppId,
 }) {
   String get searchableText =>
       <String>[id, name, ...categories, ...keywords].join(' ').toLowerCase();

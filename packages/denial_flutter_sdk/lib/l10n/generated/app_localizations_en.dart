@@ -753,7 +753,43 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get appGroupDevelopment => 'Development';
+
+  @override
+  String get appGroupGame => 'Games';
+
+  @override
+  String get appGroupGraphics => 'Graphics';
+
+  @override
+  String get appGroupMultimedia => 'Multimedia';
+
+  @override
+  String get appGroupNetwork => 'Internet';
+
+  @override
+  String get appGroupOffice => 'Office';
+
+  @override
+  String get appGroupOther => 'Other';
+
+  @override
+  String get appGroupSystem => 'System';
+
+  @override
+  String get dockAddToDesktop => 'Add to desktop';
+
+  @override
   String get dockAllApps => 'All apps';
+
+  @override
+  String get dockNoApplications => 'No applications to show';
+
+  @override
+  String get dockNoMatches => 'No matching apps';
+
+  @override
+  String get dockSearchApps => 'Search apps';
 
   @override
   String get dockRemove => 'Remove from Dock';

@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Denial 全部应用 — 设计稿</title>
+<style>
+  :root {
+    --accent: #6d5bd0;
+    --accent-soft: rgba(109, 91, 208, .12);
+    --accent-line: rgba(109, 91, 208, .45);
+    --ink: #1c1c1f;
+    --muted: #5f6470;
+    --faint: #9aa0ad;
+    --line: #e6e8ec;
+    --bg: #f4f5f8;
+    --status: 44px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+    padding: 46px 0 90px;
+    -webkit-user-select: none; user-select: none;
+  }
+  .doc { max-width: 1760px; margin: 0 auto; padding: 0 44px; }
+  h1 { font-size: 31px; font-weight: 650; letter-spacing: -.01em; }
+  .sub { margin-top: 10px; color: var(--muted); font-size: 14px; line-height: 1.75; max-width: 1000px; }
+  .sub b { color: var(--ink); font-weight: 600; }
+  .sub code { background: #eceaf6; border-radius: 5px; padding: 1px 6px; font-size: 12.5px; color: #5b4bb8; }
+
+  .board { margin-top: 50px; }
+  .board .cap { display: flex; align-items: baseline; gap: 12px; margin-bottom: 15px; }
+  .board .cap .tag { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 999px; padding: 3px 10px; }
+  .board .cap .t { font-size: 18px; font-weight: 620; }
+  .board .cap .n { margin-left: auto; font-size: 12px; color: var(--faint); }
+  .note { margin-top: 13px; font-size: 12.5px; color: var(--muted); line-height: 1.75; max-width: 1500px; }
+  .note b { color: var(--ink); font-weight: 600; }
+  .note code { background: #eceaf6; border-radius: 4px; padding: 0 5px; color: #5b4bb8; font-size: 12px; }
+
+  /* ---------- 设备 ---------- */
+  .device {
+    position: relative; margin: 0 auto; width: 1600px; height: 1000px;
+    border-radius: 22px; overflow: hidden;
+    background: #0d1016;
+    box-shadow: 0 22px 60px rgba(20,22,28,.18), 0 0 0 1px #e0e2e8;
+  }
+  .wall {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(1200px 620px at 18% 22%, #2b3a52 0%, transparent 60%),
+      radial-gradient(900px 520px at 78% 30%, #4a3a2c 0%, transparent 60%),
+      radial-gradient(1000px 700px at 55% 88%, #16202c 0%, transparent 65%),
+      linear-gradient(160deg, #1a2330, #0e131b 60%, #090c11);
+  }
+  .wall::after {
+    content: ""; position: absolute; inset: 0;
+    background:
+      radial-gradient(2px 2px at 12% 26%, rgba(255,229,180,.9), transparent 60%),
+      radial-gradient(2px 2px at 21% 19%, rgba(255,229,180,.7), transparent 60%),
+      radial-gradient(2px 2px at 64% 14%, rgba(255,229,180,.6), transparent 60%),
+      radial-gradient(2px 2px at 83% 24%, rgba(255,229,180,.8), transparent 60%),
+      radial-gradient(2px 2px at 73% 36%, rgba(255,229,180,.5), transparent 60%);
+  }
+  .statusbar {
+    position: absolute; left: 0; right: 0; top: 0; height: var(--status); z-index: 30;
+    display: flex; align-items: center; padding: 0 26px; gap: 12px;
+    font-size: 13px; color: #eef1f6; background: rgba(12,14,18,.35);
+    border-bottom: 1px solid rgba(255,255,255,.06);
+  }
+  .statusbar .clock { font-weight: 620; }
+  .statusbar .mid { margin: 0 auto; font-size: 12px; color: rgba(238,241,246,.55); }
+  .statusbar .dots { display: flex; gap: 7px; align-items: center; }
+  .statusbar .dot { width: 6px; height: 6px; border-radius: 50%; background: #eef1f6; opacity: .45; }
+  .statusbar .batt { width: 22px; height: 11px; border: 1.4px solid #eef1f6; border-radius: 3px; opacity: .55; }
+
+  /* ---------- 抽屉 ---------- */
+  .drawer {
+    position: absolute; left: 8%; right: 8%; top: 12%; bottom: 12%;
+    border-radius: 22px;
+    background: linear-gradient(rgba(250,250,252,.93), rgba(246,246,249,.90));
+    border: 1px solid rgba(0,0,0,.06);
+    box-shadow: 0 30px 80px rgba(0,0,0,.45);
+    display: flex; flex-direction: column;
+    padding: 22px 26px 16px;
+  }
+  .dhead { display: flex; align-items: center; gap: 18px; }
+  .search {
+    flex: 1; height: 44px; border-radius: 999px;
+    background: #eceef3; border: 1px solid #e2e4ea;
+    display: flex; align-items: center; gap: 10px; padding: 0 16px;
+    color: #8a90a0; font-size: 13.5px;
+  }
+  .search .mag { width: 16px; height: 16px; border: 2px solid #9aa0ad; border-radius: 50%; position: relative; }
+  .search .mag::after { content: ""; position: absolute; width: 7px; height: 2px; background: #9aa0ad; transform: rotate(45deg); right: -5px; bottom: 0; border-radius: 2px; }
+  .dtitle { font-size: 21px; font-weight: 650; color: #22242b; white-space: nowrap; }
+  .close { margin-left: 4px; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #7a8090; font-size: 20px; }
+  .close:hover { background: #eceef3; }
+
+  .tabs { margin-top: 16px; display: flex; gap: 8px; align-items: center; overflow: hidden; }
+  .tab { height: 30px; padding: 0 13px; border-radius: 999px; display: flex; align-items: center;
+    font-size: 12.5px; color: #5f6470; background: transparent; border: 1px solid transparent; white-space: nowrap; }
+  .tab.on { color: #5344b3; background: rgba(109,91,208,.12); border-color: rgba(109,91,208,.30); font-weight: 620; }
+  .tab .cnt { margin-left: 6px; font-size: 10.5px; opacity: .6; }
+
+  .gridwrap { position: relative; margin-top: 14px; flex: 1; overflow: hidden; }
+  .grid { display: grid; grid-template-columns: repeat(8, 1fr); grid-auto-rows: 104px; gap: 4px 14px; }
+  .app { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 7px; }
+  .app .ic { width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 6px rgba(20,22,28,.10); }
+  .app .ic svg { width: 30px; height: 30px; }
+  .app .nm { font-size: 11.5px; color: #3b3e46; max-width: 96px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .pager { display: flex; align-items: center; gap: 14px; padding-top: 8px; }
+  .pager .hint { font-size: 11.5px; color: #9aa0ad; }
+  .pager .dots { margin-left: auto; display: flex; gap: 6px; }
+  .pager .d { width: 6px; height: 6px; border-radius: 50%; background: #c9ccd5; }
+  .pager .d.on { width: 18px; border-radius: 3px; background: var(--accent); }
+
+  /* 图标配色 */
+  .c-blue { background: linear-gradient(150deg, #5aa9ee, #3d7fd0); }
+  .c-orange { background: linear-gradient(150deg, #ff9a3c, #e26a1c); }
+  .c-red { background: linear-gradient(150deg, #ee5a5a, #c93434); }
+  .c-green { background: linear-gradient(150deg, #4cc38a, #2b9e68); }
+  .c-teal { background: linear-gradient(150deg, #4bc3bd, #2b9d97); }
+  .c-purple { background: linear-gradient(150deg, #9a86ec, #6d5bd0); }
+  .c-dark { background: linear-gradient(150deg, #4a4d55, #2c2e33); }
+  .c-gray { background: linear-gradient(150deg, #e9ebf0, #d7dae1); }
+  .c-pink { background: linear-gradient(150deg, #ef7fae, #cc4f83); }
+  .c-cyan { background: linear-gradient(150deg, #53c4e8, #2b96bf); }
+
+  /* ---------- 板 B/C 小场景 ---------- */
+  .row2 { display: flex; gap: 22px; align-items: flex-start; }
+  .panel {
+    background: #fff; border: 1px solid var(--line); border-radius: 20px; padding: 20px;
+    box-shadow: 0 8px 24px rgba(20,22,28,.05);
+  }
+  .panel .pt { font-size: 13px; font-weight: 650; margin-bottom: 12px; }
+  .mini { border-radius: 14px; background: #f7f7fa; border: 1px solid #e7e8ee; padding: 14px; }
+  .mini .search { height: 36px; font-size: 12px; }
+  .mini .dtitle { font-size: 16px; }
+  .mini .grid { grid-auto-rows: 82px; }
+  .mini .app .ic { width: 44px; height: 44px; border-radius: 12px; }
+  .mini .app .ic svg { width: 24px; height: 24px; }
+  .mini .app .nm { font-size: 10.5px; }
+
+  .menu {
+    width: 220px; border-radius: 14px; background: #fff; border: 1px solid var(--line);
+    box-shadow: 0 18px 44px rgba(20,22,28,.18); padding: 6px;
+  }
+  .menu .mi { display: flex; align-items: center; gap: 10px; height: 38px; padding: 0 10px; border-radius: 9px; font-size: 12.5px; color: #2b2d34; }
+  .menu .mi:hover { background: #f0f1f6; }
+  .menu .mi .gi { width: 18px; height: 18px; border-radius: 5px; background: #dfe2e9; }
+  .menu .mi.danger { color: #b04141; }
+  .menu .mi.danger .gi { background: #f0d7d7; }
+
+  .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; }
+  .rule { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 15px 17px; }
+  .rule h4 { font-size: 13px; font-weight: 650; }
+  .rule p { margin-top: 6px; font-size: 12px; line-height: 1.7; color: var(--muted); }
+  .rule code { background: #f0f1f6; border-radius: 4px; padding: 0 5px; font-size: 11.5px; color: #5b4bb8; }
+
+  .anno { display: flex; gap: 12px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 13px; padding: 13px 16px; margin-top: 10px; }
+  .anno .num { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 50%; background: var(--accent-soft); color: #5344b3; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .anno .tx { font-size: 12.5px; line-height: 1.65; color: #4a4e58; }
+  .anno .tx b { color: var(--ink); font-weight: 620; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>全部应用 — 设计稿</h1>
+  <p class="sub">
+    KDE 式应用抽屉：<b>[搜索框] [全部应用] 同一行</b>，下面按 <code>Categories</code> 分组，
+    <b>左右滑动切换分组</b>；数据是全部已安装的 <code>.desktop</code>（含 Denial 内置应用生成的条目），按应用 id 去重。
+    长按应用可「添加到桌面」（在 <code>~/Desktop</code> 建软链）。
+  </p>
+
+  <div class="board">
+    <div class="cap"><span class="tag">A</span><span class="t">抽屉主界面</span><span class="n">1600 × 1000 · 面板 84% × 76%</span></div>
+    <div class="device">
+      <div class="wall"></div>
+      <div class="statusbar">
+        <span class="clock">21:48</span>
+        <span class="mid">Denial · 全部应用</span>
+        <span class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="batt"></span></span>
+      </div>
+
+      <div class="drawer">
+        <div class="dhead">
+          <div class="search"><span class="mag"></span>搜索应用</div>
+          <div class="dtitle">全部应用</div>
+          <div class="close">✕</div>
+        </div>
+
+        <div class="tabs">
+          <div class="tab">开发 <span class="cnt">6</span></div>
+          <div class="tab">图形 <span class="cnt">5</span></div>
+          <div class="tab on">网络 <span class="cnt">12</span></div>
+          <div class="tab">影音 <span class="cnt">7</span></div>
+          <div class="tab">办公 <span class="cnt">4</span></div>
+          <div class="tab">游戏 <span class="cnt">3</span></div>
+          <div class="tab">系统 <span class="cnt">12</span></div>
+          <div class="tab">其它 <span class="cnt">8</span></div>
+        </div>
+
+        <div class="gridwrap">
+          <div class="grid">
+            <!-- 网络 -->
+            <div class="app"><div class="ic c-blue"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.2 3.6 8.5s-1.2 6.2-3.6 8.5c-2.4-2.3-3.6-5.2-3.6-8.5S9.6 5.8 12 3.5z"/></svg></div><div class="nm">Firefox</div></div>
+            <div class="app"><div class="ic c-orange"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="12" r="8.5" opacity=".25"/><path d="M12 4.2c4.6 0 7.8 3.4 7.8 7.8 0 4.5-3.3 7.8-7.8 7.8-1.4 0-2.6-.3-3.7-.9l5.9-4.1-6.6.7a6.4 6.4 0 0 1-.5-2.6c0-1.1.3-2.1.8-3l4 2.3-3.2-3.5A7.7 7.7 0 0 1 12 4.2z"/></svg></div><div class="nm">Chromium</div></div>
+            <div class="app"><div class="ic c-green"><svg viewBox="0 0 24 24" fill="#fff"><rect x="3.5" y="5" width="17" height="12.5" rx="3" opacity=".92"/><circle cx="9" cy="17.8" r="1.6"/><circle cx="15" cy="17.8" r="1.6"/><path d="M7.5 8.5h4v2h-4zM13.5 8.5h3v2h-3zM7.5 12h9v2h-9z" fill="#2b9e68"/></svg></div><div class="nm">终端</div></div>
+            <div class="app"><div class="ic c-cyan"><svg viewBox="0 0 24 24" fill="#fff"><path d="M4 6.5h16v9.2H4z" opacity=".25"/><path d="M12 3.5l8 3.5v10.5L12 21l-8-3.5V7z" fill="none" stroke="#fff" stroke-width="1.7"/><path d="M8.4 9.3h7.2v4.6H8.4z" opacity=".8"/></svg></div><div class="nm">Thunderbird</div></div>
+            <div class="app"><div class="ic c-purple"><svg viewBox="0 0 24 24" fill="#fff"><path d="M4 5.5h13a3 3 0 0 1 3 3v10H7a3 3 0 0 1-3-3z" opacity=".9"/><path d="M7 9h10M7 12.5h8" stroke="#6d5bd0" stroke-width="1.6"/></svg></div><div class="nm">Discord</div></div>
+            <div class="app"><div class="ic c-blue"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="12" r="8.5" opacity=".3"/><path d="M9 7.6l7 4.4-7 4.4z"/></svg></div><div class="nm">哔哩哔哩</div></div>
+            <div class="app"><div class="ic c-teal"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="12" r="3.6"/><path d="M12 3.2v3M12 17.8v3M3.2 12h3M17.8 12h3M5.8 5.8l2.1 2.1M16.1 16.1l2.1 2.1M18.2 5.8l-2.1 2.1M7.9 16.1l-2.1 2.1" stroke="#fff" stroke-width="1.8" stroke-linecap="round"/></svg></div><div class="nm">远程桌面</div></div>
+            <div class="app"><div class="ic c-red"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 4.5c3.6 1.4 5.5 4 5.5 7.2 0 4-2.7 7-5.5 7.8-2.8-.8-5.5-3.8-5.5-7.8 0-3.2 1.9-5.8 5.5-7.2z" opacity=".9"/><circle cx="12" cy="11.4" r="2.2" fill="#c93434"/></svg></div><div class="nm">网易云音乐</div></div>
+
+            <!-- 占位第二行（同一分组继续） -->
+            <div class="app"><div class="ic c-pink"><svg viewBox="0 0 24 24" fill="#fff"><path d="M5 5.5h14v10.2a3 3 0 0 1-3 3H8a3 3 0 0 1-3-3z" opacity=".3"/><path d="M12 7.5l1.5 3 3.3.4-2.4 2.3.6 3.3L12 15l-3 1.5.6-3.3-2.4-2.3 3.3-.4z" opacity=".95"/></svg></div><div class="nm">QQ</div></div>
+            <div class="app"><div class="ic c-gray"><svg viewBox="0 0 24 24" fill="#5c6270"><path d="M4 6.5h6l2 2h8v9.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" opacity=".75"/></svg></div><div class="nm">文件</div></div>
+            <div class="app"><div class="ic c-dark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M4.5 7.5h15v9h-15z"/><path d="M8 12h8"/></svg></div><div class="nm">远程终端</div></div>
+            <div class="app"><div class="ic c-blue"><svg viewBox="0 0 24 24" fill="#fff"><path d="M5 6h14v3.5H5zM5 11h14v3.5H5zM5 16h9v2.5H5z" opacity=".85"/></svg></div><div class="nm">网页书签</div></div>
+            <div class="app"><div class="ic c-cyan"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><path d="M7 4.5h7l4 4V19.5H7z"/><path d="M14 4.5v4h4"/><path d="M9.5 13a4 4 0 0 1 5 0l-1.4 1.6a2.2 2.2 0 0 0-2.2 0z" fill="#fff"/></svg></div><div class="nm">下载器</div></div>
+            <div class="app"><div class="ic c-green"><svg viewBox="0 0 24 24" fill="#fff"><circle cx="12" cy="12" r="8.5" opacity=".25"/><path d="M4.5 9.5h15M4.5 14.5h15" stroke="#fff" stroke-width="1.6"/><circle cx="12" cy="12" r="3.2" fill="#2b9e68"/></svg></div><div class="nm">浏览器</div></div>
+            <div class="app"><div class="ic c-purple"><svg viewBox="0 0 24 24" fill="#fff"><path d="M4.5 6h15v10.5h-7l-4 3v-3h-4z" opacity=".9"/><circle cx="9" cy="11" r="1.2" fill="#6d5bd0"/><circle cx="12.5" cy="11" r="1.2" fill="#6d5bd0"/><circle cx="16" cy="11" r="1.2" fill="#6d5bd0"/></svg></div><div class="nm">微信</div></div>
+            <div class="app"><div class="ic c-orange"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 4.5a7.5 7.5 0 0 0-7.5 7.5c0 3.2 2 5.6 4.5 6.8V21h6v-2.2c2.5-1.2 4.5-3.6 4.5-6.8A7.5 7.5 0 0 0 12 4.5z" opacity=".9"/><path d="M9 10.5h6M9 13.5h4" stroke="#e26a1c" stroke-width="1.5"/></svg></div><div class="nm">博客</div></div>
+            <div class="app"><div class="ic c-teal"><svg viewBox="0 0 24 24" fill="#fff"><path d="M6 5.5h12v13H6z" opacity=".35"/><path d="M9 8.5h6M9 12h6M9 15.5h4" stroke="#fff" stroke-width="1.6"/></svg></div><div class="nm">RSS 阅读器</div></div>
+            <div class="app"><div class="ic c-dark"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8"><circle cx="12" cy="8" r="3"/><path d="M6 19c0-3.3 2.7-5 6-5s6 1.7 6 5"/></svg></div><div class="nm">账号</div></div>
+            <div class="app"><div class="ic c-pink"><svg viewBox="0 0 24 24" fill="#fff"><path d="M12 20s-7-4.3-7-9a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 4.7-7 9-7 9z"/></svg></div><div class="nm">收藏</div></div>
+          </div>
+        </div>
+
+        <div class="pager">
+          <span class="hint">← 左右滑动切换分组 →</span>
+          <div class="dots">
+            <span class="d"></span><span class="d"></span><span class="d on"></span><span class="d"></span>
+            <span class="d"></span><span class="d"></span><span class="d"></span><span class="d"></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      面板沿用现在的毛玻璃抽屉（84% × 76%，圆角 22）。顶部一行：<b>搜索框（拉伸）+「全部应用」+ 关闭</b>；
+      下一行是分组标签（当前组高亮，可点也可滑），底部圆点显示分组位置。8 列网格，图标 54px、行高 104px，一屏最多 3 行。
+    </p>
+  </div>
+
+  <div class="board">
+    <div class="cap"><span class="tag">B</span><span class="t">搜索与滑动状态</span><span class="n">输入即筛，清空回到当前分组</span></div>
+    <div class="row2">
+      <div class="panel" style="width: 760px">
+        <div class="pt">搜索「文」</div>
+        <div class="mini">
+          <div class="dhead">
+            <div class="search" style="color:#3b3e46"><span class="mag"></span>文<span style="margin-left:auto;color:#9aa0ad">✕</span></div>
+            <div class="dtitle" style="font-size:14px;color:#5f6470">搜索结果 · 6</div>
+          </div>
+          <div class="grid" style="margin-top:12px;grid-template-columns:repeat(6,1fr)">
+            <div class="app"><div class="ic c-gray"><svg viewBox="0 0 24 24" fill="#5c6270"><path d="M4 6.5h6l2 2h8v9.5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" opacity=".75"/></svg></div><div class="nm">文件</div></div>
+            <div class="app"><div class="ic c-orange"><svg viewBox="0 0 24 24" fill="#fff"><path d="M6 3.5h9l4 4v13H6z" opacity=".9"/><path d="M8.5 11h8M8.5 14h8M8.5 17h5" stroke="#e26a1c" stroke-width="1.5"/></svg></div><div class="nm">文本编辑器</div></div>
+            <div class="app"><div class="ic c-blue"><svg viewBox="0 0 24 24" fill="#fff"><path d="M5 6h14v3.5H5zM5 11h14v3.5H5zM5 16h9v2.5H5z" opacity=".85"/></svg></div><div class="nm">文档查看器</div></div>
+            <div class="app"><div class="ic c-purple"><svg viewBox="0 0 24 24" fill="#fff"><rect x="4.5" y="5" width="15" height="14" rx="2.5" opacity=".9"/><path d="M8 9h8M8 12h8M8 15h5" stroke="#6d5bd0" stroke-width="1.5"/></svg></div><div class="nm">文字处理</div></div>
+            <div class="app"><div class="ic c-teal"><svg viewBox="0 0 24 24" fill="#fff"><path d="M4.5 5.5h15v11h-6l-3 3v-3h-6z" opacity=".9"/><path d="M8 9h8M8 12.2h5" stroke="#2b9d97" stroke-width="1.5"/></svg></div><div class="nm">微信读书</div></div>
+            <div class="app"><div class="ic c-dark"><svg viewBox="0 0 24 24" fill="#fff"><path d="M7 4.5h10v15H7z" opacity=".9"/><path d="M9.5 8h5M9.5 11h5M9.5 14h3.5" stroke="#2c2e33" stroke-width="1.4"/></svg></div><div class="nm">Vim</div></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel" style="flex:1">
+        <div class="pt">滑动 / 长按</div>
+        <div style="display:flex;gap:16px;align-items:flex-start">
+          <div class="menu">
+            <div class="mi"><span class="gi"></span>添加到桌面</div>
+            <div class="mi"><span class="gi"></span>打开</div>
+          </div>
+          <div style="flex:1;font-size:12.5px;line-height:1.75;color:#5f6470">
+            <p>· 长按（或鼠标右键）应用弹出菜单，<b style="color:#1c1c1f">添加到桌面</b> 会在 <code style="background:#f0f1f6;border-radius:4px;padding:0 5px;color:#5b4bb8">~/Desktop</code> 建软链，主页立刻出现。</p>
+            <p style="margin-top:8px">· 左右滑动网格切换分组；搜索框有内容时滑动不再切组，清空后回到之前的分组。</p>
+            <p style="margin-top:8px">· 分组标签可以点，等价于滑动。</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      搜索匹配 <code>Name / id / Categories / Keywords</code>（和现在一致），无视分组显示结果；空结果给「没有匹配的应用」。
+    </p>
+  </div>
+
+  <div class="board">
+    <div class="cap"><span class="tag">C</span><span class="t">分组与数据</span><span class="n">实现约束</span></div>
+    <div class="rules">
+      <div class="rule"><h4>数据源</h4><p>所有 <code>.desktop</code>（用户 + 系统 + flatpak）+ Denial 内置应用生成的条目，按应用 id 去重；<code>NoDisplay</code>/<code>Hidden</code>/<code>OnlyShowIn</code> 规则与现在一致。</p></div>
+      <div class="rule"><h4>分组顺序</h4><p>开发 · 图形 · 网络 · 影音 · 办公 · 游戏 · 系统 · 其它。取 <code>Categories</code> 里第一个命中的；没分类归「其它」。组名本地化。</p></div>
+      <div class="rule"><h4>添加桌面</h4><p>在 <code>~/Desktop/&lt;desktop-file-id&gt;.desktop</code> 建软链指向应用条目；同名已存在不重复建。主页监听该目录，实时出现。</p></div>
+      <div class="rule"><h4>内置应用</h4><p>启动时补 <code>~/.local/share/applications/denial-&lt;id&gt;.desktop</code>，带本地化 <code>Name</code>、分类、图标名；Denial 内认 <code>X-Denial-Local-App</code> 走内置启动。</p></div>
+      <div class="rule"><h4>布局</h4><p>8 列、图标 54、行高 104，一屏 3 行；分组页左右滑动，页与页之间留 26px 间距（跟现有卡片动效一致）。</p></div>
+      <div class="rule"><h4>空状态</h4><p>某个分组没有应用则不生成该页；全部为空时显示「还没有可显示的应用」。</p></div>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="cap"><span class="tag">D</span><span class="t">细节标注</span><span class="n">和现有设置页/抽屉同一套 token</span></div>
+    <div style="display:flex;flex-direction:column">
+      <div class="anno"><span class="num">1</span><div class="tx"><b>搜索框</b>：高 44、圆角 999、底色比面板深一级；左侧放大镜，输入后右侧出现清空按钮。与「全部应用」标题同一水平线。</div></div>
+      <div class="anno"><span class="num">2</span><div class="tx"><b>分组标签</b>：高 30 的胶囊，当前组强调色底 + 描边；显示每组应用数量。滑动网格时标签跟随滚动。</div></div>
+      <div class="anno"><span class="num">3</span><div class="tx"><b>网格</b>：图标 54（圆角 14，带 2px 阴影），名称 11.5、单行省略；点按启动，长按弹菜单。</div></div>
+      <div class="anno"><span class="num">4</span><div class="tx"><b>底部</b>：左侧滑动提示、右侧分组圆点（当前组为长条）。关闭按钮在标题右侧。</div></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

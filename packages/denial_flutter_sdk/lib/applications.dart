@@ -20,6 +20,8 @@ export 'src/launcher/controllers/home_grid_controller.dart'
         homeClockProvider,
         homeGridControllerProvider,
         homeLayoutRepositoryProvider;
+export 'src/launcher/controllers/application_catalog.dart'
+    show allApplicationsProvider, localAppDesktopEntriesProvider;
 export 'src/launcher/controllers/home_grid_layout.dart' show HomeGridLayout;
 export 'src/launcher/launcher_providers.dart'
     show homeTitleProvider, runtimePathsProvider, screenPowerServiceProvider;

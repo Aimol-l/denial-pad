@@ -240,6 +240,10 @@ class DesktopAppsRepository {
       icon: icon,
       iconPath: iconPath,
       startupWmClass: fields['StartupWMClass']?.trim(),
+      localAppId: switch (fields['X-Denial-Local-App']?.trim()) {
+        final value when value != null && value.isNotEmpty => value,
+        _ => null,
+      },
     );
   }
 

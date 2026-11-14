@@ -1064,9 +1064,57 @@
       }
     }
   },
+  "appGroupDevelopment": "Development",
+  "@appGroupDevelopment": {
+    "description": "All-apps drawer group for development tools."
+  },
+  "appGroupGame": "Games",
+  "@appGroupGame": {
+    "description": "All-apps drawer group for games."
+  },
+  "appGroupGraphics": "Graphics",
+  "@appGroupGraphics": {
+    "description": "All-apps drawer group for graphics applications."
+  },
+  "appGroupMultimedia": "Multimedia",
+  "@appGroupMultimedia": {
+    "description": "All-apps drawer group for audio and video applications."
+  },
+  "appGroupNetwork": "Internet",
+  "@appGroupNetwork": {
+    "description": "All-apps drawer group for network applications."
+  },
+  "appGroupOffice": "Office",
+  "@appGroupOffice": {
+    "description": "All-apps drawer group for office applications."
+  },
+  "appGroupOther": "Other",
+  "@appGroupOther": {
+    "description": "All-apps drawer group for applications without a known category."
+  },
+  "appGroupSystem": "System",
+  "@appGroupSystem": {
+    "description": "All-apps drawer group for system and settings applications."
+  },
+  "dockAddToDesktop": "Add to desktop",
+  "@dockAddToDesktop": {
+    "description": "Application menu action that links an app onto the desktop folder."
+  },
   "dockAllApps": "All apps",
   "@dockAllApps": {
     "description": "Dock button that opens the full application grid."
+  },
+  "dockNoApplications": "No applications to show",
+  "@dockNoApplications": {
+    "description": "All-apps drawer empty state."
+  },
+  "dockNoMatches": "No matching apps",
+  "@dockNoMatches": {
+    "description": "All-apps search empty result."
+  },
+  "dockSearchApps": "Search apps",
+  "@dockSearchApps": {
+    "description": "All-apps search field placeholder."
   },
   "dockRemove": "Remove from Dock",
   "@dockRemove": {

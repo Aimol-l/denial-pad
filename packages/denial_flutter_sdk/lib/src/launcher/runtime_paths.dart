@@ -35,6 +35,41 @@ class RuntimePaths {
       denialEnvironmentValue(environment, 'DENIAL_WALLPAPER_DIR') ??
       p.join(homeDir, 'Pictures', 'Wallpapers');
 
+  /// The user's desktop directory, from `user-dirs.dirs` when it is set.
+  String get desktopDirectory {
+    final configured = _desktopDirectoryFromUserDirs();
+    return configured ?? p.join(homeDir, 'Desktop');
+  }
+
+  String? _desktopDirectoryFromUserDirs() {
+    try {
+      final file = File(p.join(configHome, 'user-dirs.dirs'));
+      if (!file.existsSync()) {
+        return null;
+      }
+      for (final line in file.readAsLinesSync()) {
+        final trimmed = line.trim();
+        if (!trimmed.startsWith('XDG_DESKTOP_DIR=')) {
+          continue;
+        }
+        var value = trimmed.substring('XDG_DESKTOP_DIR='.length).trim();
+        if (value.length >= 2 &&
+            (value.startsWith('"') && value.endsWith('"') ||
+                value.startsWith("'") && value.endsWith("'"))) {
+          value = value.substring(1, value.length - 1);
+        }
+        value = value.replaceAll(r'$HOME', homeDir);
+        if (value.startsWith('~/')) {
+          value = p.join(homeDir, value.substring(2));
+        }
+        return value.isEmpty ? null : value;
+      }
+    } on FileSystemException {
+      return null;
+    }
+    return null;
+  }
+
   List<String> get dataDirs {
     return (environment['XDG_DATA_DIRS'] ?? '/usr/local/share:/usr/share')
         .split(':')

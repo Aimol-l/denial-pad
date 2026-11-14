@@ -173,12 +173,39 @@ class HomeGridLayout {
     List<DesktopApp> apps,
     Iterable<LocalFlutterApplication> localApps,
   ) {
-    return <String, HomeGridItem>{
-      for (final app in apps) 'app:${app.id}': HomeGridItem.app(app),
-      for (final app in localApps)
-        'local:${app.id}': HomeGridItem.localApp(app),
+    final localById = <String, LocalFlutterApplication>{
+      for (final app in localApps) app.id: app,
     };
+    final items = <String, HomeGridItem>{};
+    for (final app in apps) {
+      final local = app.localAppId == null ? null : localById[app.localAppId];
+      if (local != null) {
+        // A generated entry launches the built-in app, not its Exec.
+        items['local:${local.id}'] = HomeGridItem.localApp(local);
+      } else {
+        items['app:${app.id}'] = HomeGridItem.app(app);
+      }
+    }
+    for (final app in localApps) {
+      items.putIfAbsent('local:${app.id}', () => HomeGridItem.localApp(app));
+    }
+    return items;
   }
+
+  /// Every application in the catalog, built-ins included, once each.
+  static List<HomeGridItem> catalogItems(
+    List<DesktopApp> apps,
+    Iterable<LocalFlutterApplication> localApps,
+  ) {
+    final items = _appItemsById(apps, localApps).values.toList(growable: false);
+    items.sort(
+      (first, second) => _sortName(first).compareTo(_sortName(second)),
+    );
+    return items;
+  }
+
+  static String _sortName(HomeGridItem item) =>
+      (item.localApp?.title ?? item.app?.name ?? '').toLowerCase();
 
   /// A folder needs two apps; with one left it becomes that app.
   static HomeGridItem? _folderOrSingleApp(

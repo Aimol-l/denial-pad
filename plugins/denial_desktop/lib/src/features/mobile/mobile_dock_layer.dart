@@ -5,6 +5,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:path/path.dart' as p;
 
 import 'package:denial_flutter_sdk/applications.dart';
 import 'package:denial_flutter_sdk/effects.dart';
@@ -345,7 +346,6 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
         if (_drawerOpen && visible)
           Positioned.fill(
             child: _AllAppsDrawer(
-              apps: catalog,
               onClose: () => setState(() => _drawerOpen = false),
               onLaunch: (item, rect) {
                 setState(() => _drawerOpen = false);
@@ -662,33 +662,206 @@ class _DockItemMenu extends StatelessWidget {
   }
 }
 
-class _AllAppsDrawer extends StatelessWidget {
-  const _AllAppsDrawer({
-    required this.apps,
-    required this.onClose,
-    required this.onLaunch,
-  });
+class _AllAppsDrawer extends ConsumerStatefulWidget {
+  const _AllAppsDrawer({required this.onClose, required this.onLaunch});
 
-  final List<HomeGridItem> apps;
   final VoidCallback onClose;
   final void Function(HomeGridItem item, Rect rect) onLaunch;
 
   @override
+  ConsumerState<_AllAppsDrawer> createState() => _AllAppsDrawerState();
+}
+
+class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
+  static const List<String> _groupOrder = <String>[
+    'development',
+    'graphics',
+    'network',
+    'multimedia',
+    'office',
+    'game',
+    'system',
+    'other',
+  ];
+
+  final _search = TextEditingController();
+  final _searchFocus = FocusNode();
+  final _pageController = PageController();
+  String _query = '';
+  int _page = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchFocus.addListener(_focusedChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchFocus.removeListener(_focusedChanged);
+    _search.dispose();
+    _searchFocus.dispose();
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _focusedChanged() => setState(() {});
+
+  String _searchText(HomeGridItem item) {
+    final app = item.app;
+    if (app != null) {
+      return app.searchableText;
+    }
+    final local = item.localApp;
+    if (local == null) {
+      return '';
+    }
+    return <String>[local.id, local.title, ...local.categories]
+        .join(' ')
+        .toLowerCase();
+  }
+
+  String _groupOf(HomeGridItem item) {
+    final categories =
+        item.app?.categories ?? item.localApp?.categories ?? const <String>[];
+    for (final raw in categories) {
+      final category = raw.toLowerCase();
+      if (category.contains('development') || category == 'ide') {
+        return 'development';
+      }
+      if (category.contains('graphics')) {
+        return 'graphics';
+      }
+      if (category.contains('network') ||
+          category.contains('internet') ||
+          category == 'webbrowser') {
+        return 'network';
+      }
+      if (category.contains('audio') ||
+          category.contains('video') ||
+          category.contains('multimedia')) {
+        return 'multimedia';
+      }
+      if (category.contains('office')) {
+        return 'office';
+      }
+      if (category.contains('game')) {
+        return 'game';
+      }
+      if (category.contains('system') ||
+          category.contains('settings') ||
+          category.contains('utility')) {
+        return 'system';
+      }
+    }
+    return 'other';
+  }
+
+  String _groupLabel(BuildContext context, String key) {
+    final l10n = context.l10n;
+    return switch (key) {
+      'all' => l10n.dockAllApps,
+      'development' => l10n.appGroupDevelopment,
+      'graphics' => l10n.appGroupGraphics,
+      'network' => l10n.appGroupNetwork,
+      'multimedia' => l10n.appGroupMultimedia,
+      'office' => l10n.appGroupOffice,
+      'game' => l10n.appGroupGame,
+      'system' => l10n.appGroupSystem,
+      _ => l10n.appGroupOther,
+    };
+  }
+
+  String? _desktopPathOf(HomeGridItem item) {
+    final app = item.app;
+    if (app != null) {
+      return app.desktopPath;
+    }
+    final local = item.localApp;
+    if (local == null) {
+      return null;
+    }
+    final paths = ref.read(runtimePathsProvider);
+    return p.join(paths.dataHome, 'applications', 'denial-${local.id}.desktop');
+  }
+
+  Future<void> _addToDesktop(HomeGridItem item) async {
+    final target = _desktopPathOf(item);
+    if (target == null) {
+      return;
+    }
+    final directory = Directory(ref.read(runtimePathsProvider).desktopDirectory);
+    try {
+      await directory.create(recursive: true);
+      final link = Link(p.join(directory.path, p.basename(target)));
+      if (await link.exists() || await File(link.path).exists()) {
+        return;
+      }
+      await link.create(target);
+    } on FileSystemException {
+      return;
+    }
+  }
+
+  void _showMenu(HomeGridItem item) {
+    ref
+        .read(shellPopupControllerProvider.notifier)
+        .show(
+          keyName: 'app-menu-${item.id}',
+          debugLabel: 'Application menu',
+          builder: (context, handle) => _AppMenu(
+            title: _nameOf(context, item),
+            onAddToDesktop: () {
+              handle.close();
+              unawaited(_addToDesktop(item));
+            },
+          ),
+        );
+  }
+
+  void _setQuery(String value) {
+    setState(() {
+      _query = value;
+      _page = 0;
+    });
+    if (_pageController.hasClients) {
+      _pageController.jumpToPage(0);
+    }
+  }
+
+  void _clearQuery() {
+    _search.clear();
+    _setQuery('');
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final l10n = context.l10n;
     final theme = ShellTheme.of(context);
-    final unique = <String, HomeGridItem>{
-      for (final item in apps) item.id: item,
-    }.values.toList(growable: false)
-      ..sort(
-        (a, b) => _nameOf(context, a).toLowerCase().compareTo(
-          _nameOf(context, b).toLowerCase(),
-        ),
-      );
+    final catalog = ref.watch(allApplicationsProvider);
+    final query = _query.trim().toLowerCase();
+    final items = (catalog.asData?.value ?? const <HomeGridItem>[])
+        .where((item) => query.isEmpty || _searchText(item).contains(query))
+        .toList(growable: false);
+    final groups = <String, List<HomeGridItem>>{};
+    for (final item in items) {
+      groups.putIfAbsent(_groupOf(item), () => <HomeGridItem>[]).add(item);
+    }
+    // The first page is everything; the rest are the categories.
+    final visibleGroups = <String>[
+      if (items.isNotEmpty) 'all',
+      for (final key in _groupOrder)
+        if (groups[key]?.isNotEmpty ?? false) key,
+    ];
+    final pageCount = visibleGroups.isEmpty ? 1 : visibleGroups.length;
+    final page = _page.clamp(0, pageCount - 1);
+    final searching = query.isNotEmpty;
+
     return ColoredBox(
       color: const Color(0x73000000),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: onClose,
+        onTap: widget.onClose,
         child: Center(
           child: GestureDetector(
             onTap: () {},
@@ -715,8 +888,12 @@ class _AllAppsDrawer extends StatelessWidget {
                     children: [
                       Row(
                         children: [
+                          Expanded(child: _searchField(context)),
+                          const SizedBox(width: 18),
                           Text(
-                            context.l10n.dockAllApps,
+                            searching
+                                ? l10n.dockSearchApps
+                                : l10n.dockAllApps,
                             style: TextStyle(
                               color: context.shellColors.panelText,
                               fontSize: 20,
@@ -724,12 +901,11 @@ class _AllAppsDrawer extends StatelessWidget {
                               height: 1.1,
                             ),
                           ),
-                          const Spacer(),
                           GestureDetector(
                             behavior: HitTestBehavior.opaque,
-                            onTap: onClose,
+                            onTap: widget.onClose,
                             child: Padding(
-                              padding: const EdgeInsets.all(8),
+                              padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
                               child: Icon(
                                 Icons.close_rounded,
                                 size: 22,
@@ -739,63 +915,371 @@ class _AllAppsDrawer extends StatelessWidget {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      if (!searching && visibleGroups.isNotEmpty) ...[
+                        const SizedBox(height: 14),
+                        _groupTabs(context, visibleGroups, page),
+                      ],
+                      const SizedBox(height: 12),
                       Expanded(
-                        child: GridView.builder(
-                          padding: EdgeInsets.zero,
-                          gridDelegate:
-                              const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 8,
-                                mainAxisSpacing: 6,
-                                crossAxisSpacing: 6,
-                                mainAxisExtent: 92,
-                              ),
-                          itemCount: unique.length,
+                        child: PageView.builder(
+                          controller: _pageController,
+                          onPageChanged: (index) =>
+                              setState(() => _page = index),
+                          itemCount: pageCount,
                           itemBuilder: (context, index) {
-                            final item = unique[index];
-                            return Builder(
-                              builder: (tileContext) => GestureDetector(
-                                behavior: HitTestBehavior.opaque,
-                                onTap: () {
-                                  final box =
-                                      tileContext.findRenderObject();
-                                  final rect = box is RenderBox && box.hasSize
-                                      ? box.localToGlobal(Offset.zero) &
-                                            box.size
-                                      : Rect.zero;
-                                  onLaunch(item, rect);
-                                },
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    SizedBox.square(
-                                      dimension: 46,
-                                      child: LauncherIcon.of(item),
-                                    ),
-                                    const SizedBox(height: 5),
-                                    Text(
-                                      _nameOf(context, item),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                        color: context.shellColors.panelText,
-                                        fontSize: 11.5,
-                                        height: 1.1,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
+                            if (visibleGroups.isEmpty) {
+                              return _emptyState(context);
+                            }
+                            return _AppsGrid(
+                              items: visibleGroups[index] == 'all'
+                                  ? items
+                                  : groups[visibleGroups[index]]!,
+                              onLaunch: widget.onLaunch,
+                              onLongPress: _showMenu,
                             );
                           },
+                        ),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Row(
+                          children: [
+                            if (!searching && visibleGroups.length > 1)
+                              Text(
+                                '←  滑动切换分组  →',
+                                style: TextStyle(
+                                  color: context.shellColors.textTertiary,
+                                  fontSize: 11.5,
+                                ),
+                              ),
+                            const Spacer(),
+                            if (!searching && visibleGroups.length > 1)
+                              Row(
+                                children: [
+                                  for (var index = 0;
+                                      index < visibleGroups.length;
+                                      index += 1)
+                                    AnimatedContainer(
+                                      duration:
+                                          MediaQuery.disableAnimationsOf(
+                                            context,
+                                          )
+                                          ? Duration.zero
+                                          : const Duration(milliseconds: 180),
+                                      margin: const EdgeInsets.only(left: 6),
+                                      width: index == page ? 18 : 6,
+                                      height: 6,
+                                      decoration: BoxDecoration(
+                                        color: index == page
+                                            ? theme.accent
+                                            : context
+                                                  .shellColors
+                                                  .textTertiary
+                                                  .withAlpha(70),
+                                        borderRadius: BorderRadius.circular(3),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                          ],
                         ),
                       ),
                     ],
                   ),
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _searchField(BuildContext context) {
+    final theme = ShellTheme.of(context);
+    final background = context.shellColors.tileOff;
+    return Semantics(
+      textField: true,
+      label: context.l10n.dockSearchApps,
+      child: Container(
+        height: 44,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: _searchFocus.hasFocus
+                ? theme.accent
+                : context.shellColors.hairlineSoft,
+          ),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              Icons.search_rounded,
+              size: 18,
+              color: context.shellColors.textSecondary,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Stack(
+                alignment: Alignment.centerLeft,
+                children: [
+                  if (_query.isEmpty)
+                    Text(
+                      context.l10n.dockSearchApps,
+                      style: TextStyle(
+                        color: context.shellColors.textTertiary,
+                        fontSize: 13,
+                      ),
+                    ),
+                  EditableText(
+                    controller: _search,
+                    focusNode: _searchFocus,
+                    maxLines: 1,
+                    style: TextStyle(
+                      color: context.shellColors.panelText,
+                      fontSize: 13,
+                    ),
+                    cursorColor: theme.accent,
+                    backgroundCursorColor: context.shellColors.textSecondary,
+                    selectionColor: theme.accentPalette.container,
+                    onChanged: _setQuery,
+                  ),
+                ],
+              ),
+            ),
+            if (_query.isNotEmpty)
+              GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: _clearQuery,
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 8),
+                  child: Icon(
+                    Icons.close_rounded,
+                    size: 15,
+                    color: context.shellColors.textTertiary,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _groupTabs(BuildContext context, List<String> groups, int page) {
+    final theme = ShellTheme.of(context);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (var index = 0; index < groups.length; index += 1)
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () {
+                _pageController.animateToPage(
+                  index,
+                  duration: const Duration(milliseconds: 240),
+                  curve: Curves.easeOutCubic,
+                );
+              },
+              child: AnimatedContainer(
+                duration: MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : const Duration(milliseconds: 160),
+                margin: const EdgeInsets.only(right: 8),
+                height: 30,
+                padding: const EdgeInsets.symmetric(horizontal: 13),
+                decoration: BoxDecoration(
+                  color: index == page
+                      ? theme.accent.withAlpha(30)
+                      : Colors.transparent,
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    color: index == page
+                        ? theme.accent.withAlpha(80)
+                        : Colors.transparent,
+                  ),
+                ),
+                child: Center(
+                  child: Text(
+                    _groupLabel(context, groups[index]),
+                    style: TextStyle(
+                      color: index == page
+                          ? theme.accent
+                          : context.shellColors.textSecondary,
+                      fontSize: 12.5,
+                      fontWeight: index == page
+                          ? FontWeight.w600
+                          : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _emptyState(BuildContext context) {
+    return Center(
+      child: Text(
+        _query.isEmpty
+            ? context.l10n.dockNoApplications
+            : context.l10n.dockNoMatches,
+        style: TextStyle(
+          color: context.shellColors.textTertiary,
+          fontSize: 13,
+        ),
+      ),
+    );
+  }
+}
+
+class _AppsGrid extends StatelessWidget {
+  const _AppsGrid({
+    required this.items,
+    required this.onLaunch,
+    required this.onLongPress,
+  });
+
+  final List<HomeGridItem> items;
+  final void Function(HomeGridItem item, Rect rect) onLaunch;
+  final void Function(HomeGridItem item) onLongPress;
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.builder(
+      padding: EdgeInsets.zero,
+      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: 8,
+        mainAxisSpacing: 6,
+        crossAxisSpacing: 14,
+        mainAxisExtent: 104,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final item = items[index];
+        return Builder(
+          builder: (tileContext) => GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () {
+              final box = tileContext.findRenderObject();
+              final rect = box is RenderBox && box.hasSize
+                  ? box.localToGlobal(Offset.zero) & box.size
+                  : Rect.zero;
+              onLaunch(item, rect);
+            },
+            onLongPress: () => onLongPress(item),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                SizedBox.square(
+                  dimension: 54,
+                  child: LauncherIcon.of(item),
+                ),
+                const SizedBox(height: 7),
+                Text(
+                  _nameOf(context, item),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.shellColors.panelText,
+                    fontSize: 11.5,
+                    height: 1.1,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AppMenu extends StatelessWidget {
+  const _AppMenu({required this.title, required this.onAddToDesktop});
+
+  final String title;
+  final VoidCallback onAddToDesktop;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShellTheme.of(context);
+    return Center(
+      child: SizedBox(
+        width: 320,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.panelColor(context.shellColors.panelBackground),
+            borderRadius: BorderRadius.circular(theme.scaledRadius(18)),
+            border: Border.all(color: context.shellColors.hairlineSoft),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x66000000),
+                blurRadius: 36,
+                offset: Offset(0, 16),
+              ),
+            ],
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(10),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(10, 6, 10, 10),
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.shellColors.panelText,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: onAddToDesktop,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: context.shellColors.tileOff,
+                      borderRadius: BorderRadius.circular(
+                        theme.scaledRadius(12),
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.add_to_home_screen_rounded,
+                            size: 20,
+                            color: context.shellColors.textSecondary,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            context.l10n.dockAddToDesktop,
+                            style: TextStyle(
+                              color: context.shellColors.panelText,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),

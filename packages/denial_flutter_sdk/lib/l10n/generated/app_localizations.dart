@@ -1400,11 +1400,83 @@ abstract class AppLocalizations {
   /// **'Volume for {applicationName}'**
   String desktopVolumeForApplication(String applicationName);
 
+  /// All-apps drawer group for development tools.
+  ///
+  /// In en, this message translates to:
+  /// **'Development'**
+  String get appGroupDevelopment;
+
+  /// All-apps drawer group for games.
+  ///
+  /// In en, this message translates to:
+  /// **'Games'**
+  String get appGroupGame;
+
+  /// All-apps drawer group for graphics applications.
+  ///
+  /// In en, this message translates to:
+  /// **'Graphics'**
+  String get appGroupGraphics;
+
+  /// All-apps drawer group for audio and video applications.
+  ///
+  /// In en, this message translates to:
+  /// **'Multimedia'**
+  String get appGroupMultimedia;
+
+  /// All-apps drawer group for network applications.
+  ///
+  /// In en, this message translates to:
+  /// **'Internet'**
+  String get appGroupNetwork;
+
+  /// All-apps drawer group for office applications.
+  ///
+  /// In en, this message translates to:
+  /// **'Office'**
+  String get appGroupOffice;
+
+  /// All-apps drawer group for applications without a known category.
+  ///
+  /// In en, this message translates to:
+  /// **'Other'**
+  String get appGroupOther;
+
+  /// All-apps drawer group for system and settings applications.
+  ///
+  /// In en, this message translates to:
+  /// **'System'**
+  String get appGroupSystem;
+
+  /// Application menu action that links an app onto the desktop folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Add to desktop'**
+  String get dockAddToDesktop;
+
   /// Dock button that opens the full application grid.
   ///
   /// In en, this message translates to:
   /// **'All apps'**
   String get dockAllApps;
+
+  /// All-apps drawer empty state.
+  ///
+  /// In en, this message translates to:
+  /// **'No applications to show'**
+  String get dockNoApplications;
+
+  /// All-apps search empty result.
+  ///
+  /// In en, this message translates to:
+  /// **'No matching apps'**
+  String get dockNoMatches;
+
+  /// All-apps search field placeholder.
+  ///
+  /// In en, this message translates to:
+  /// **'Search apps'**
+  String get dockSearchApps;
 
   /// Dock item menu action that unpins the app.
   ///

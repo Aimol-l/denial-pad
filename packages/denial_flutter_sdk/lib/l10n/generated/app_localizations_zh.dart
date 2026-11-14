@@ -729,7 +729,43 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get appGroupDevelopment => '开发';
+
+  @override
+  String get appGroupGame => '游戏';
+
+  @override
+  String get appGroupGraphics => '图形';
+
+  @override
+  String get appGroupMultimedia => '影音';
+
+  @override
+  String get appGroupNetwork => '网络';
+
+  @override
+  String get appGroupOffice => '办公';
+
+  @override
+  String get appGroupOther => '其它';
+
+  @override
+  String get appGroupSystem => '系统';
+
+  @override
+  String get dockAddToDesktop => '添加到桌面';
+
+  @override
   String get dockAllApps => '全部应用';
+
+  @override
+  String get dockNoApplications => '还没有可显示的应用';
+
+  @override
+  String get dockNoMatches => '没有匹配的应用';
+
+  @override
+  String get dockSearchApps => '搜索应用';
 
   @override
   String get dockRemove => '从 Dock 移除';
