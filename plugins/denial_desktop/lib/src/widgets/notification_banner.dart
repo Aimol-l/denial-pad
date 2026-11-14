@@ -13,6 +13,8 @@ import 'package:denial_flutter_sdk/input.dart';
 import 'package:denial_flutter_sdk/models.dart';
 import 'package:denial_flutter_sdk/settings.dart';
 import 'package:denial_flutter_sdk/state.dart';
+import 'package:denial_flutter_sdk/system_services.dart'
+    show mediaPlaybackProvider, MprisPlaybackStatus;
 import 'package:denial_flutter_sdk/glass_configuration.dart';
 import 'package:denial_flutter_sdk/motion.dart';
 import 'package:denial_flutter_sdk/rendering.dart' show AppIconImage;
