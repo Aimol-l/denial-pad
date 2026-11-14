@@ -161,9 +161,16 @@ class ClipboardDataKey {
 
 final clipboardEntryDataProvider = FutureProvider.autoDispose
     .family<ClipboardHistoryData, ClipboardDataKey>((ref, key) {
+      // An image is the whole PNG, often several megabytes, and the compositor
+      // can be busy finishing a capture when the request lands; the default
+      // two-second reply window is too short for that.
       return ref
           .watch(clipboardHistoryServiceProvider)
-          .readData(key.itemId, key.mimeType);
+          .readData(
+            key.itemId,
+            key.mimeType,
+            timeout: const Duration(seconds: 10),
+          );
     });
 
 const int _maxLocalClipboardPreviewBytes = 16 * 1024 * 1024;

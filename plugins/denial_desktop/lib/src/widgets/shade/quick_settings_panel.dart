@@ -1025,24 +1025,21 @@ class _QuickSettingsTilesSection extends ConsumerWidget {
         active: false,
         stacked: designLayout,
         onTap: () {
-          ref.read(referenceShellProvider.notifier).closeQuickSettings();
           if (presentation == ReferenceShellProfile.mobile) {
             // The tray slides in from the desktop's edge; a tablet gets the
-            // same history in the popup the shade's details use. The shade is
-            // still closing under this very tap, so the popup opens once it
-            // has let go of the pointer.
-            Future<void>.delayed(const Duration(milliseconds: 180), () {
-              ref
-                  .read(shellPopupControllerProvider.notifier)
-                  .show(
-                    keyName: 'clipboard-history',
-                    debugLabel: 'Clipboard history',
-                    builder: (_, handle) =>
-                        ClipboardHistoryPopup(onClose: handle.close),
-                  );
-            });
+            // same history in the popup the Wi-Fi and Bluetooth details use,
+            // with the shade still behind it.
+            ref
+                .read(shellPopupControllerProvider.notifier)
+                .show(
+                  keyName: 'clipboard-history',
+                  debugLabel: 'Clipboard history',
+                  builder: (_, handle) =>
+                      ClipboardHistoryPopup(onClose: handle.close),
+                );
             return;
           }
+          ref.read(referenceShellProvider.notifier).closeQuickSettings();
           ref.read(clipboardTrayProvider.notifier).open();
         },
       ),

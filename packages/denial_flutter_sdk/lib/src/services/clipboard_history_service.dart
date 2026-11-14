@@ -42,9 +42,16 @@ class ClipboardHistoryService {
     );
   }
 
-  Future<ClipboardHistoryData> readData(int itemId, String mimeType) async {
+  Future<ClipboardHistoryData> readData(
+    int itemId,
+    String mimeType, {
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
     final data = ClipboardHistoryProtocol.decodeData(
-      await _send(ClipboardHistoryProtocol.readRequest(itemId, mimeType)),
+      await _send(
+        ClipboardHistoryProtocol.readRequest(itemId, mimeType),
+        timeout: timeout,
+      ),
     );
     if (data.itemId != itemId || data.mimeType != mimeType) {
       throw const ClipboardHistoryException(
@@ -92,7 +99,10 @@ class ClipboardHistoryService {
   Future<int> _sendAck(ByteData request) async =>
       ClipboardHistoryProtocol.decodeAck(await _send(request));
 
-  Future<ByteData> _send(ByteData request) async {
+  Future<ByteData> _send(
+    ByteData request, {
+    Duration timeout = const Duration(seconds: 2),
+  }) async {
     if (_disposed) {
       throw const ClipboardHistoryException(
         1,
@@ -106,7 +116,7 @@ class ClipboardHistoryService {
         'Clipboard platform channel is unavailable',
       );
     }
-    final response = await pending.timeout(const Duration(seconds: 2));
+    final response = await pending.timeout(timeout);
     if (response == null) {
       throw const ClipboardHistoryException(
         1,
