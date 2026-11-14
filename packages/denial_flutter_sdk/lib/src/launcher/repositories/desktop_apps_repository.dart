@@ -410,9 +410,14 @@ class DesktopAppsRepository {
       final components = p.split(p.relative(path, from: theme.path));
       var sizeRank = _preferredIconSizes.length + 40;
       var contextRank = _preferredIconContexts.length + 10;
-      if (components.length >= 3) {
-        final size = components[0];
-        final context = components[components.length - 2];
+      if (components.length >= 2) {
+        // Themes ship both `context/size/name` (Colloid, Papirus) and
+        // `size/context/name` (Adwaita); read whichever order is present.
+        final first = _iconSizeOf(components[0]);
+        final last = _iconSizeOf(components[components.length - 2]);
+        final firstIsSize = _isIconSize(first);
+        final size = firstIsSize ? first : last;
+        final context = firstIsSize ? last : first;
         final contextIndex = _preferredIconContexts.indexOf(context);
         if (contextIndex >= 0) {
           contextRank = contextIndex;
@@ -686,28 +691,42 @@ bool _isDesktopApplicationEvent(FileSystemEvent event) {
 }
 
 const List<String> _iconExtensions = <String>[
+  'svg',
   'png',
   'webp',
   'jpg',
   'jpeg',
-  'svg',
 ];
 
 const List<String> _preferredIconSizes = <String>[
   'scalable',
-  '512x512',
-  '256x256',
-  '192x192',
-  '128x128',
-  '96x96',
-  '64x64',
-  '48x48',
-  '36x36',
-  '32x32',
-  '24x24',
-  '22x22',
-  '16x16',
+  '512',
+  '256',
+  '192',
+  '128',
+  '96',
+  '64',
+  '48',
+  '36',
+  '32',
+  '24',
+  '22',
+  '16',
 ];
+
+/// `48x48@2x` → `48`, `symbolic` stays.
+String _iconSizeOf(String component) {
+  final at = component.indexOf('@');
+  final base = at < 0 ? component : component.substring(0, at);
+  final x = base.indexOf('x');
+  return x < 0 ? base : base.substring(0, x);
+}
+
+bool _isIconSize(String value) =>
+    value == 'scalable' ||
+    value == 'symbolic' ||
+    _preferredIconSizes.contains(value) ||
+    int.tryParse(value) != null;
 
 const List<String> _preferredIconContexts = <String>[
   'apps',
