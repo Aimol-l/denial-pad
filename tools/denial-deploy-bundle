@@ -142,13 +142,21 @@ if ((COMPOSITOR)); then
     remote "sudo install -m755 /tmp/deniald-deploy /usr/bin/deniald && rm -f /tmp/deniald-deploy" >/dev/null
 fi
 
-# The archive can be whole and still unpack badly; the two libraries the
-# session starts from must have content.
-for deployed in /usr/lib/denial/flutter/lib/libapp.so \
-    /usr/lib/denial/flutter/lib/libflutter_engine.so \
-    /usr/lib/denial/settings/lib/libapp.so; do
-    if ! remote "test -s $deployed" >/dev/null; then
-        die "$deployed is empty after the install"
+# The archive can be whole and still unpack badly; every library must match
+# the build byte for byte. A truncated install once left 0-byte files and the
+# session could not start.
+want_engine="$(sha256sum "$shell_bundle/lib/libflutter_engine.so" | cut -d' ' -f1)"
+want_app="$(sha256sum "$shell_bundle/lib/libapp.so" | cut -d' ' -f1)"
+want_settings_app="$(sha256sum "$settings_bundle/lib/libapp.so" | cut -d' ' -f1)"
+for entry in \
+    "flutter/lib/libapp.so:$want_app" \
+    "flutter/lib/libflutter_engine.so:$want_engine" \
+    "settings/lib/libapp.so:$want_settings_app"; do
+    deployed="/usr/lib/denial/${entry%%:*}"
+    want="${entry#*:}"
+    got="$(remote "sha256sum $deployed 2>/dev/null" | cut -d' ' -f1)"
+    if [[ "$got" != "$want" ]]; then
+        die "$deployed does not match the build ($got != $want)"
     fi
 done
 
@@ -167,12 +175,20 @@ if ((REBOOT)); then
     # --no-block: a blocking reboot issued from inside an SSH session waits
     # for the job that stops that very session, and logind shows a stop job
     # for it until the 90-second timeout.
+    # Flush the just-written bundle before the reboot; a reboot that raced the
+    # writeback left 0-byte libraries behind once.
+    remote 'sudo sync' || true
     remote 'sudo systemctl reboot --no-block' || true
     printf '    waiting for it to come back\n'
     sleep 45
     for _ in $(seq 1 30); do
         if remote 'echo ok' 2>/dev/null | grep -q ok; then
             printf '    back\n'
+            got="$(remote "sha256sum /usr/lib/denial/flutter/lib/libflutter_engine.so 2>/dev/null" |
+                cut -d' ' -f1)"
+            if [[ "$got" != "$want_engine" ]]; then
+                die "the engine on the tablet changed across the reboot ($got != $want_engine)"
+            fi
             exit 0
         fi
         sleep 6

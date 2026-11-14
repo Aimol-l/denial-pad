@@ -147,10 +147,9 @@ class DesktopAppsRepository {
     } on FileSystemException {
       // A plain copy keeps its own name.
     }
-    final base = p.basename(path);
-    return base.toLowerCase().endsWith('.desktop')
-        ? base.substring(0, base.length - '.desktop'.length)
-        : base;
+    // The bridge launches by desktop-file id and requires the `.desktop`
+    // suffix; stripping it made every shortcut a no-op.
+    return p.basename(path);
   }
 
   Future<List<DesktopApp>> loadApplications() async {

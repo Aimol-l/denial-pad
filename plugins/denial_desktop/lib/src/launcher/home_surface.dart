@@ -211,14 +211,24 @@ class _HomeSurfaceState extends ConsumerState<HomeSurface>
 
   @override
   void launch(HomeGridItem app, Rect iconRect) {
-    if (_swallowTap || drag.active) return;
+    if (_swallowTap || _settleStaleDrag()) return;
     unawaited(launchHomeApp(context, ref, app, iconRect));
   }
 
   @override
   void openFolder(HomeGridItem folder, Rect iconRect) {
-    if (_swallowTap || drag.active) return;
+    if (_swallowTap || _settleStaleDrag()) return;
     folders.show(folder.id, iconRect);
+  }
+
+  /// A drag whose pointer went to an overlay keeps [drag] active and would
+  /// swallow every later tap. With no pointer down, the drag is stale: end it
+  /// and let the tap through.
+  bool _settleStaleDrag() {
+    if (!drag.active) return false;
+    if (_pointer != null) return true;
+    drag.end(cancelled: true);
+    return false;
   }
 
   @override
@@ -248,6 +258,14 @@ class _HomeSurfaceState extends ConsumerState<HomeSurface>
   // Input --------------------------------------------------------------------
 
   void _pointerDown(PointerDownEvent event) {
+    // A pointer whose up went to an overlay (the all-apps drawer closing on a
+    // background tap) never reaches _pointerUp here. A new pointer means the
+    // old one is gone; drop the stale state instead of swallowing every tap.
+    if (_pointer != null && _pointer != event.pointer) {
+      _pointer = null;
+      _heldWidget = null;
+      _taps.reset();
+    }
     if (_pointer != null) return;
     _pointer = event.pointer;
     _swallowTap = false;
