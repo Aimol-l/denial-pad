@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 
 import 'package:denial_flutter_sdk/models.dart';
+import 'package:denial_flutter_sdk/shell_theme.dart';
 
 /// The thin handle on the seam between the two panes.
 ///
@@ -79,11 +80,10 @@ class _SplitDividerState extends State<SplitDivider> {
           widget.bounds.max,
         );
         final along = (widget.vertical ? size.height : size.width) * ratio;
+        final accent = ShellTheme.of(context).accent;
         final line = DecoratedBox(
           decoration: BoxDecoration(
-            color: _dragging
-                ? const Color(0xE66D5BD0)
-                : const Color(0x8C6D5BD0),
+            color: _dragging ? accent : accent.withValues(alpha: 0.55),
             borderRadius: BorderRadius.circular(1),
           ),
           child: SizedBox(

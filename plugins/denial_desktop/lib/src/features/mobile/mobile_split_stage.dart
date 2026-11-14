@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:denial_flutter_sdk/models.dart';
 import 'package:denial_flutter_sdk/rendering.dart' show WindowContentRect;
+import 'package:denial_flutter_sdk/shell_theme.dart';
 
 import '../../state/reference_shell_controller.dart';
 import '../../state/reference_shell_metrics.dart';
@@ -64,6 +65,7 @@ class MobileSplitStage extends ConsumerWidget {
 
     Widget pane(DenialWindow window, int index) {
       final active = (pair.active == SplitSide.first) == (index == 0);
+      final accent = ShellTheme.of(context).accent;
       splitDebug(
         'pane $index "${window.appId}" ${rectAt(index)} '
         'geometry=${window.geometryWidth.round()}x'
@@ -98,7 +100,7 @@ class MobileSplitStage extends ConsumerWidget {
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         border: Border.all(
-                          color: const Color(0x736D5BD0),
+                          color: accent.withValues(alpha: 0.45),
                           width: 1,
                         ),
                       ),
@@ -119,8 +121,10 @@ class MobileSplitStage extends ConsumerWidget {
                     child: SizedBox(
                       width: pair.vertical ? null : 2,
                       height: pair.vertical ? 2 : null,
-                      child: const DecoratedBox(
-                        decoration: BoxDecoration(color: Color(0xB36D5BD0)),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: 0.7),
+                        ),
                       ),
                     ),
                   ),
