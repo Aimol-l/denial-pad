@@ -82,7 +82,14 @@ class MobileSplitStage extends ConsumerWidget {
             child: Stack(
               fit: StackFit.expand,
               children: [
-                WindowContentRect(window: window, active: active),
+                // A pane shows the whole client: an app that sized itself
+                // a few pixels taller than the pane keeps its bottom row
+                // when the window is fitted rather than covered.
+                WindowContentRect(
+                  window: window,
+                  active: active,
+                  fit: BoxFit.contain,
+                ),
                 // The active side owns the keyboard and Back; a hairline on
                 // the seam says so without taking any geometry.
                 if (active)

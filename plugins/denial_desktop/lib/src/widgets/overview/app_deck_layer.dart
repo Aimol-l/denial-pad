@@ -630,30 +630,20 @@ class _DeckCardState extends State<_DeckCard>
       );
     }
     final fractions = splitFractions(pair.ratio);
-    return Stack(
-      fit: StackFit.expand,
+    // Each pane shows the whole window when its client kept a size of its own
+    // instead of the pane's: covering would crop the bottom rows of an app
+    // that did not resize.
+    return Flex(
+      direction: pair.vertical ? Axis.vertical : Axis.horizontal,
       children: [
-        Flex(
-          direction: pair.vertical ? Axis.vertical : Axis.horizontal,
-          children: [
-            Expanded(
-              flex: (fractions.first * 1000).round(),
-              child: WindowContentRect(window: widget.window),
-            ),
-            SizedBox(
-              width: pair.vertical ? 0 : 6,
-              height: pair.vertical ? 6 : 0,
-            ),
-            Expanded(
-              flex: (fractions.second * 1000).round(),
-              child: WindowContentRect(window: second),
-            ),
-          ],
+        Expanded(
+          flex: (fractions.first * 1000).round(),
+          child: WindowContentRect(window: widget.window, fit: BoxFit.contain),
         ),
-        Positioned(
-          right: 10,
-          bottom: 10,
-          child: IgnorePointer(child: _PairBadge(pair: pair)),
+        SizedBox(width: pair.vertical ? 0 : 6, height: pair.vertical ? 6 : 0),
+        Expanded(
+          flex: (fractions.second * 1000).round(),
+          child: WindowContentRect(window: second, fit: BoxFit.contain),
         ),
       ],
     );
@@ -772,36 +762,6 @@ class _DeckCardState extends State<_DeckCard>
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-/// The corner tag that says a recents card is two apps, and at what ratio.
-class _PairBadge extends StatelessWidget {
-  const _PairBadge({required this.pair});
-
-  final SplitPair pair;
-
-  @override
-  Widget build(BuildContext context) {
-    final share = (splitFractions(pair.ratio).first * 100).round();
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xA614161C),
-        borderRadius: BorderRadius.circular(9),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Text(
-          '分屏 $share:${100 - share}',
-          style: const TextStyle(
-            color: Color(0xFFF2F3F7),
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            decoration: TextDecoration.none,
-          ),
-        ),
       ),
     );
   }
