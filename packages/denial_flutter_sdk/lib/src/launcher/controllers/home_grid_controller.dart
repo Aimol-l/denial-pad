@@ -118,6 +118,14 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
       _desktopAppsWatcher = null;
       _desktopRefreshTriggersStarted = false;
     });
+    // Icons come from the theme directories, and the catalog also unpacks
+    // Denial's bundled pack on first run: let it finish before the first
+    // lookup rather than resolve every icon against the fallback order.
+    try {
+      await ref.watch(iconThemeCatalogProvider.future);
+    } on Object {
+      // A catalog failure leaves the default icon order in place.
+    }
     final appsRepository = ref.watch(desktopAppsRepositoryProvider);
     final layoutRepository = ref.watch(homeLayoutRepositoryProvider);
     final localApps = ref

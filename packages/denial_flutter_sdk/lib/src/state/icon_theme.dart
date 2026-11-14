@@ -1,4 +1,8 @@
+import 'dart:io';
+
+import 'package:flutter/services.dart' show rootBundle;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path/path.dart' as p;
 
 import '../config/startup_environment.dart';
 import '../launcher/runtime_paths.dart';
@@ -19,9 +23,65 @@ final iconThemeCatalogProvider =
 
 class IconThemeCatalogController
     extends AsyncNotifier<List<ShellIconThemeData>> {
+  /// The icon pack Denial ships with, so a fresh install has real icons
+  /// instead of the frozen-desktop default order.
+  static const String bundledArchive =
+      'packages/denial_flutter_sdk/assets/icon-themes/Colloid.tar.xz';
+
   @override
-  Future<List<ShellIconThemeData>> build() {
-    return ref.watch(iconThemeRepositoryProvider).discover();
+  Future<List<ShellIconThemeData>> build() async {
+    final repository = ref.watch(iconThemeRepositoryProvider);
+    await _installBundledTheme(repository);
+    return repository.discover();
+  }
+
+  /// Unpacks [bundledArchive] once, when the default theme is not installed.
+  ///
+  /// The shell and the settings app both build this catalog; a lock file keeps
+  /// only one of them unpacking, and a marker keeps the pack from returning
+  /// after the user removed it.
+  Future<void> _installBundledTheme(IconThemeRepository repository) async {
+    final directory = Directory(
+      p.join(repository.paths.cacheHome, 'denial', 'icon-import'),
+    );
+    final marker = File(p.join(directory.path, '.bundled-colloid'));
+    if (await marker.exists()) {
+      return;
+    }
+    final installed = await repository.discover();
+    if (installed.any((theme) => theme.id == defaultIconTheme)) {
+      await marker.writeAsString('present');
+      return;
+    }
+    await directory.create(recursive: true);
+    final lock = File(p.join(directory.path, '.bundled-colloid.lock'));
+    try {
+      await lock.create(exclusive: true);
+    } on FileSystemException {
+      return;
+    }
+    try {
+      final data = await rootBundle.load(bundledArchive);
+      final archive = File(p.join(directory.path, 'Colloid.tar.xz'));
+      await archive.writeAsBytes(
+        data.buffer.asUint8List(data.offsetInBytes, data.lengthInBytes),
+      );
+      try {
+        await repository.install(archive.path);
+        await marker.writeAsString('installed');
+      } finally {
+        if (await archive.exists()) {
+          await archive.delete();
+        }
+      }
+    } on Object {
+      // A failed unpack must not take the shell's icons with it; the next
+      // launch tries again because no marker was written.
+    } finally {
+      if (await lock.exists()) {
+        await lock.delete();
+      }
+    }
   }
 
   /// Reads the icon directories again, for a theme installed while the shell
