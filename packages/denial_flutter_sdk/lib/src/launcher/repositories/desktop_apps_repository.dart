@@ -7,9 +7,16 @@ import '../runtime_paths.dart';
 import '../models/desktop_app.dart';
 
 class DesktopAppsRepository {
-  DesktopAppsRepository({required this._paths});
+  DesktopAppsRepository({
+    required this._paths,
+    String preferredIconTheme = '',
+  }) : _preferredIconTheme = preferredIconTheme.trim();
 
   final RuntimePaths _paths;
+
+  /// The theme searched before `hicolor`, `Adwaita` and the rest, or empty
+  /// for the default order.
+  final String _preferredIconTheme;
 
   /// Watches the XDG application directories for desktop-entry changes.
   ///
@@ -339,6 +346,8 @@ class DesktopAppsRepository {
         continue;
       }
       final themes = <String>[
+        if (_preferredIconTheme.isNotEmpty)
+          p.join(root, 'icons', _preferredIconTheme),
         p.join(root, 'icons', 'hicolor'),
         p.join(root, 'icons', 'Adwaita'),
         p.join(root, 'icons', 'Tela'),

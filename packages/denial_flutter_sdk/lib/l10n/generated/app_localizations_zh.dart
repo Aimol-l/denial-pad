@@ -3163,6 +3163,25 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsFontSystemDefault => '系统默认';
 
   @override
+  String get settingsIconThemeDescription =>
+      '应用图标取自所选的图标主题；主题从各数据目录的 icons 文件夹读取。';
+
+  @override
+  String get settingsIconThemeFollowScheme => '跟随明暗';
+
+  @override
+  String get settingsIconThemeLabel => '图标主题';
+
+  @override
+  String get settingsIconThemeLoading => '正在读取已安装的图标主题…';
+
+  @override
+  String get settingsIconThemePreview => '图标主题预览';
+
+  @override
+  String get settingsIconThemeTitle => '图标';
+
+  @override
   String get settingsGlassAccentTint => '强调色染色';
 
   @override

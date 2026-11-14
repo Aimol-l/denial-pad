@@ -374,6 +374,8 @@ class _SettingsPageBody extends ConsumerWidget {
             .watch(cursorThemeCatalogProvider)
             .isLoading;
         final fontCatalog = ref.watch(availableShellFontFamiliesProvider);
+        final iconThemes = ref.watch(availableShellIconThemesProvider);
+        final iconThemesLoading = ref.watch(iconThemeCatalogProvider).isLoading;
         return SettingsAppearancePage(
           settings: settings,
           extractedAccent: ref.watch(wallpaperAccentProvider).color,
@@ -391,6 +393,9 @@ class _SettingsPageBody extends ConsumerWidget {
           fontFamilies: fontCatalog.value ?? const <String>[],
           fontCatalogLoading: fontCatalog.isLoading,
           onFontFamilyChanged: controller.setFontFamily,
+          iconThemes: iconThemes,
+          iconThemesLoading: iconThemesLoading,
+          onIconThemeChanged: controller.setIconTheme,
           onCornerRadiusScaleChanged: controller.setCornerRadiusScale,
           onPanelOpacityChanged: controller.setPanelOpacity,
           onCardOpacityChanged: controller.setCardOpacity,

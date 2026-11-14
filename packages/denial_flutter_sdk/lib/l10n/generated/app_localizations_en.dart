@@ -3318,6 +3318,25 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsFontSystemDefault => 'System default';
 
   @override
+  String get settingsIconThemeDescription =>
+      'Applications take their icons from the chosen theme. Themes are read from the icons folder of every data directory.';
+
+  @override
+  String get settingsIconThemeFollowScheme => 'Follow light/dark';
+
+  @override
+  String get settingsIconThemeLabel => 'Icon theme';
+
+  @override
+  String get settingsIconThemeLoading => 'Reading installed themes…';
+
+  @override
+  String get settingsIconThemePreview => 'Icon theme preview';
+
+  @override
+  String get settingsIconThemeTitle => 'Icons';
+
+  @override
   String get settingsGlassAccentTint => 'Accent tint';
 
   @override

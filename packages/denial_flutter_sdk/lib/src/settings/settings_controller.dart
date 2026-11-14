@@ -214,6 +214,18 @@ class ShellSettingsController extends Notifier<ShellSettings> {
     _updateAppearance(fontFamily: family);
   }
 
+  /// An installed icon theme's directory name; empty follows the scheme.
+  void setIconTheme(String value) {
+    final id = value.trim();
+    if (id.length > 128 ||
+        id.runes.any((rune) => rune < 0x20 || rune == 0x7f) ||
+        id.contains('/') ||
+        id.contains('\\')) {
+      return;
+    }
+    _updateAppearance(iconTheme: id);
+  }
+
   void setCornerRadiusScale(double value) {
     _updateAppearance(
       cornerRadiusScale: value
@@ -778,6 +790,7 @@ class ShellSettingsController extends Notifier<ShellSettings> {
 
   void _updateAppearance({
     String? fontFamily,
+    String? iconTheme,
     double? cornerRadiusScale,
     double? panelOpacity,
     double? cardOpacity,
@@ -797,6 +810,7 @@ class ShellSettingsController extends Notifier<ShellSettings> {
       state.copyWith(
         appearance: state.appearance.copyWith(
           fontFamily: fontFamily,
+          iconTheme: iconTheme,
           cornerRadiusScale: cornerRadiusScale,
           panelOpacity: panelOpacity,
           cardOpacity: cardOpacity,

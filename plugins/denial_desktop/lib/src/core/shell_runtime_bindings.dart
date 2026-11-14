@@ -4,6 +4,7 @@ import 'package:denial_desktop/src/widgets/notification_open.dart';
 
 import 'dart:async';
 
+import 'package:denial_flutter_sdk/applications.dart' show homeGridControllerProvider;
 import 'package:denial_flutter_sdk/popups.dart';
 import 'package:denial_flutter_sdk/surfaces.dart';
 import 'package:denial_flutter_sdk/settings.dart';
@@ -113,6 +114,18 @@ class _ShellRuntimeBindingsState extends ConsumerState<ShellRuntimeBindings> {
         }
       },
     );
+    // A different icon theme re-resolves every app's icon; the launcher keeps
+    // the paths it read, so ask it to read them again.
+    ref.listen<String>(resolvedShellIconThemeProvider, (previous, next) {
+      if (previous == next) {
+        return;
+      }
+      unawaited(
+        ref
+            .read(homeGridControllerProvider.notifier)
+            .refreshDesktopApps(reason: 'icon-theme'),
+      );
+    });
     return widget.child;
   }
 

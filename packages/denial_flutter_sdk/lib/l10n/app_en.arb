@@ -4507,6 +4507,30 @@
   "@settingsFontSystemDefault": {
     "description": "Option that restores the platform's default font family."
   },
+  "settingsIconThemeDescription": "Applications take their icons from the chosen theme. Themes are read from the icons folder of every data directory.",
+  "@settingsIconThemeDescription": {
+    "description": "Explanation for the icon theme selector."
+  },
+  "settingsIconThemeFollowScheme": "Follow light/dark",
+  "@settingsIconThemeFollowScheme": {
+    "description": "Option that picks a light or dark icon theme with the shell's color scheme."
+  },
+  "settingsIconThemeLabel": "Icon theme",
+  "@settingsIconThemeLabel": {
+    "description": "Label for the icon theme selector."
+  },
+  "settingsIconThemeLoading": "Reading installed themes…",
+  "@settingsIconThemeLoading": {
+    "description": "Description shown while the icon theme catalog is loading."
+  },
+  "settingsIconThemePreview": "Icon theme preview",
+  "@settingsIconThemePreview": {
+    "description": "Accessible label for the sample icons of the selected icon theme."
+  },
+  "settingsIconThemeTitle": "Icons",
+  "@settingsIconThemeTitle": {
+    "description": "Section title for the icon theme setting."
+  },
   "settingsGlassAccentTint": "Accent tint",
   "@settingsGlassAccentTint": {
     "description": "Glass setting controlling how much of the shell accent is mixed into the material."

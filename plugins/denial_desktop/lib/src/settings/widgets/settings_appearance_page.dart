@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:denial_flutter_sdk/materials.dart';
@@ -6,6 +7,7 @@ import 'package:flutter/services.dart' show LogicalKeyboardKey;
 
 import 'package:denial_flutter_sdk/localization.dart';
 import 'package:denial_flutter_sdk/settings.dart';
+import 'package:denial_flutter_sdk/state.dart';
 import 'package:denial_flutter_sdk/theme.dart';
 import 'package:denial_flutter_sdk/wallpaper.dart';
 import 'package:denial_flutter_sdk/rendering.dart';
@@ -25,6 +27,9 @@ const settingsColorSchemeControlKey = ValueKey<String>(
 );
 const settingsFontFamilyControlKey = ValueKey<String>(
   'settings-font-family-control',
+);
+const settingsIconThemeControlKey = ValueKey<String>(
+  'settings-icon-theme-control',
 );
 const settingsBackdropBlurToggleKey = ValueKey<String>(
   'settings-backdrop-blur-toggle',
@@ -60,6 +65,9 @@ class SettingsAppearancePage extends StatefulWidget {
     required this.fontFamilies,
     required this.fontCatalogLoading,
     required this.onFontFamilyChanged,
+    required this.iconThemes,
+    required this.iconThemesLoading,
+    required this.onIconThemeChanged,
     required this.onCornerRadiusScaleChanged,
     required this.onPanelOpacityChanged,
     required this.onCardOpacityChanged,
@@ -98,6 +106,9 @@ class SettingsAppearancePage extends StatefulWidget {
   final List<String> fontFamilies;
   final bool fontCatalogLoading;
   final ValueChanged<String> onFontFamilyChanged;
+  final List<ShellIconThemeData> iconThemes;
+  final bool iconThemesLoading;
+  final ValueChanged<String> onIconThemeChanged;
   final ValueChanged<double> onCornerRadiusScaleChanged;
   final ValueChanged<double> onPanelOpacityChanged;
   final ValueChanged<double> onCardOpacityChanged;
@@ -316,6 +327,45 @@ class _SettingsAppearancePageState extends State<SettingsAppearancePage> {
                     SettingsChoice(family, _fontFamilyLabel(family)),
                 ],
                 onChanged: widget.onFontFamilyChanged,
+              ),
+            ),
+          ],
+        ),
+        SettingsCardGroup(
+          key: const ValueKey('appearance-icons-card'),
+          title: l10n.settingsIconThemeTitle,
+          children: [
+            SettingsCardPadding(
+              child: SettingsSelect<String>(
+                key: settingsIconThemeControlKey,
+                label: l10n.settingsIconThemeLabel,
+                description: widget.iconThemesLoading
+                    ? l10n.settingsIconThemeLoading
+                    : l10n.settingsIconThemeDescription,
+                value: widget.settings.iconTheme,
+                choices: <SettingsChoice<String>>[
+                  SettingsChoice('', l10n.settingsIconThemeFollowScheme),
+                  for (final theme in widget.iconThemes)
+                    SettingsChoice(theme.id, theme.name),
+                  // A theme can be removed while it is still the choice; the
+                  // selector must keep showing it rather than fail to match.
+                  if (widget.settings.iconTheme.isNotEmpty &&
+                      !widget.iconThemes.any(
+                        (theme) => theme.id == widget.settings.iconTheme,
+                      ))
+                    SettingsChoice(
+                      widget.settings.iconTheme,
+                      widget.settings.iconTheme,
+                    ),
+                ],
+                onChanged: widget.onIconThemeChanged,
+              ),
+            ),
+            SettingsCardPadding(
+              child: _IconThemePreview(
+                themes: widget.iconThemes,
+                selected: widget.settings.iconTheme,
+                brightness: widget.settings.effectiveBrightness,
               ),
             ),
           ],
@@ -1088,5 +1138,89 @@ class _AccentPresets extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+/// The sample icons of the theme the selector would use right now.
+class _IconThemePreview extends StatelessWidget {
+  const _IconThemePreview({
+    required this.themes,
+    required this.selected,
+    required this.brightness,
+  });
+
+  final List<ShellIconThemeData> themes;
+  final String selected;
+  final Brightness brightness;
+
+  static const List<String> _samples = <String>[
+    'application-default-icon',
+    'folder',
+    'web-browser',
+    'utilities-terminal',
+  ];
+
+  static const List<String> _contexts = <String>[
+    'apps/scalable',
+    'apps/48',
+    'apps/32',
+    'apps/22',
+    'places/scalable',
+    'places/48',
+    'places/32',
+    'places/22',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final id = selected.isNotEmpty
+        ? selected
+        : brightness == Brightness.light
+        ? followSchemeLightIconTheme
+        : followSchemeDarkIconTheme;
+    ShellIconThemeData? theme;
+    for (final candidate in themes) {
+      if (candidate.id == id) {
+        theme = candidate;
+        break;
+      }
+    }
+    if (theme == null) {
+      return const SizedBox.shrink();
+    }
+    final paths = <String>[
+      for (final sample in _samples) ?_samplePath(theme.path, sample),
+    ];
+    if (paths.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    return Semantics(
+      label: context.l10n.settingsIconThemePreview,
+      child: SizedBox(
+        height: 34,
+        child: Row(
+          children: [
+            for (final path in paths.take(4))
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: SizedBox.square(
+                  dimension: 34,
+                  child: AppIconImage(iconPath: path),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String? _samplePath(String themePath, String name) {
+    for (final kind in _contexts) {
+      final file = File('$themePath/$kind/$name.svg');
+      if (file.existsSync()) {
+        return file.path;
+      }
+    }
+    return null;
   }
 }

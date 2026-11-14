@@ -8,6 +8,8 @@ export 'src/theme/cursor_theme_repository.dart'
         WindowsAnimatedCursor,
         WindowsCursorImage,
         WindowsCursorStep;
+export 'src/theme/icon_theme_repository.dart' show IconThemeRepository;
+export 'src/theme/icon_themes.dart' show ShellIconThemeData;
 export 'src/theme/cursor_themes.dart'
     show
         ShellCursorFrameData,

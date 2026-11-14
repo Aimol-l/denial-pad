@@ -32,6 +32,15 @@ export 'src/state/cursor_theme.dart'
         cursorThemeRepositoryProvider,
         resolveShellCursorTheme,
         shellCursorThemeProvider;
+export 'src/state/icon_theme.dart'
+    show
+        IconThemeCatalogController,
+        availableShellIconThemesProvider,
+        followSchemeDarkIconTheme,
+        followSchemeLightIconTheme,
+        iconThemeCatalogProvider,
+        iconThemeRepositoryProvider,
+        resolvedShellIconThemeProvider;
 export 'src/state/desktop_notifications.dart'
     show
         DesktopNotificationsController,

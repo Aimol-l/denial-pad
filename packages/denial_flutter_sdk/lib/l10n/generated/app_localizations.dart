@@ -5920,6 +5920,42 @@ abstract class AppLocalizations {
   /// **'System default'**
   String get settingsFontSystemDefault;
 
+  /// Explanation for the icon theme selector.
+  ///
+  /// In en, this message translates to:
+  /// **'Applications take their icons from the chosen theme. Themes are read from the icons folder of every data directory.'**
+  String get settingsIconThemeDescription;
+
+  /// Option that picks a light or dark icon theme with the shell's color scheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Follow light/dark'**
+  String get settingsIconThemeFollowScheme;
+
+  /// Label for the icon theme selector.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon theme'**
+  String get settingsIconThemeLabel;
+
+  /// Description shown while the icon theme catalog is loading.
+  ///
+  /// In en, this message translates to:
+  /// **'Reading installed themes…'**
+  String get settingsIconThemeLoading;
+
+  /// Accessible label for the sample icons of the selected icon theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Icon theme preview'**
+  String get settingsIconThemePreview;
+
+  /// Section title for the icon theme setting.
+  ///
+  /// In en, this message translates to:
+  /// **'Icons'**
+  String get settingsIconThemeTitle;
+
   /// Glass setting controlling how much of the shell accent is mixed into the material.
   ///
   /// In en, this message translates to:

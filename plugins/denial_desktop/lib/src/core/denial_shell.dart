@@ -110,10 +110,7 @@ class DenialShell extends ConsumerWidget {
     final accent = ref.watch(
       shellAccentProvider.select((accent) => accent.color),
     );
-    final light = appearance.transparencyMode == ShellTransparencyMode.glass
-        ? appearance.glass.appearance == ShellGlassAppearance.light
-        : appearance.colorSchemePreference.effectiveBrightness ==
-              Brightness.light;
+    final light = appearance.effectiveBrightness == Brightness.light;
     final colors = light ? ShellColorScheme.light : ShellColorScheme.dark;
     final theme = ShellThemeData(
       colors: colors,

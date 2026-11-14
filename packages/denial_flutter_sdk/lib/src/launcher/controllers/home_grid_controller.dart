@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../local_apps/local_flutter_application.dart';
 import '../../platform/denial_bridge_provider.dart';
+import '../../state/icon_theme.dart';
 import '../../state/system_status.dart';
 import '../launcher_providers.dart';
 import '../models/desktop_app.dart';
@@ -16,7 +17,10 @@ import '../services/app_launcher.dart';
 import 'home_grid_layout.dart';
 
 final desktopAppsRepositoryProvider = Provider<DesktopAppsRepository>((ref) {
-  return DesktopAppsRepository(paths: ref.watch(runtimePathsProvider));
+  return DesktopAppsRepository(
+    paths: ref.watch(runtimePathsProvider),
+    preferredIconTheme: ref.watch(resolvedShellIconThemeProvider),
+  );
 });
 
 final homeLayoutRepositoryProvider = Provider<HomeLayoutRepository>((ref) {
@@ -156,7 +160,9 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
       return;
     }
 
-    if (!_launcherActive && reason != 'manual') {
+    // An icon theme change re-resolves every icon, not just the ones the
+    // visible launcher would have refreshed on its own.
+    if (!_launcherActive && reason != 'manual' && reason != 'icon-theme') {
       return;
     }
 
