@@ -170,7 +170,10 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
 
     // An icon theme change re-resolves every icon, not just the ones the
     // visible launcher would have refreshed on its own.
-    if (!_launcherActive && reason != 'manual' && reason != 'icon-theme') {
+    if (!_launcherActive &&
+        reason != 'manual' &&
+        reason != 'icon-theme' &&
+        reason != 'icons') {
       return;
     }
 
@@ -296,6 +299,14 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
             _scheduleFilesystemRefresh();
           }
         },
+        onIconsChanged: () {
+          if (!_isBuildActive(generation)) {
+            return;
+          }
+          // Icons are drawn on the home grid and the dock even when the app
+          // drawer is closed, so this refresh cannot wait for it.
+          _scheduleFilesystemRefresh(reason: 'icons');
+        },
       );
       if (!_isBuildActive(generation) || !_desktopRefreshTriggersStarted) {
         await watcher.dispose();
@@ -308,11 +319,11 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
     }
   }
 
-  void _scheduleFilesystemRefresh() {
+  void _scheduleFilesystemRefresh({String reason = 'filesystem'}) {
     _filesystemRefreshTimer?.cancel();
     _filesystemRefreshTimer = Timer(_filesystemRefreshDebounce, () {
       _filesystemRefreshTimer = null;
-      unawaited(refreshDesktopApps(reason: 'filesystem'));
+      unawaited(refreshDesktopApps(reason: reason));
     });
   }
 

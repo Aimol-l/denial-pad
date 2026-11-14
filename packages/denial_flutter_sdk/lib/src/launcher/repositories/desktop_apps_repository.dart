@@ -25,9 +25,29 @@ class DesktopAppsRepository {
   /// remains available as a fallback.
   Future<DesktopAppsWatcher> watchApplications({
     required void Function() onChanged,
+    void Function()? onIconsChanged,
   }) async {
     final subscriptions = <StreamSubscription<FileSystemEvent>>[];
     final watcher = DesktopAppsWatcher._(subscriptions);
+    // Applications install their own icons after they start (droidloom writes
+    // the Android packages' icons a few seconds into the session), and the
+    // launcher keeps the paths it resolved at startup. Watching the user icon
+    // directory lets those icons appear without a restart.
+    final iconDirectory = Directory(p.join(_paths.dataHome, 'icons'));
+    try {
+      if (await iconDirectory.exists()) {
+        subscriptions.add(
+          iconDirectory.watch(recursive: true).listen(
+            (_) => (onIconsChanged ?? onChanged)(),
+            onError: (_) {
+              watcher._complete = false;
+            },
+          ),
+        );
+      }
+    } on Object {
+      watcher._complete = false;
+    }
     for (final directory in _paths.desktopApplicationDirs()) {
       try {
         if (!await directory.exists()) {
