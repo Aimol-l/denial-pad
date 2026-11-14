@@ -109,6 +109,7 @@ class NotificationCard extends StatelessWidget {
             _NotificationGroupLine(
               notification: record.notification,
               mobile: mobile,
+              leadingSummary: summary,
             ),
         if (fullPreview && notification.hasProgress) ...[
           SizedBox(
@@ -472,10 +473,14 @@ class _NotificationGroupLine extends StatelessWidget {
   const _NotificationGroupLine({
     required this.notification,
     required this.mobile,
+    required this.leadingSummary,
   });
 
   final DesktopNotification notification;
   final bool mobile;
+
+  /// The summary the group's newest member already shows above this line.
+  final String leadingSummary;
 
   @override
   Widget build(BuildContext context) {
@@ -486,6 +491,13 @@ class _NotificationGroupLine extends StatelessWidget {
         : notificationMessageLines(messages, l10n, 1);
     final visual = MobileUiMetrics.of(context).visual;
     final fontSize = mobile ? MobileNotificationMetrics.bodyFontSize : 12.0;
+    // A repeated summary would read as a second title for the same thing, as
+    // with stacked "Screenshot saved" notifications: the newest one already
+    // names it, so the members are just their detail.
+    final title = notification.summary.isEmpty
+        ? l10n.notificationGeneric
+        : notification.summary;
+    final repeatsLeading = title == leadingSummary;
     return Padding(
       padding: EdgeInsets.only(
         top: mobile ? visual(MobileNotificationMetrics.copySpacing) : 3,
@@ -493,14 +505,17 @@ class _NotificationGroupLine extends StatelessWidget {
       child: Text.rich(
         TextSpan(
           children: [
-            TextSpan(
-              text: notification.summary.isEmpty
-                  ? l10n.notificationGeneric
-                  : notification.summary,
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
+            if (!repeatsLeading)
+              TextSpan(
+                text: title,
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
             if (detail.isNotEmpty)
-              TextSpan(text: '  ${detail.split('\n').first}'),
+              TextSpan(
+                text: repeatsLeading
+                    ? detail.split('\n').first
+                    : '  ${detail.split('\n').first}',
+              ),
           ],
         ),
         maxLines: 1,

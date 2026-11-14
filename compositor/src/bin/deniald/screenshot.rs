@@ -449,6 +449,27 @@ fn write_png(mut job: ScreenshotJob) -> Result<WrittenScreenshot, Box<dyn Error 
     })
 }
 
+/// The file is named for the local moment it was taken, so a gallery sorted by
+/// name is also sorted by time.
+fn screenshot_stem(seconds: u64) -> String {
+    let seconds = seconds as libc::time_t;
+    let mut local: libc::tm = unsafe { std::mem::zeroed() };
+    // SAFETY: `local` is a valid `tm` the call fills in, and `seconds` points
+    // at a live value for the duration of the call.
+    if unsafe { libc::localtime_r(&seconds, &mut local) }.is_null() {
+        return format!("Screenshot-{seconds}");
+    }
+    format!(
+        "Screenshot-{:04}{:02}{:02}{:02}{:02}{:02}",
+        local.tm_year + 1900,
+        local.tm_mon + 1,
+        local.tm_mday,
+        local.tm_hour,
+        local.tm_min,
+        local.tm_sec,
+    )
+}
+
 fn screenshot_directory() -> io::Result<PathBuf> {
     if let Some(directory) = std::env::var_os("DENIAL_SCREENSHOT_DIR")
         && !directory.is_empty()
@@ -465,7 +486,7 @@ fn create_screenshot_file(directory: &Path) -> io::Result<(File, PathBuf)> {
     let now = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map_err(io::Error::other)?;
-    let stem = format!("Screenshot-{}-{:03}", now.as_secs(), now.subsec_millis());
+    let stem = screenshot_stem(now.as_secs());
     for suffix in 0..100u8 {
         let suffix = (suffix != 0).then(|| format!("-{suffix}"));
         let name = OsString::from(format!(
