@@ -57,10 +57,11 @@ class _NotificationActivatorState extends State<_NotificationActivator> {
 /// One action of a notification. An icon reads faster than a word when the
 /// notification names its actions that way (`action-icons`) or when the label
 /// is one we know; anything else keeps its text.
-class _ResolvedActionButton extends ConsumerWidget {
+class _ResolvedActionButton extends ConsumerStatefulWidget {
   const _ResolvedActionButton({
     required this.action,
     required this.actionIcons,
+    required this.toggleKey,
     required this.onPressed,
     this.mobile = false,
     this.fontSize = 12,
@@ -73,6 +74,10 @@ class _ResolvedActionButton extends ConsumerWidget {
   /// The notification asked for its actions to be drawn as icons, so each
   /// label is an icon name.
   final bool actionIcons;
+
+  /// Identifies the notification's current content (id and summary): a new
+  /// track or page starts the flips over.
+  final String toggleKey;
   final bool mobile;
   final double fontSize;
   final Color? textColor;
@@ -80,15 +85,60 @@ class _ResolvedActionButton extends ConsumerWidget {
   final VoidCallback onPressed;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    var icon = _actionIconFor(action.label);
+  ConsumerState<_ResolvedActionButton> createState() =>
+      _ResolvedActionButtonState();
+}
+
+class _ResolvedActionButtonState extends ConsumerState<_ResolvedActionButton> {
+  /// Actions already tapped, by notification content and action key. Playing,
+  /// pausing, liking: the application keeps sending the same key, so the
+  /// button remembers what the tap did until the content changes.
+  static final Map<String, bool> _flipped = <String, bool>{};
+
+  String get _flipKey => '${widget.toggleKey}:${widget.action.key}';
+
+  bool get _isFlipped => _flipped[_flipKey] ?? false;
+
+  void _tap() {
+    if (_flipOpposite(_icon) != null) {
+      setState(() => _flipped[_flipKey] = !_isFlipped);
+    }
+    widget.onPressed();
+  }
+
+  IconData? get _icon {
+    final icon =
+        _actionIconFor(widget.action.label) ??
+        (_isPlayPause(widget.action.label) ? _transportIcon : null);
+    if (icon == null || !_isFlipped) {
+      return icon;
+    }
+    return _flipOpposite(icon) ?? icon;
+  }
+
+  /// A play/pause toggle has no glyph of its own: the transport state the
+  /// session reports says which half to draw.
+  IconData get _transportIcon {
+    final playing = ref.watch(
+      mediaPlaybackProvider.select(
+        (playback) => playback.value?.status == MprisPlaybackStatus.playing,
+      ),
+    );
+    return playing ? Icons.pause_rounded : Icons.play_arrow_rounded;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final icon = _icon;
     String? iconPath;
-    if (icon == null && actionIcons && action.label.trim().isNotEmpty) {
+    if (icon == null &&
+        widget.actionIcons &&
+        widget.action.label.trim().isNotEmpty) {
       iconPath = ref
           .watch(
             notificationIconPathProvider(
               NotificationIconRequest(
-                appIcon: action.label.trim(),
+                appIcon: widget.action.label.trim(),
                 desktopEntry: '',
                 appName: '',
               ),
@@ -97,16 +147,42 @@ class _ResolvedActionButton extends ConsumerWidget {
           .value;
     }
     return _NotificationActionButton(
-      label: action.label.isEmpty ? action.key : action.label,
+      label: _actionLabel(widget.action),
       icon: icon,
       iconPath: iconPath,
-      onPressed: onPressed,
-      mobile: mobile,
-      fontSize: fontSize,
-      textColor: textColor,
-      visualScale: visualScale,
+      onPressed: _tap,
+      mobile: widget.mobile,
+      fontSize: widget.fontSize,
+      textColor: widget.textColor,
+      visualScale: widget.visualScale,
     );
   }
+}
+
+/// The words a few actions read better than any glyph. `lyric` asks for the
+/// lyrics panel; one character says it in the space a glyph would take.
+String _actionLabel(DesktopNotificationAction action) {
+  final text = action.label.trim().toLowerCase();
+  if (text == 'lyric' || text == 'lyrics') {
+    return '词';
+  }
+  return action.label.isEmpty ? action.key : action.label;
+}
+
+/// The other half of a toggle, or null when the icon does not toggle.
+IconData? _flipOpposite(IconData? icon) => switch (icon) {
+  Icons.play_arrow_rounded => Icons.pause_rounded,
+  Icons.pause_rounded => Icons.play_arrow_rounded,
+  Icons.favorite_border_rounded => Icons.favorite_rounded,
+  Icons.favorite_rounded => Icons.favorite_border_rounded,
+  Icons.star_border_rounded => Icons.star_rounded,
+  Icons.star_rounded => Icons.star_border_rounded,
+  _ => null,
+};
+
+bool _isPlayPause(String label) {
+  final text = label.trim().toLowerCase();
+  return text == 'toggle' || text == 'play_pause' || text == 'play-pause';
 }
 
 /// The icon for the actions applications repeat: media transport, messaging
@@ -116,9 +192,28 @@ IconData? _actionIconFor(String label) {
   if (text.isEmpty) {
     return null;
   }
+  // Short keys travel as action identifiers rather than sentences: NetEase
+  // Cloud Music sends `pre`, `toggle`, `next` and `lyric`. They match whole.
+  final exact = switch (text) {
+    'pre' || 'prev' || 'previous' || 'back' => Icons.skip_previous_rounded,
+    'next' || 'forward' => Icons.skip_next_rounded,
+    'fore_back' || 'rewind' || 'seek_back' => Icons.fast_rewind_rounded,
+    'fore_ahead' || 'seek_forward' => Icons.fast_forward_rounded,
+    'like' || 'favourite' || 'favorite' => Icons.favorite_border_rounded,
+    'unlike' || 'unfavourite' || 'unfavorite' => Icons.favorite_rounded,
+    'playlist' || 'queue' => Icons.queue_music_rounded,
+    'download' => Icons.download_rounded,
+    'share' => Icons.share_rounded,
+    'comment' => Icons.mode_comment_outlined,
+    'volume' || 'volume_up' => Icons.volume_up_rounded,
+    _ => null,
+  };
+  if (exact != null) {
+    return exact;
+  }
   bool matches(List<String> needles) =>
       needles.any((needle) => text == needle || text.contains(needle));
-  if (matches(const <String>['上一首', '上一曲', 'previous', 'prev', 'back'])) {
+  if (matches(const <String>['上一首', '上一曲', 'back'])) {
     return Icons.skip_previous_rounded;
   }
   if (matches(const <String>['下一首', '下一曲', 'next', 'forward'])) {

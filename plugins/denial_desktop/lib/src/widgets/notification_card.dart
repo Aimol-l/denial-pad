@@ -144,6 +144,7 @@ class NotificationCard extends StatelessWidget {
                 return _ResolvedActionButton(
                   action: action,
                   actionIcons: notification.actionIcons,
+                  toggleKey: '${notification.id}:${notification.summary}',
                   mobile: mobile,
                   fontSize: mobile
                       ? MobileNotificationMetrics.actionFontSize
