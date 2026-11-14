@@ -216,6 +216,7 @@
   "desktopTurnBluetoothOff": "关闭蓝牙",
   "desktopTurnBluetoothOn": "开启蓝牙",
   "desktopVolumeForApplication": "{applicationName} 的音量",
+  "appGroupAndroid": "安卓",
   "appGroupDevelopment": "开发",
   "appGroupGame": "游戏",
   "appGroupGraphics": "图形",

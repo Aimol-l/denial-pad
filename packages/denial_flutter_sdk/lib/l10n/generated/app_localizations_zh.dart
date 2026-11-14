@@ -729,6 +729,9 @@ class AppLocalizationsZh extends AppLocalizations {
   }
 
   @override
+  String get appGroupAndroid => '安卓';
+
+  @override
   String get appGroupDevelopment => '开发';
 
   @override

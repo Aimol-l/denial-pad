@@ -753,6 +753,9 @@ class AppLocalizationsEn extends AppLocalizations {
   }
 
   @override
+  String get appGroupAndroid => 'Android';
+
+  @override
   String get appGroupDevelopment => 'Development';
 
   @override

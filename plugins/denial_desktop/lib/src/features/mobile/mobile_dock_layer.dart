@@ -674,6 +674,7 @@ class _AllAppsDrawer extends ConsumerStatefulWidget {
 
 class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
   static const List<String> _groupOrder = <String>[
+    'android',
     'development',
     'graphics',
     'network',
@@ -722,6 +723,11 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
   }
 
   String _groupOf(HomeGridItem item) {
+    // Android packages run through droidloom, whatever categories their
+    // generated entry carries.
+    if (item.app?.exec.contains('droidloomctl') ?? false) {
+      return 'android';
+    }
     final categories =
         item.app?.categories ?? item.localApp?.categories ?? const <String>[];
     for (final raw in categories) {
@@ -761,6 +767,7 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
     final l10n = context.l10n;
     return switch (key) {
       'all' => l10n.dockAllApps,
+      'android' => l10n.appGroupAndroid,
       'development' => l10n.appGroupDevelopment,
       'graphics' => l10n.appGroupGraphics,
       'network' => l10n.appGroupNetwork,

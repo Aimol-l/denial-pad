@@ -1064,6 +1064,10 @@
       }
     }
   },
+  "appGroupAndroid": "Android",
+  "@appGroupAndroid": {
+    "description": "All-apps drawer group for Android applications run through droidloom."
+  },
   "appGroupDevelopment": "Development",
   "@appGroupDevelopment": {
     "description": "All-apps drawer group for development tools."

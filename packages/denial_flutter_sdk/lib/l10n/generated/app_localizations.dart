@@ -1400,6 +1400,12 @@ abstract class AppLocalizations {
   /// **'Volume for {applicationName}'**
   String desktopVolumeForApplication(String applicationName);
 
+  /// All-apps drawer group for Android applications run through droidloom.
+  ///
+  /// In en, this message translates to:
+  /// **'Android'**
+  String get appGroupAndroid;
+
   /// All-apps drawer group for development tools.
   ///
   /// In en, this message translates to:
