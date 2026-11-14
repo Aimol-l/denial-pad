@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 
 import '../config/startup_environment.dart';
 import '../launcher/runtime_paths.dart';
+import '../settings/settings_controller.dart';
 import '../theme/icon_theme_repository.dart';
 import '../theme/icon_themes.dart';
 
@@ -22,35 +23,37 @@ final iconThemeCatalogProvider =
 
 class IconThemeCatalogController
     extends AsyncNotifier<List<ShellIconThemeData>> {
-  /// The icon pack Denial ships with and always uses.
+  /// The icon pack Denial ships with, so a fresh install has real icons
+  /// instead of the frozen-desktop default order.
   static const String bundledArchive =
       'packages/denial_flutter_sdk/assets/icon-themes/Colloid.tar.xz';
 
   @override
   Future<List<ShellIconThemeData>> build() async {
     final repository = ref.watch(iconThemeRepositoryProvider);
-    await _ensureBundledTheme(repository);
+    await _installBundledTheme(repository);
     final themes = await repository.discover();
-    // Denial has one icon set; system themes are not offered.
+    // Denial's built-in theme and whatever the user imported; the system
+    // themes in /usr/share/icons are not offered.
     return <ShellIconThemeData>[
       for (final theme in themes)
-        if (theme.id == defaultIconTheme) theme,
+        if (theme.userInstalled || theme.id == defaultIconTheme) theme,
     ];
   }
 
   /// Unpacks [bundledArchive] when its theme is missing from disk.
   ///
-  /// The pack cannot be removed from the settings, but a half-finished copy
-  /// (or a fresh home directory) still needs installing; a lock keeps the
-  /// shell and the settings app from unpacking it at the same time.
-  Future<void> _ensureBundledTheme(IconThemeRepository repository) async {
+  /// The built-in theme cannot be removed from the settings, but a fresh home
+  /// directory still needs it; a lock keeps the shell and the settings app
+  /// from unpacking it at the same time.
+  Future<void> _installBundledTheme(IconThemeRepository repository) async {
+    final directory = Directory(
+      p.join(repository.paths.cacheHome, 'denial', 'icon-import'),
+    );
     final installed = await repository.discover();
     if (installed.any((theme) => theme.id == defaultIconTheme)) {
       return;
     }
-    final directory = Directory(
-      p.join(repository.paths.cacheHome, 'denial', 'icon-import'),
-    );
     await directory.create(recursive: true);
     final lock = File(p.join(directory.path, '.bundled-colloid.lock'));
     try {
@@ -72,13 +75,35 @@ class IconThemeCatalogController
         }
       }
     } on Object {
-      // A failed unpack leaves the fallback order in place; the next launch
-      // tries again because nothing marks the pack as installed.
+      // A failed unpack must not take the shell's icons with it; the next
+      // launch tries again.
     } finally {
       if (await lock.exists()) {
         await lock.delete();
       }
     }
+  }
+
+  /// Reads the icon directories again, for a theme installed while the shell
+  /// is running.
+  Future<void> refresh() async {
+    state = AsyncData(
+      await ref.read(iconThemeRepositoryProvider).discover(),
+    );
+  }
+
+  /// Installs every theme in [archivePath] and returns the new themes.
+  Future<List<ShellIconThemeData>> importArchive(String archivePath) async {
+    final repository = ref.read(iconThemeRepositoryProvider);
+    final installed = await repository.install(archivePath);
+    state = AsyncData(await repository.discover());
+    return installed;
+  }
+
+  Future<void> remove(ShellIconThemeData theme) async {
+    final repository = ref.read(iconThemeRepositoryProvider);
+    await repository.remove(theme);
+    state = AsyncData(await repository.discover());
   }
 }
 
@@ -86,11 +111,21 @@ final availableShellIconThemesProvider = Provider<List<ShellIconThemeData>>(
   (ref) => ref.watch(iconThemeCatalogProvider).asData?.value ?? const [],
 );
 
-/// The theme the shell draws from: Denial ships exactly one.
-final resolvedShellIconThemeProvider = Provider<String>(
-  (ref) => defaultIconTheme,
-);
+/// The icon theme the shell draws from.
+///
+/// The chosen theme wins; with no choice the shell keeps Denial's own default
+/// theme when it is installed. A theme that is not installed simply resolves
+/// to nothing, and the icon search falls back to the default order.
+final resolvedShellIconThemeProvider = Provider<String>((ref) {
+  final chosen = ref
+      .watch(
+        shellSettingsProvider.select(
+          (settings) => settings.appearance.iconTheme,
+        ),
+      )
+      .trim();
+  return chosen.isNotEmpty ? chosen : defaultIconTheme;
+});
 
-/// The theme Denial always uses; the settings page shows it and cannot
-/// remove it.
+/// The theme a fresh install shows; the user may replace it in Appearance.
 const String defaultIconTheme = 'Colloid-Light';

@@ -18,7 +18,7 @@ pub fn handles(channel: &str, data: &[u8]) -> bool {
             .is_some_and(|call| {
                 matches!(
                     call["method"].as_str(),
-                    Some("pickProfileImage" | "pickCursorZip")
+                    Some("pickProfileImage" | "pickCursorZip" | "pickIconTheme")
                 )
             })
 }
@@ -41,8 +41,12 @@ pub fn run(data: &[u8]) -> Vec<u8> {
 
 fn choose(data: &[u8]) -> Result<Option<String>, Box<dyn std::error::Error>> {
     let call: Value = serde_json::from_slice(data)?;
-    let zip = call["method"] == "pickCursorZip";
-    let title = call["args"]["title"].as_str().unwrap_or(if zip {
+    let method = call["method"].as_str().unwrap_or_default();
+    let icon_theme = method == "pickIconTheme";
+    let zip = method == "pickCursorZip";
+    let title = call["args"]["title"].as_str().unwrap_or(if icon_theme {
+        "Import icon theme"
+    } else if zip {
         "Import cursor ZIP"
     } else {
         "Choose photo"
@@ -70,7 +74,17 @@ fn choose(data: &[u8]) -> Result<Option<String>, Box<dyn std::error::Error>> {
         "/org/freedesktop/portal/desktop",
         "org.freedesktop.portal.FileChooser",
     )?;
-    let filters = if zip {
+    let filters = if icon_theme {
+        vec![(
+            "Icon theme archives",
+            vec![
+                (0u32, "*.tar.xz"),
+                (0, "*.tar.gz"),
+                (0, "*.tgz"),
+                (0, "*.zip"),
+            ],
+        )]
+    } else if zip {
         vec![("Cursor ZIP archives", vec![(0u32, "*.[zZ][iI][pP]")])]
     } else {
         vec![(

@@ -3318,18 +3318,76 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsFontSystemDefault => 'System default';
 
   @override
-  String get settingsIconThemeDescription =>
-      'Applications draw their icons from the Colloid set that ships with Denial.';
+  String get settingsIconThemeBuiltInBadge => 'Built-in';
 
   @override
-  String get settingsIconThemeBundledHint =>
-      'Bundled with the system; it cannot be removed.';
+  String get settingsIconThemeDelete => 'Remove';
+
+  @override
+  String settingsIconThemeDeleteBody(String name) {
+    return '“$name” will be removed from your icons folder.';
+  }
+
+  @override
+  String get settingsIconThemeDeleteTitle => 'Remove icon theme?';
+
+  @override
+  String get settingsIconThemeDescription =>
+      'Applications take their icons from the chosen theme. Colloid is built in; more themes can be imported from a file.';
+
+  @override
+  String get settingsIconThemeErrorEmpty => 'the archive is empty';
+
+  @override
+  String get settingsIconThemeErrorExtract =>
+      'the archive could not be unpacked';
+
+  @override
+  String get settingsIconThemeErrorMissing => 'choose a regular archive file';
+
+  @override
+  String get settingsIconThemeErrorNoTheme => 'the archive has no index.theme';
+
+  @override
+  String get settingsIconThemeErrorTooLarge =>
+      'the archive is larger than 512 MB';
+
+  @override
+  String get settingsIconThemeErrorUnsafe =>
+      'the archive contains paths outside its folder';
+
+  @override
+  String get settingsIconThemeErrorUnsupported =>
+      'use a .tar.xz, .tar.gz or .zip archive';
+
+  @override
+  String get settingsIconThemeHint =>
+      'Pick a theme to apply it immediately. Downloaded themes live in your user icons folder; bundled themes cannot be removed.';
+
+  @override
+  String get settingsIconThemeInstall => 'Install from file…';
+
+  @override
+  String settingsIconThemeInstallFailed(String reason) {
+    return 'Could not install the theme: $reason';
+  }
+
+  @override
+  String settingsIconThemeInstalled(String names) {
+    return 'Installed: $names';
+  }
+
+  @override
+  String get settingsIconThemeInstalling => 'Installing…';
 
   @override
   String get settingsIconThemeLabel => 'Icon theme';
 
   @override
   String get settingsIconThemeLoading => 'Reading installed themes…';
+
+  @override
+  String get settingsIconThemePreview => 'Icon theme preview';
 
   @override
   String get settingsIconThemeTitle => 'Icons';
