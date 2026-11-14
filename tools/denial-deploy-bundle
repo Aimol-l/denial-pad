@@ -164,7 +164,10 @@ fi
 
 if ((REBOOT)); then
     printf '==> rebooting %s\n' "$HOST"
-    remote 'sudo systemctl reboot' || true
+    # --no-block: a blocking reboot issued from inside an SSH session waits
+    # for the job that stops that very session, and logind shows a stop job
+    # for it until the 90-second timeout.
+    remote 'sudo systemctl reboot --no-block' || true
     printf '    waiting for it to come back\n'
     sleep 45
     for _ in $(seq 1 30); do
