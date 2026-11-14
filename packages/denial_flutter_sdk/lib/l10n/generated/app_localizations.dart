@@ -656,11 +656,23 @@ abstract class AppLocalizations {
   /// **'History is sealed'**
   String get clipboardHistoryLockedTitle;
 
+  /// Subtitle under the clipboard history popup title.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent copies'**
+  String get clipboardHistorySubtitle;
+
   /// Accessible label for an image-file thumbnail in clipboard history.
   ///
   /// In en, this message translates to:
   /// **'Image file thumbnail'**
   String get clipboardImageFileThumbnail;
+
+  /// Name of an image entry in the clipboard history popup.
+  ///
+  /// In en, this message translates to:
+  /// **'Image'**
+  String get clipboardImageLabel;
 
   /// Accessible label for an image preview in clipboard history.
   ///

@@ -483,9 +483,17 @@
   "@clipboardHistoryLockedTitle": {
     "description": "Title shown when clipboard history is hidden on the lock screen."
   },
+  "clipboardHistorySubtitle": "Recent copies",
+  "@clipboardHistorySubtitle": {
+    "description": "Subtitle under the clipboard history popup title."
+  },
   "clipboardImageFileThumbnail": "Image file thumbnail",
   "@clipboardImageFileThumbnail": {
     "description": "Accessible label for an image-file thumbnail in clipboard history."
+  },
+  "clipboardImageLabel": "Image",
+  "@clipboardImageLabel": {
+    "description": "Name of an image entry in the clipboard history popup."
   },
   "clipboardImagePreview": "Clipboard image preview",
   "@clipboardImagePreview": {

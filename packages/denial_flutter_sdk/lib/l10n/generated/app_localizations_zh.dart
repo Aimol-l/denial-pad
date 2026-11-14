@@ -329,7 +329,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get clipboardHistoryLockedTitle => '历史记录已封存';
 
   @override
+  String get clipboardHistorySubtitle => '最近复制';
+
+  @override
   String get clipboardImageFileThumbnail => '图像文件缩略图';
+
+  @override
+  String get clipboardImageLabel => '图像';
 
   @override
   String get clipboardImagePreview => '剪贴板图像预览';

@@ -344,7 +344,13 @@ class AppLocalizationsEn extends AppLocalizations {
   String get clipboardHistoryLockedTitle => 'History is sealed';
 
   @override
+  String get clipboardHistorySubtitle => 'Recent copies';
+
+  @override
   String get clipboardImageFileThumbnail => 'Image file thumbnail';
+
+  @override
+  String get clipboardImageLabel => 'Image';
 
   @override
   String get clipboardImagePreview => 'Clipboard image preview';
