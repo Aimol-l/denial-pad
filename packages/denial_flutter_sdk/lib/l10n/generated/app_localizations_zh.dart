@@ -774,6 +774,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dockRemove => '从 Dock 移除';
 
   @override
+  String get dockRemoveFromDesktop => '从桌面移除';
+
+  @override
   String get fingerprintAdd => '添加指纹';
 
   @override

@@ -1490,6 +1490,12 @@ abstract class AppLocalizations {
   /// **'Remove from Dock'**
   String get dockRemove;
 
+  /// Application menu action that deletes the app's shortcut from the desktop folder.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove from desktop'**
+  String get dockRemoveFromDesktop;
+
   /// Fingerprint settings: fingerprintAdd
   ///
   /// In en, this message translates to:

@@ -231,6 +231,7 @@
   "dockNoMatches": "没有匹配的应用",
   "dockSearchApps": "搜索应用",
   "dockRemove": "从 Dock 移除",
+  "dockRemoveFromDesktop": "从桌面移除",
   "fingerprintAdd": "添加指纹",
   "fingerprintCancelled": "已取消录入。",
   "fingerprintChooseFinger": "要录入的手指",

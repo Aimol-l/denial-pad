@@ -798,6 +798,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dockRemove => 'Remove from Dock';
 
   @override
+  String get dockRemoveFromDesktop => 'Remove from desktop';
+
+  @override
   String get fingerprintAdd => 'Add fingerprint';
 
   @override

@@ -26,9 +26,27 @@ class DesktopAppsRepository {
   Future<DesktopAppsWatcher> watchApplications({
     required void Function() onChanged,
     void Function()? onIconsChanged,
+    void Function()? onShortcutsChanged,
   }) async {
     final subscriptions = <StreamSubscription<FileSystemEvent>>[];
     final watcher = DesktopAppsWatcher._(subscriptions);
+    // The home grid is the desktop folder, so a shortcut added or removed
+    // there has to reach the grid without a restart.
+    final desktopDirectory = Directory(_paths.desktopDirectory);
+    try {
+      if (await desktopDirectory.exists()) {
+        subscriptions.add(
+          desktopDirectory.watch().listen(
+            (_) => (onShortcutsChanged ?? onChanged)(),
+            onError: (_) {
+              watcher._complete = false;
+            },
+          ),
+        );
+      }
+    } on Object {
+      watcher._complete = false;
+    }
     // Applications install their own icons after they start (droidloom writes
     // the Android packages' icons a few seconds into the session), and the
     // launcher keeps the paths it resolved at startup. Watching the user icon
@@ -74,6 +92,65 @@ class DesktopAppsRepository {
       }
     }
     return watcher;
+  }
+
+  /// The applications linked on the user's desktop folder.
+  ///
+  /// Only `*.desktop` files count (symlinks included); a link resolves to the
+  /// entry it points at, so the same app is never listed twice.
+  Future<List<DesktopApp>> loadDesktopShortcuts() async {
+    final directory = Directory(_paths.desktopDirectory);
+    final files = <File>[];
+    try {
+      if (!await directory.exists()) {
+        return const <DesktopApp>[];
+      }
+      await for (final entity in directory.list(followLinks: true)) {
+        if (!entity.path.toLowerCase().endsWith('.desktop')) {
+          continue;
+        }
+        if (await FileSystemEntity.type(entity.path, followLinks: true) !=
+            FileSystemEntityType.file) {
+          continue;
+        }
+        files.add(File(entity.path));
+      }
+    } on FileSystemException {
+      return const <DesktopApp>[];
+    }
+    files.sort(
+      (first, second) => p
+          .basename(first.path)
+          .toLowerCase()
+          .compareTo(p.basename(second.path).toLowerCase()),
+    );
+    final iconCache = <String, String?>{};
+    final seen = <String>{};
+    final apps = <DesktopApp>[];
+    for (final file in files) {
+      final id = await _shortcutId(file);
+      if (!seen.add(id)) {
+        continue;
+      }
+      final app = await _parseDesktopFile(id, file, iconCache);
+      if (app != null) {
+        apps.add(app);
+      }
+    }
+    return apps;
+  }
+
+  Future<String> _shortcutId(File file) async {
+    var path = file.path;
+    try {
+      path = await file.resolveSymbolicLinks();
+    } on FileSystemException {
+      // A plain copy keeps its own name.
+    }
+    final base = p.basename(path);
+    return base.toLowerCase().endsWith('.desktop')
+        ? base.substring(0, base.length - '.desktop'.length)
+        : base;
   }
 
   Future<List<DesktopApp>> loadApplications() async {

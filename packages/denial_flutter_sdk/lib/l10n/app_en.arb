@@ -1121,6 +1121,10 @@
     "description": "All-apps search field placeholder."
   },
   "dockRemove": "Remove from Dock",
+  "dockRemoveFromDesktop": "Remove from desktop",
+  "@dockRemoveFromDesktop": {
+    "description": "Application menu action that deletes the app's shortcut from the desktop folder."
+  },
   "@dockRemove": {
     "description": "Dock item menu action that unpins the app."
   },

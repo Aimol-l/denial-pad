@@ -201,7 +201,7 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
             .watch(homeGridControllerProvider)
             .asData
             ?.value
-            .apps
+            .catalog
             .where((item) => item.isApp)
             .toList(growable: false) ??
         const <HomeGridItem>[];
@@ -810,7 +810,43 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
     }
   }
 
+  String? _linkPathOf(HomeGridItem item) {
+    final target = _desktopPathOf(item);
+    if (target == null) {
+      return null;
+    }
+    final directory = ref.read(runtimePathsProvider).desktopDirectory;
+    return p.join(directory, p.basename(target));
+  }
+
+  bool _isOnDesktop(HomeGridItem item) {
+    final path = _linkPathOf(item);
+    return path != null &&
+        (Link(path).existsSync() || File(path).existsSync());
+  }
+
+  Future<void> _removeFromDesktop(HomeGridItem item) async {
+    final path = _linkPathOf(item);
+    if (path == null) {
+      return;
+    }
+    try {
+      final link = Link(path);
+      if (link.existsSync()) {
+        await link.delete();
+        return;
+      }
+      final file = File(path);
+      if (file.existsSync()) {
+        await file.delete();
+      }
+    } on FileSystemException {
+      return;
+    }
+  }
+
   void _showMenu(HomeGridItem item) {
+    final onDesktop = _isOnDesktop(item);
     ref
         .read(shellPopupControllerProvider.notifier)
         .show(
@@ -818,10 +854,18 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
           debugLabel: 'Application menu',
           builder: (context, handle) => _AppMenu(
             title: _nameOf(context, item),
-            onAddToDesktop: () {
-              handle.close();
-              unawaited(_addToDesktop(item));
-            },
+            onAddToDesktop: onDesktop
+                ? null
+                : () {
+                    handle.close();
+                    unawaited(_addToDesktop(item));
+                  },
+            onRemoveFromDesktop: onDesktop
+                ? () {
+                    handle.close();
+                    unawaited(_removeFromDesktop(item));
+                  }
+                : null,
           ),
         );
   }
@@ -1209,11 +1253,63 @@ class _AppsGrid extends StatelessWidget {
   }
 }
 
+class _AppMenuAction extends StatelessWidget {
+  const _AppMenuAction({
+    required this.icon,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShellTheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 6),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onPressed,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: context.shellColors.tileOff,
+            borderRadius: BorderRadius.circular(theme.scaledRadius(12)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
+            child: Row(
+              children: [
+                Icon(icon, size: 20, color: context.shellColors.textSecondary),
+                const SizedBox(width: 10),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: context.shellColors.panelText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _AppMenu extends StatelessWidget {
-  const _AppMenu({required this.title, required this.onAddToDesktop});
+  const _AppMenu({
+    required this.title,
+    required this.onAddToDesktop,
+    required this.onRemoveFromDesktop,
+  });
 
   final String title;
-  final VoidCallback onAddToDesktop;
+  final VoidCallback? onAddToDesktop;
+  final VoidCallback? onRemoveFromDesktop;
 
   @override
   Widget build(BuildContext context) {
@@ -1253,39 +1349,18 @@ class _AppMenu extends StatelessWidget {
                     ),
                   ),
                 ),
-                GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTap: onAddToDesktop,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: context.shellColors.tileOff,
-                      borderRadius: BorderRadius.circular(
-                        theme.scaledRadius(12),
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 11, 12, 11),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.add_to_home_screen_rounded,
-                            size: 20,
-                            color: context.shellColors.textSecondary,
-                          ),
-                          const SizedBox(width: 10),
-                          Text(
-                            context.l10n.dockAddToDesktop,
-                            style: TextStyle(
-                              color: context.shellColors.panelText,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                if (onAddToDesktop case final add?)
+                  _AppMenuAction(
+                    icon: Icons.add_to_home_screen_rounded,
+                    label: context.l10n.dockAddToDesktop,
+                    onPressed: add,
                   ),
-                ),
+                if (onRemoveFromDesktop case final remove?)
+                  _AppMenuAction(
+                    icon: Icons.remove_circle_outline_rounded,
+                    label: context.l10n.dockRemoveFromDesktop,
+                    onPressed: remove,
+                  ),
               ],
             ),
           ),

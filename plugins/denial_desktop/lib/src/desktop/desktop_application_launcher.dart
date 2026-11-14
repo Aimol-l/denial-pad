@@ -35,7 +35,7 @@ class DesktopApplicationLauncher extends ConsumerStatefulWidget {
 
 class _DesktopApplicationLauncherHostState
     extends ConsumerState<DesktopApplicationLauncher> {
-  List<HomeGridItem?>? _slots;
+  List<HomeGridItem>? _slots;
   LocalFlutterApplicationRegistry? _registry;
   Locale? _locale;
   List<LauncherApplication> _applications = const [];
@@ -44,19 +44,19 @@ class _DesktopApplicationLauncherHostState
 
   void _updateCatalog(
     BuildContext context,
-    List<HomeGridItem?>? slots,
+    List<HomeGridItem>? items,
     LocalFlutterApplicationRegistry registry,
   ) {
     final locale = Localizations.localeOf(context);
-    if (identical(_slots, slots) &&
+    if (identical(_slots, items) &&
         identical(_registry, registry) &&
         _locale == locale) {
       return;
     }
-    _slots = slots;
+    _slots = items;
     _registry = registry;
     _locale = locale;
-    final desktopApps = HomeGridLayout.appsIn(slots ?? const <HomeGridItem?>[])
+    final desktopApps = (items ?? const <HomeGridItem>[])
         .map((item) => item.app)
         .whereType<DesktopApp>();
     _desktopApps = {
@@ -114,7 +114,9 @@ class _DesktopApplicationLauncherHostState
     _updateCatalog(
       context,
       ref.watch(
-        homeGridControllerProvider.select((state) => state.asData?.value.slots),
+        homeGridControllerProvider.select(
+          (state) => state.asData?.value.catalog,
+        ),
       ),
       ref.watch(localFlutterApplicationRegistryProvider),
     );

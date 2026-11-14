@@ -233,7 +233,7 @@ class _AppFlightLayerState extends ConsumerState<AppFlightLayer>
   HomeGridItem? _homeItem(String? id) {
     if (id == null) return null;
     final grid = ref.read(homeGridControllerProvider).asData?.value;
-    return grid?.apps.where((app) => app.id == id).firstOrNull;
+    return grid?.catalog.where((app) => app.id == id).firstOrNull;
   }
 
   /// Arrival: the window is on screen and the card has reached the screen's

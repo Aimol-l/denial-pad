@@ -48,21 +48,38 @@ final homeClockProvider = Provider<HomeClockInfo>((ref) {
 }, isAutoDispose: true);
 
 class HomeGridState {
-  HomeGridState({required List<HomeGridItem?> slots, this.page = 0})
-    : slots = List.unmodifiable(slots);
+  HomeGridState({
+    required List<HomeGridItem?> slots,
+    this.page = 0,
+    this.catalog = const <HomeGridItem>[],
+  }) : slots = List.unmodifiable(slots);
 
-  HomeGridState._({required this.slots, required this.page});
+  HomeGridState._({
+    required this.slots,
+    required this.page,
+    required this.catalog,
+  });
 
   final List<HomeGridItem?> slots;
   final int page;
 
+  /// Every launchable application: the dock, the desktop menu and the launch
+  /// animations read this. The home grid draws [slots], the shortcuts in the
+  /// user's desktop folder.
+  final List<HomeGridItem> catalog;
+
   /// Every application on the grid, folder contents included.
   Iterable<HomeGridItem> get apps => HomeGridLayout.appsIn(slots);
 
-  HomeGridState copyWith({List<HomeGridItem?>? slots, int? page}) {
+  HomeGridState copyWith({
+    List<HomeGridItem?>? slots,
+    int? page,
+    List<HomeGridItem>? catalog,
+  }) {
     return HomeGridState._(
       slots: slots == null ? this.slots : List.unmodifiable(slots),
       page: page ?? this.page,
+      catalog: catalog ?? this.catalog,
     );
   }
 }
@@ -134,6 +151,7 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
         .toList(growable: false);
     try {
       final apps = await _loadApplications(appsRepository, reason: 'initial');
+      final shortcuts = await _loadShortcuts(appsRepository);
       final saved = await layoutRepository.readSavedLayouts();
       // Portrait first, which is where a phone starts.
       final orientation = HomeOrientation.values
@@ -143,21 +161,22 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
           ? saved.unassigned
           : saved.layouts[orientation];
       final slots = HomeGridLayout.initialSlotsForApps(
-        apps,
+        shortcuts,
         localApps,
         savedLayout,
       );
+      final catalog = HomeGridLayout.catalogItems(apps, localApps);
       if (!_isBuildActive(generation)) {
-        return HomeGridState(slots: slots);
+        return HomeGridState(slots: slots, catalog: catalog);
       }
       _orientation = orientation;
       _layouts = {...saved.layouts};
       _lastDesktopRefresh = DateTime.now();
-      if (_savedLayoutNeedsRefresh(apps, localApps, savedLayout, slots)) {
+      if (_savedLayoutNeedsRefresh(shortcuts, localApps, savedLayout, slots)) {
         _save(slots);
       }
       unawaited(_startDesktopRefreshTriggers(generation, appsRepository));
-      return HomeGridState(slots: slots);
+      return HomeGridState(slots: slots, catalog: catalog);
     } on Object catch (error, stackTrace) {
       Error.throwWithStackTrace(error, stackTrace);
     }
@@ -173,7 +192,8 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
     if (!_launcherActive &&
         reason != 'manual' &&
         reason != 'icon-theme' &&
-        reason != 'icons') {
+        reason != 'icons' &&
+        reason != 'shortcuts') {
       return;
     }
 
@@ -196,10 +216,9 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
     _desktopAppsDirty = false;
     _desktopRefreshInFlight = true;
     try {
-      final apps = await _loadApplications(
-        ref.read(desktopAppsRepositoryProvider),
-        reason: reason,
-      );
+      final repository = ref.read(desktopAppsRepositoryProvider);
+      final apps = await _loadApplications(repository, reason: reason);
+      final shortcuts = await _loadShortcuts(repository);
       if (!_isBuildActive(generation)) {
         return;
       }
@@ -209,37 +228,30 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
         return;
       }
 
-      final currentApps = _appsByGridId(current.apps);
-      final refreshedApps = _appsByGridId(apps.map(HomeGridItem.app));
-
-      final addedIds = refreshedApps.keys
-          .where((id) => !currentApps.containsKey(id))
-          .toList(growable: false);
-      final removedIds = currentApps.keys
-          .where((id) => !refreshedApps.containsKey(id))
-          .toList(growable: false);
-      final updatedIds = refreshedApps.keys
-          .where(
-            (id) =>
-                currentApps.containsKey(id) &&
-                !_sameDesktopApp(currentApps[id]!, refreshedApps[id]!),
-          )
-          .toList(growable: false);
-
-      if (addedIds.isEmpty && removedIds.isEmpty && updatedIds.isEmpty) {
-        return;
-      }
-
       final localApps = ref
           .read(localFlutterApplicationRegistryProvider)
           .applications;
+      final catalog = HomeGridLayout.catalogItems(apps, localApps);
       final slots = HomeGridLayout.refreshSlotsForApps(
         current.slots,
-        apps,
+        shortcuts,
         localApps,
       );
-      state = AsyncData(current.copyWith(slots: slots));
-      _save(slots);
+      final catalogChanged = !_sameCatalog(current.catalog, catalog);
+      final slotsChanged = !_sameSlots(current.slots, slots);
+      if (!catalogChanged && !slotsChanged) {
+        return;
+      }
+      state = AsyncData(
+        HomeGridState(
+          slots: slots,
+          page: current.page,
+          catalog: catalogChanged ? catalog : current.catalog,
+        ),
+      );
+      if (slotsChanged) {
+        _save(slots);
+      }
     } finally {
       if (_isBuildActive(generation)) {
         _desktopRefreshInFlight = false;
@@ -307,6 +319,12 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
           // drawer is closed, so this refresh cannot wait for it.
           _scheduleFilesystemRefresh(reason: 'icons');
         },
+        onShortcutsChanged: () {
+          if (!_isBuildActive(generation)) {
+            return;
+          }
+          _scheduleFilesystemRefresh(reason: 'shortcuts');
+        },
       );
       if (!_isBuildActive(generation) || !_desktopRefreshTriggersStarted) {
         await watcher.dispose();
@@ -329,6 +347,13 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
 
   bool _isBuildActive(int generation) =>
       ref.mounted && generation == _buildGeneration;
+
+  Future<List<DesktopApp>> _loadShortcuts(DesktopAppsRepository repository) {
+    return Isolate.run(
+      repository.loadDesktopShortcuts,
+      debugName: 'denia-launcher-shortcuts',
+    );
+  }
 
   Future<List<DesktopApp>> _loadApplications(
     DesktopAppsRepository repository, {
@@ -534,35 +559,43 @@ List<HomeLayoutSlot?> _layoutOf(List<HomeGridItem?> slots) => [
   for (final slot in slots) slot == null ? null : HomeLayoutSlot.of(slot),
 ];
 
-Map<String, DesktopApp> _appsByGridId(Iterable<HomeGridItem> items) {
-  return <String, DesktopApp>{for (final item in items) item.id: ?item.app};
-}
-
-bool _sameDesktopApp(DesktopApp a, DesktopApp b) {
-  if (a.id != b.id ||
-      a.name != b.name ||
-      a.exec != b.exec ||
-      a.desktopPath != b.desktopPath ||
-      a.icon != b.icon ||
-      a.iconPath != b.iconPath ||
-      a.startupWmClass != b.startupWmClass ||
-      a.categories.length != b.categories.length ||
-      a.keywords.length != b.keywords.length) {
+bool _sameCatalog(List<HomeGridItem> first, List<HomeGridItem> second) {
+  if (first.length != second.length) {
     return false;
   }
-
-  for (var index = 0; index < a.categories.length; index += 1) {
-    if (a.categories[index] != b.categories[index]) {
+  for (var index = 0; index < first.length; index += 1) {
+    final a = first[index];
+    final b = second[index];
+    if (a.id != b.id) {
       return false;
     }
-  }
-  for (var index = 0; index < a.keywords.length; index += 1) {
-    if (a.keywords[index] != b.keywords[index]) {
+    if (a.app?.iconPath != b.app?.iconPath ||
+        a.app?.name != b.app?.name ||
+        a.localApp?.title != b.localApp?.title) {
       return false;
     }
   }
   return true;
 }
+
+bool _sameSlots(List<HomeGridItem?> first, List<HomeGridItem?> second) {
+  if (first.length != second.length) {
+    return false;
+  }
+  for (var index = 0; index < first.length; index += 1) {
+    final a = first[index];
+    final b = second[index];
+    if (a?.id != b?.id) {
+      return false;
+    }
+    if (a?.app?.iconPath != b?.app?.iconPath ||
+        a?.app?.name != b?.app?.name) {
+      return false;
+    }
+  }
+  return true;
+}
+
 
 bool _savedLayoutNeedsRefresh(
   List<DesktopApp> apps,
