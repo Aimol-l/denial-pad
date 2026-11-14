@@ -194,21 +194,6 @@ class IconThemeRepository {
     }
   }
 
-  /// Removes a theme this user installed; system themes are read-only.
-  Future<void> remove(ShellIconThemeData theme) async {
-    final root = p.join(paths.dataHome, 'icons');
-    if (!p.isWithin(root, theme.path)) {
-      throw const IconThemeException(
-        'system',
-        'Bundled icon themes cannot be removed.',
-      );
-    }
-    final directory = Directory(theme.path);
-    if (await directory.exists()) {
-      await directory.delete(recursive: true);
-    }
-  }
-
   Future<void> _extract(File archive, Directory into) async {
     final lower = archive.path.toLowerCase();
     final bool zip;

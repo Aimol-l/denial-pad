@@ -116,7 +116,6 @@ class ShellAppearanceSettings {
     this.accentSource = ShellAccentSource.custom,
     this.customAccentColor = const Color(0xff6b3f73),
     this.fontFamily = '',
-    this.iconTheme = '',
     this.cornerRadiusScale = 0.5,
     this.monitorCornerRadiusScale = 0.5,
     this.panelOpacity = 0.5,
@@ -138,10 +137,6 @@ class ShellAppearanceSettings {
   final ShellAccentSource accentSource;
   final Color customAccentColor;
   final String fontFamily;
-
-  /// The icon theme desktop applications draw from, or empty to follow the
-  /// shell's light/dark scheme.
-  final String iconTheme;
 
   final double cornerRadiusScale;
 
@@ -175,7 +170,6 @@ class ShellAppearanceSettings {
     ShellAccentSource? accentSource,
     Color? customAccentColor,
     String? fontFamily,
-    String? iconTheme,
     double? cornerRadiusScale,
     double? monitorCornerRadiusScale,
     double? panelOpacity,
@@ -198,7 +192,6 @@ class ShellAppearanceSettings {
       accentSource: accentSource ?? this.accentSource,
       customAccentColor: customAccentColor ?? this.customAccentColor,
       fontFamily: fontFamily ?? this.fontFamily,
-      iconTheme: iconTheme ?? this.iconTheme,
       cornerRadiusScale: cornerRadiusScale ?? this.cornerRadiusScale,
       monitorCornerRadiusScale:
           monitorCornerRadiusScale ?? this.monitorCornerRadiusScale,
@@ -230,7 +223,6 @@ class ShellAppearanceSettings {
         other.accentSource == accentSource &&
         other.customAccentColor == customAccentColor &&
         other.fontFamily == fontFamily &&
-        other.iconTheme == iconTheme &&
         other.cornerRadiusScale == cornerRadiusScale &&
         other.monitorCornerRadiusScale == monitorCornerRadiusScale &&
         other.panelOpacity == panelOpacity &&
@@ -254,7 +246,6 @@ class ShellAppearanceSettings {
     accentSource,
     customAccentColor,
     fontFamily,
-    iconTheme,
     cornerRadiusScale,
     monitorCornerRadiusScale,
     panelOpacity,
@@ -1226,9 +1217,6 @@ class ShellSettings {
       if (appearance.fontFamily != before.fontFamily) {
         section['fontFamily'] = appearance.fontFamily;
       }
-      if (appearance.iconTheme != before.iconTheme) {
-        section['iconTheme'] = appearance.iconTheme;
-      }
       if (appearance.cornerRadiusScale != before.cornerRadiusScale) {
         section['cornerRadiusScale'] = appearance.cornerRadiusScale;
       }
@@ -1477,7 +1465,6 @@ class ShellSettings {
         'accentSource': appearance.accentSource.name,
         'customAccentColor': appearance.customAccentColor.toARGB32(),
         'fontFamily': appearance.fontFamily,
-        'iconTheme': appearance.iconTheme,
         'cornerRadiusScale': appearance.cornerRadiusScale,
         'monitorCornerRadiusScale': appearance.monitorCornerRadiusScale,
         'panelOpacity': appearance.panelOpacity,
@@ -1669,10 +1656,6 @@ class ShellSettings {
         fontFamily: _fontFamily(
           appearanceJson['fontFamily'],
           defaults.appearance.fontFamily,
-        ),
-        iconTheme: _iconThemeId(
-          appearanceJson['iconTheme'],
-          defaults.appearance.iconTheme,
         ),
         cornerRadiusScale: _number(
           appearanceJson['cornerRadiusScale'],
@@ -1978,21 +1961,6 @@ class ShellSettings {
     applicationEnvironment,
     applicationScales,
   );
-}
-
-/// An installed icon theme's directory name, or empty to follow the scheme.
-String _iconThemeId(Object? value, String fallback) {
-  if (value is! String) {
-    return fallback;
-  }
-  final id = value.trim();
-  if (id.length > 128 ||
-      id.runes.any((rune) => rune < 0x20 || rune == 0x7f) ||
-      id.contains('/') ||
-      id.contains('\\')) {
-    return fallback;
-  }
-  return id;
 }
 
 String _fontFamily(Object? value, String fallback) {

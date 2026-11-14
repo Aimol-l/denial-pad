@@ -218,8 +218,6 @@ class _DenialSettingsStandaloneContentState
                             .openWallpaperSelector(),
                         onPickCursorZip: () => _activationChannel
                             .invokeMethod<String>('pickCursorZip'),
-                        onPickIconTheme: () => _activationChannel
-                            .invokeMethod<String>('pickIconTheme'),
                         onPickProfileImage:
                             ({
                               required title,

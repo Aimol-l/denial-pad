@@ -4507,11 +4507,9 @@
   "@settingsFontSystemDefault": {
     "description": "Option that restores the platform's default font family."
   },
-  "settingsIconThemeDelete": "Remove",
   "@settingsIconThemeDelete": {
     "description": "Action that deletes a user-installed icon theme."
   },
-  "settingsIconThemeDeleteBody": "“{name}” will be removed from your icons folder.",
   "@settingsIconThemeDeleteBody": {
     "description": "Confirmation body before deleting an icon theme.",
     "placeholders": {
@@ -4520,51 +4518,40 @@
       }
     }
   },
-  "settingsIconThemeDeleteTitle": "Remove icon theme?",
   "@settingsIconThemeDeleteTitle": {
     "description": "Confirmation title before deleting an icon theme."
   },
-  "settingsIconThemeDescription": "Applications take their icons from the chosen theme. Themes are read from the icons folder of every data directory.",
+  "settingsIconThemeDescription": "Applications draw their icons from the Colloid set that ships with Denial.",
   "@settingsIconThemeDescription": {
     "description": "Explanation for the icon theme selector."
   },
-  "settingsIconThemeErrorEmpty": "the archive is empty",
   "@settingsIconThemeErrorEmpty": {
     "description": "Install failure detail for an empty archive."
   },
-  "settingsIconThemeErrorExtract": "the archive could not be unpacked",
   "@settingsIconThemeErrorExtract": {
     "description": "Install failure detail when unpacking fails."
   },
-  "settingsIconThemeErrorMissing": "choose a regular archive file",
   "@settingsIconThemeErrorMissing": {
     "description": "Install failure detail when the chosen path is not a file."
   },
-  "settingsIconThemeErrorNoTheme": "the archive has no index.theme",
   "@settingsIconThemeErrorNoTheme": {
     "description": "Install failure detail when no icon theme is inside the archive."
   },
-  "settingsIconThemeErrorTooLarge": "the archive is larger than 512 MB",
   "@settingsIconThemeErrorTooLarge": {
     "description": "Install failure detail for an oversized archive."
   },
-  "settingsIconThemeErrorUnsafe": "the archive contains paths outside its folder",
   "@settingsIconThemeErrorUnsafe": {
     "description": "Install failure detail for an archive that would escape its folder."
   },
-  "settingsIconThemeErrorUnsupported": "use a .tar.xz, .tar.gz or .zip archive",
   "@settingsIconThemeErrorUnsupported": {
     "description": "Install failure detail for an unsupported archive suffix."
   },
-  "settingsIconThemeHint": "Pick a theme to apply it immediately. Downloaded themes live in your user icons folder; bundled themes cannot be removed.",
   "@settingsIconThemeHint": {
     "description": "Hint under the icon theme grid."
   },
-  "settingsIconThemeInstall": "Install from file…",
   "@settingsIconThemeInstall": {
     "description": "Button that installs an icon theme from an archive."
   },
-  "settingsIconThemeInstallFailed": "Could not install the theme: {reason}",
   "@settingsIconThemeInstallFailed": {
     "description": "Failure message when an icon theme archive cannot be installed.",
     "placeholders": {
@@ -4573,7 +4560,6 @@
       }
     }
   },
-  "settingsIconThemeInstalled": "Installed: {names}",
   "@settingsIconThemeInstalled": {
     "description": "Success message listing the icon themes that were just installed.",
     "placeholders": {
@@ -4582,9 +4568,12 @@
       }
     }
   },
-  "settingsIconThemeInstalling": "Installing…",
   "@settingsIconThemeInstalling": {
     "description": "Status while an icon theme archive is being unpacked."
+  },
+  "settingsIconThemeBundledHint": "Bundled with the system; it cannot be removed.",
+  "@settingsIconThemeBundledHint": {
+    "description": "Note that the built-in icon set is fixed."
   },
   "settingsIconThemeLabel": "Icon theme",
   "@settingsIconThemeLabel": {
@@ -4594,7 +4583,6 @@
   "@settingsIconThemeLoading": {
     "description": "Description shown while the icon theme catalog is loading."
   },
-  "settingsIconThemePreview": "Icon theme preview",
   "@settingsIconThemePreview": {
     "description": "Accessible label for the sample icons of the selected icon theme."
   },
