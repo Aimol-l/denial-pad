@@ -61,6 +61,7 @@ import 'shade_expansion_motion.dart';
 import 'shade_reference_geometry.dart';
 import 'status_bar.dart';
 import '../../state/clipboard_tray.dart' show clipboardTrayProvider;
+import '../clipboard_history_popup.dart' show ClipboardHistoryPopup;
 import '../../state/phone_desk.dart';
 
 enum ShadePage { notifications, quickSettings }
@@ -930,9 +931,6 @@ class _QuickSettingsTilesSection extends ConsumerWidget {
           ref.watch(shellSettingsSyncStatusProvider).phase !=
           ShellSettingsSyncPhase.loading,
     );
-    final notificationController = ref.read(
-      desktopNotificationsProvider.notifier,
-    );
     final l10n = context.l10n;
     final networkSnapshot = network.snapshot;
     final wifiToggleEnabled =
@@ -1028,6 +1026,23 @@ class _QuickSettingsTilesSection extends ConsumerWidget {
         stacked: designLayout,
         onTap: () {
           ref.read(referenceShellProvider.notifier).closeQuickSettings();
+          if (presentation == ReferenceShellProfile.mobile) {
+            // The tray slides in from the desktop's edge; a tablet gets the
+            // same history in the popup the shade's details use. The shade is
+            // still closing under this very tap, so the popup opens once it
+            // has let go of the pointer.
+            Future<void>.delayed(const Duration(milliseconds: 180), () {
+              ref
+                  .read(shellPopupControllerProvider.notifier)
+                  .show(
+                    keyName: 'clipboard-history',
+                    debugLabel: 'Clipboard history',
+                    builder: (_, handle) =>
+                        ClipboardHistoryPopup(onClose: handle.close),
+                  );
+            });
+            return;
+          }
           ref.read(clipboardTrayProvider.notifier).open();
         },
       ),
@@ -1083,9 +1098,34 @@ class _QuickSettingsTilesSection extends ConsumerWidget {
                   BluetoothDetailSurface(onClose: handle.close),
             );
       },
-      onToggleDnd: notificationController.toggleDoNotDisturb,
+      onToggleDnd: () => _toggleSilent(ref),
       onCycleProfile: quickSettingsController.cycleProfile,
     );
+  }
+}
+
+/// Volume kept aside while the silent tile is on.
+double? _silentSavedVolume;
+
+/// Silent means quiet: notifications stop their banners and the output goes
+/// quiet too, coming back at the level it had.
+void _toggleSilent(WidgetRef ref) {
+  final notifications = ref.read(desktopNotificationsProvider.notifier);
+  final turningOn = !ref.read(desktopNotificationsProvider).doNotDisturb;
+  notifications.toggleDoNotDisturb();
+  final quick = ref.read(quickSettingsProvider.notifier);
+  if (turningOn) {
+    final volume = ref.read(quickSettingsProvider).volume;
+    _silentSavedVolume = volume;
+    if (volume > 0) {
+      quick.commitDashboardVolume(0);
+    }
+  } else {
+    final restore = _silentSavedVolume;
+    _silentSavedVolume = null;
+    if (restore != null && restore > 0) {
+      quick.commitDashboardVolume(restore);
+    }
   }
 }
 

@@ -109,11 +109,27 @@ if [[ -f "$local_font" ]]; then
     want_font="$(md5sum "$local_font" | cut -d' ' -f1)"
 fi
 
+# A truncated copy once installed a bundle of empty files and the session
+# could not start: every archive is compared before it is unpacked.
+want_shell="$(sha256sum "$work/shell.tgz" | cut -d' ' -f1)"
+want_settings="$(sha256sum "$work/settings.tgz" | cut -d' ' -f1)"
+
 printf '==> copying to %s\n' "$HOST"
 scp "${scp_args[@]}" "$work/shell.tgz" "$work/settings.tgz" "$HOST:/tmp/" >/dev/null
 if ((COMPOSITOR)); then
     scp "${scp_args[@]}" "$work/deniald" "$HOST:/tmp/deniald-deploy" >/dev/null
 fi
+
+got_hashes="$(remote "sha256sum /tmp/shell.tgz /tmp/settings.tgz")"
+got_shell="$(printf '%s\n' "$got_hashes" | sed -n '1s/ .*//p')"
+got_settings="$(printf '%s\n' "$got_hashes" | sed -n '2s/ .*//p')"
+if [[ "$got_shell" != "$want_shell" ]]; then
+    die "the shell bundle arrived damaged ($got_shell != $want_shell)"
+fi
+if [[ "$got_settings" != "$want_settings" ]]; then
+    die "the settings bundle arrived damaged ($got_settings != $want_settings)"
+fi
+printf '    both archives arrived whole\n'
 
 printf '==> installing\n'
 remote "sudo tar -C /usr/lib/denial/flutter -xzf /tmp/shell.tgz &&
@@ -122,6 +138,16 @@ remote "sudo tar -C /usr/lib/denial/flutter -xzf /tmp/shell.tgz &&
 if ((COMPOSITOR)); then
     remote "sudo install -m755 /tmp/deniald-deploy /usr/bin/deniald && rm -f /tmp/deniald-deploy" >/dev/null
 fi
+
+# The archive can be whole and still unpack badly; the two libraries the
+# session starts from must have content.
+for deployed in /usr/lib/denial/flutter/lib/libapp.so \
+    /usr/lib/denial/flutter/lib/libflutter_engine.so \
+    /usr/lib/denial/settings/lib/libapp.so; do
+    if ! remote "test -s $deployed" >/dev/null; then
+        die "$deployed is empty after the install"
+    fi
+done
 
 # The font is the part a bare libapp.so copy used to miss; check it landed.
 if [[ -n "$want_font" ]]; then
