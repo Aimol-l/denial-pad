@@ -710,21 +710,37 @@ class _CursorSettingsState extends State<_CursorSettings> {
                     ),
                   )
                 else
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      for (final theme in widget.themes)
-                        _CursorThemeCard(
-                          theme: theme,
-                          selected: theme.id == widget.settings.cursorThemeId,
-                          enabled: !_busy,
-                          onSelected: () => widget.onThemeChanged(theme.id),
-                          onRemove: theme.isImported
-                              ? () => _remove(theme)
-                              : null,
-                        ),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      const gap = 12.0;
+                      final columns = (constraints.maxWidth / 262)
+                          .floor()
+                          .clamp(2, 5);
+                      final width =
+                          (constraints.maxWidth - gap * (columns - 1)) /
+                          columns;
+                      return Wrap(
+                        spacing: gap,
+                        runSpacing: gap,
+                        children: [
+                          for (final theme in widget.themes)
+                            _CursorThemeCard(
+                              theme: theme,
+                              width: width,
+                              builtIn:
+                                  theme.id ==
+                                  ShellCursorThemes.bibataModernIce.id,
+                              selected:
+                                  theme.id == widget.settings.cursorThemeId,
+                              enabled: !_busy,
+                              onSelected: () => widget.onThemeChanged(theme.id),
+                              onRemove: theme.isImported
+                                  ? () => _remove(theme)
+                                  : null,
+                            ),
+                        ],
+                      );
+                    },
                   ),
               ],
             ),
@@ -756,13 +772,17 @@ class _CursorSettingsState extends State<_CursorSettings> {
 class _CursorThemeCard extends StatefulWidget {
   const _CursorThemeCard({
     required this.theme,
+    required this.width,
     required this.selected,
     required this.enabled,
     required this.onSelected,
+    required this.builtIn,
     required this.onRemove,
   });
 
   final ShellCursorThemeData theme;
+  final double width;
+  final bool builtIn;
   final bool selected;
   final bool enabled;
   final VoidCallback onSelected;
@@ -820,12 +840,11 @@ class _CursorThemeCardState extends State<_CursorThemeCard> {
               duration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
                   : Motion.tile,
-              width: 250,
-              constraints: const BoxConstraints(minHeight: 124),
+              width: widget.width,
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 color: widget.selected
-                    ? Color.alphaBlend(accent.withAlpha(34), colors.control)
+                    ? Color.alphaBlend(accent.withAlpha(30), colors.control)
                     : colors.control,
                 borderRadius: DenialSurfaceGeometry.borderRadiusOf(context),
                 border: Border.all(
@@ -842,32 +861,33 @@ class _CursorThemeCardState extends State<_CursorThemeCard> {
                   Row(
                     children: [
                       Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              widget.theme.label,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: ShellText.cardTitle,
-                            ),
-                            if (!widget.theme.isImported &&
-                                widget.theme.author.trim().isNotEmpty) ...[
-                              const SizedBox(height: 2),
-                              Text(
-                                widget.theme.author,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: ShellText.base.copyWith(
-                                  color: colors.secondary,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ],
-                          ],
+                        child: Text(
+                          widget.theme.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: ShellText.cardTitle,
                         ),
                       ),
-                      if (widget.onRemove case final remove?)
+                      if (widget.builtIn)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accent.withAlpha(28),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            context.l10n.settingsIconThemeBuiltInBadge,
+                            style: ShellText.base.copyWith(
+                              color: accent,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        )
+                      else if (widget.onRemove case final remove?)
                         Tooltip(
                           message: context.l10n.settingsCursorRemove,
                           child: IconButton(
@@ -885,30 +905,38 @@ class _CursorThemeCardState extends State<_CursorThemeCard> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   RepaintBoundary(
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        for (final kind in const <ShellCursorKind>[
-                          ShellCursorKind.normal,
-                          ShellCursorKind.link,
-                          ShellCursorKind.text,
-                          ShellCursorKind.working,
-                          ShellCursorKind.busy,
-                        ])
-                          SizedBox.square(
-                            dimension: 34,
-                            child: Center(
-                              child: ShellCursorArtwork(
-                                theme: widget.theme,
-                                kind: kind,
-                                longestEdge: 28,
-                                running: enabled,
+                    child: Container(
+                      height: 112,
+                      padding: const EdgeInsets.symmetric(horizontal: 9),
+                      decoration: BoxDecoration(
+                        color: colors.canvas,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: [
+                          for (final kind in const <ShellCursorKind>[
+                            ShellCursorKind.normal,
+                            ShellCursorKind.link,
+                            ShellCursorKind.text,
+                            ShellCursorKind.working,
+                            ShellCursorKind.busy,
+                          ])
+                            SizedBox.square(
+                              dimension: 34,
+                              child: Center(
+                                child: ShellCursorArtwork(
+                                  theme: widget.theme,
+                                  kind: kind,
+                                  longestEdge: 28,
+                                  running: enabled,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -1301,11 +1329,11 @@ class _IconThemeSettingsState extends State<_IconThemeSettings> {
                 ),
               ),
               const SizedBox(width: 16),
-              _IconThemeInstallButton(
-                label: l10n.settingsIconThemeInstall,
-                busy: _busy,
-                enabled: widget.onImport != null && !_busy,
-                onPressed: _import,
+              SettingsTextButton(
+                label: _busy
+                    ? l10n.settingsIconThemeInstalling
+                    : l10n.settingsIconThemeInstall,
+                onPressed: widget.onImport == null || _busy ? null : _import,
               ),
             ],
           ),
@@ -1380,77 +1408,6 @@ class _IconThemeSettingsState extends State<_IconThemeSettings> {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _IconThemeInstallButton extends StatelessWidget {
-  const _IconThemeInstallButton({
-    required this.label,
-    required this.busy,
-    required this.enabled,
-    required this.onPressed,
-  });
-
-  final String label;
-  final bool busy;
-  final bool enabled;
-  final VoidCallback onPressed;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = ShellTheme.of(context);
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: label,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onPressed : null,
-        child: AnimatedOpacity(
-          duration: MediaQuery.disableAnimationsOf(context)
-              ? Duration.zero
-              : Motion.tile,
-          opacity: enabled ? 1 : 0.5,
-          child: Container(
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            decoration: BoxDecoration(
-              color: theme.accent.withAlpha(26),
-              borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: theme.accent.withAlpha(110)),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: <Widget>[
-                if (busy)
-                  SizedBox.square(
-                    dimension: 13,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: theme.accent,
-                    ),
-                  )
-                else
-                  Icon(
-                    Icons.file_download_outlined,
-                    size: 15,
-                    color: theme.accent,
-                  ),
-                const SizedBox(width: 7),
-                Text(
-                  label,
-                  style: ShellText.base.copyWith(
-                    color: theme.accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
       ),
     );
   }

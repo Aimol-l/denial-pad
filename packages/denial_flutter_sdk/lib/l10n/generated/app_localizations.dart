@@ -5036,7 +5036,7 @@ abstract class AppLocalizations {
   /// Button for importing an animated Windows cursor archive.
   ///
   /// In en, this message translates to:
-  /// **'Import cursor ZIP'**
+  /// **'Import cursor pack'**
   String get settingsCursorImport;
 
   /// Generic cursor import failure message.
@@ -6001,7 +6001,7 @@ abstract class AppLocalizations {
   /// Button that installs an icon theme from an archive.
   ///
   /// In en, this message translates to:
-  /// **'Install from file…'**
+  /// **'Import icon pack'**
   String get settingsIconThemeInstall;
 
   /// Failure message when an icon theme archive cannot be installed.

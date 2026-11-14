@@ -2681,7 +2681,7 @@ class AppLocalizationsZh extends AppLocalizations {
       'Wayland 和 X11 应用可以提供光标图像。关闭后将始终使用所选的 Denial 主题。';
 
   @override
-  String get settingsCursorImport => '导入光标 ZIP';
+  String get settingsCursorImport => '导入光标包';
 
   @override
   String get settingsCursorImportFailed => '无法导入光标主题。';
@@ -3206,7 +3206,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsIconThemeHint => '点选即应用；下载来的主题放在用户目录，系统自带主题不可删除。';
 
   @override
-  String get settingsIconThemeInstall => '从文件安装…';
+  String get settingsIconThemeInstall => '导入图标包';
 
   @override
   String settingsIconThemeInstallFailed(String reason) {

@@ -2805,7 +2805,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Wayland and X11 applications can provide cursor artwork. Turn this off to always use the selected Denial theme.';
 
   @override
-  String get settingsCursorImport => 'Import cursor ZIP';
+  String get settingsCursorImport => 'Import cursor pack';
 
   @override
   String get settingsCursorImportFailed =>
@@ -3365,7 +3365,7 @@ class AppLocalizationsEn extends AppLocalizations {
       'Pick a theme to apply it immediately. Downloaded themes live in your user icons folder; bundled themes cannot be removed.';
 
   @override
-  String get settingsIconThemeInstall => 'Install from file…';
+  String get settingsIconThemeInstall => 'Import icon pack';
 
   @override
   String settingsIconThemeInstallFailed(String reason) {

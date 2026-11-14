@@ -3862,7 +3862,7 @@
   "@settingsCursorAllowApplicationsDescription": {
     "description": "Explanation of the client-defined cursor surface toggle."
   },
-  "settingsCursorImport": "Import cursor ZIP",
+  "settingsCursorImport": "Import cursor pack",
   "@settingsCursorImport": {
     "description": "Button for importing an animated Windows cursor archive."
   },
@@ -4564,7 +4564,7 @@
   "@settingsIconThemeHint": {
     "description": "Hint under the icon theme grid."
   },
-  "settingsIconThemeInstall": "Install from file…",
+  "settingsIconThemeInstall": "Import icon pack",
   "@settingsIconThemeInstall": {
     "description": "Button that installs an icon theme from an archive."
   },
