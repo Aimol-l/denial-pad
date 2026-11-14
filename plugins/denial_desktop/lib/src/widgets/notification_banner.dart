@@ -15,6 +15,7 @@ import 'package:denial_flutter_sdk/settings.dart';
 import 'package:denial_flutter_sdk/state.dart';
 import 'package:denial_flutter_sdk/glass_configuration.dart';
 import 'package:denial_flutter_sdk/motion.dart';
+import 'package:denial_flutter_sdk/rendering.dart' show AppIconImage;
 import 'package:denial_flutter_sdk/shell_theme.dart';
 import 'package:denial_flutter_sdk/tokens.dart';
 

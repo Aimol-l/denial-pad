@@ -141,8 +141,9 @@ class NotificationCard extends StatelessWidget {
               ),
               itemBuilder: (context, index) {
                 final action = namedActions[index];
-                return _NotificationActionButton(
-                  label: action.label.isEmpty ? action.key : action.label,
+                return _ResolvedActionButton(
+                  action: action,
+                  actionIcons: notification.actionIcons,
                   mobile: mobile,
                   fontSize: mobile
                       ? MobileNotificationMetrics.actionFontSize

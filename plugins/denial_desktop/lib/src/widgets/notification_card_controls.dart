@@ -54,9 +54,13 @@ class _NotificationActivatorState extends State<_NotificationActivator> {
   }
 }
 
-class _NotificationActionButton extends StatefulWidget {
-  const _NotificationActionButton({
-    required this.label,
+/// One action of a notification. An icon reads faster than a word when the
+/// notification names its actions that way (`action-icons`) or when the label
+/// is one we know; anything else keeps its text.
+class _ResolvedActionButton extends ConsumerWidget {
+  const _ResolvedActionButton({
+    required this.action,
+    required this.actionIcons,
     required this.onPressed,
     this.mobile = false,
     this.fontSize = 12,
@@ -64,12 +68,126 @@ class _NotificationActionButton extends StatefulWidget {
     this.visualScale = 1,
   });
 
-  final String label;
+  final DesktopNotificationAction action;
+
+  /// The notification asked for its actions to be drawn as icons, so each
+  /// label is an icon name.
+  final bool actionIcons;
   final bool mobile;
   final double fontSize;
   final Color? textColor;
   final double visualScale;
   final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    var icon = _actionIconFor(action.label);
+    String? iconPath;
+    if (icon == null && actionIcons && action.label.trim().isNotEmpty) {
+      iconPath = ref
+          .watch(
+            notificationIconPathProvider(
+              NotificationIconRequest(
+                appIcon: action.label.trim(),
+                desktopEntry: '',
+                appName: '',
+              ),
+            ),
+          )
+          .value;
+    }
+    return _NotificationActionButton(
+      label: action.label.isEmpty ? action.key : action.label,
+      icon: icon,
+      iconPath: iconPath,
+      onPressed: onPressed,
+      mobile: mobile,
+      fontSize: fontSize,
+      textColor: textColor,
+      visualScale: visualScale,
+    );
+  }
+}
+
+/// The icon for the actions applications repeat: media transport, messaging
+/// and the usual dismissals, in the languages this shell speaks.
+IconData? _actionIconFor(String label) {
+  final text = label.trim().toLowerCase();
+  if (text.isEmpty) {
+    return null;
+  }
+  bool matches(List<String> needles) =>
+      needles.any((needle) => text == needle || text.contains(needle));
+  if (matches(const <String>['上一首', '上一曲', 'previous', 'prev', 'back'])) {
+    return Icons.skip_previous_rounded;
+  }
+  if (matches(const <String>['下一首', '下一曲', 'next', 'forward'])) {
+    return Icons.skip_next_rounded;
+  }
+  if (matches(const <String>['暂停', 'pause'])) {
+    return Icons.pause_rounded;
+  }
+  if (matches(const <String>['播放', '继续', 'play', 'resume'])) {
+    return Icons.play_arrow_rounded;
+  }
+  if (matches(const <String>['停止', 'stop'])) {
+    return Icons.stop_rounded;
+  }
+  if (matches(const <String>['静音', 'mute', 'silence'])) {
+    return Icons.volume_off_rounded;
+  }
+  if (matches(const <String>['回复', 'reply'])) {
+    return Icons.reply_rounded;
+  }
+  if (matches(const <String>['已读', 'mark as read', 'read all'])) {
+    return Icons.done_all_rounded;
+  }
+  if (matches(const <String>['收藏', '喜欢', 'like', 'favourite', 'favorite'])) {
+    return Icons.favorite_border_rounded;
+  }
+  if (matches(const <String>['稍后', 'snooze'])) {
+    return Icons.schedule_rounded;
+  }
+  if (matches(const <String>['删除', 'delete', 'remove'])) {
+    return Icons.delete_outline_rounded;
+  }
+  if (matches(const <String>['打开', 'open'])) {
+    return Icons.open_in_new_rounded;
+  }
+  if (matches(const <String>['取消', '关闭', '忽略', 'cancel', 'dismiss', 'close'])) {
+    return Icons.close_rounded;
+  }
+  if (matches(const <String>['接听', 'answer', 'accept'])) {
+    return Icons.call_rounded;
+  }
+  if (matches(const <String>['挂断', 'decline', 'hang up', 'reject'])) {
+    return Icons.call_end_rounded;
+  }
+  return null;
+}
+
+class _NotificationActionButton extends StatefulWidget {
+  const _NotificationActionButton({
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.iconPath,
+    this.mobile = false,
+    this.fontSize = 12,
+    this.textColor,
+    this.visualScale = 1,
+  });
+
+  final String label;
+  final IconData? icon;
+  final String? iconPath;
+  final bool mobile;
+  final double fontSize;
+  final Color? textColor;
+  final double visualScale;
+  final VoidCallback onPressed;
+
+  bool get iconOnly => icon != null || iconPath != null;
 
   @override
   State<_NotificationActionButton> createState() =>
@@ -82,6 +200,8 @@ class _NotificationActionButtonState extends State<_NotificationActionButton> {
 
   @override
   Widget build(BuildContext context) {
+    final scale = widget.visualScale;
+    final iconOnly = widget.iconOnly;
     return Semantics(
       button: true,
       label: widget.label,
@@ -110,14 +230,12 @@ class _NotificationActionButtonState extends State<_NotificationActionButton> {
                 : Motion.pill,
             curve: Motion.standard,
             constraints: BoxConstraints(
-              minWidth:
-                  MobileNotificationMetrics.actionMinimumWidth *
-                  widget.visualScale,
+              minWidth: MobileNotificationMetrics.actionMinimumWidth * scale,
             ),
             padding: EdgeInsets.symmetric(
-              horizontal:
-                  MobileNotificationMetrics.actionHorizontalInset *
-                  widget.visualScale,
+              horizontal: iconOnly
+                  ? 0
+                  : MobileNotificationMetrics.actionHorizontalInset * scale,
             ),
             alignment: Alignment.center,
             decoration: BoxDecoration(
@@ -125,7 +243,7 @@ class _NotificationActionButtonState extends State<_NotificationActionButton> {
                   ? context.shellTheme.accentPalette.container
                   : context.shellColors.surfaceContainerHighest,
               borderRadius: context.shellTheme.borderRadius(
-                MobileNotificationMetrics.actionRadius * widget.visualScale,
+                MobileNotificationMetrics.actionRadius * scale,
               ),
               border: _focused
                   ? Border.all(color: ShellTheme.of(context).accent)
@@ -135,18 +253,40 @@ class _NotificationActionButtonState extends State<_NotificationActionButton> {
                   ? null
                   : Border.all(color: context.shellColors.hairlineSoft),
             ),
-            child: Text(
-              widget.label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: ShellText.cardTitle.copyWith(
-                fontSize: widget.fontSize,
-                color: widget.textColor,
-                fontWeight: widget.textColor != null
-                    ? FontWeight.w700
-                    : FontWeight.w600,
-              ),
-            ),
+            child: iconOnly
+                ? SizedBox.square(
+                    dimension: MobileNotificationMetrics.actionHeight * scale,
+                    child: Center(
+                      child: widget.iconPath != null
+                          ? SizedBox.square(
+                              dimension:
+                                  MobileNotificationMetrics.actionIconSize *
+                                  scale,
+                              child: AppIconImage(iconPath: widget.iconPath),
+                            )
+                          : Icon(
+                              widget.icon,
+                              size:
+                                  MobileNotificationMetrics.actionIconSize *
+                                  scale,
+                              color:
+                                  widget.textColor ??
+                                  context.shellColors.textPrimary,
+                            ),
+                    ),
+                  )
+                : Text(
+                    widget.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: ShellText.cardTitle.copyWith(
+                      fontSize: widget.fontSize,
+                      color: widget.textColor,
+                      fontWeight: widget.textColor != null
+                          ? FontWeight.w700
+                          : FontWeight.w600,
+                    ),
+                  ),
           ),
         ),
       ),

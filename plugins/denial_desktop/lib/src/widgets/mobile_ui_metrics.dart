@@ -57,6 +57,7 @@ abstract final class MobileNotificationMetrics {
 
   static const double actionHeight = 48;
   static const double actionMinimumWidth = 48;
+  static const double actionIconSize = 20;
   static const double actionHorizontalInset = 12;
   static const double actionSpacing = 7;
   static const double actionRadius = 12;
