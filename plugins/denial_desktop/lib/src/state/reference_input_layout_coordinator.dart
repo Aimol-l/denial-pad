@@ -4,6 +4,7 @@ import 'package:denial_flutter_sdk/input.dart';
 
 import 'package:denial_flutter_sdk/models.dart';
 import 'package:denial_flutter_sdk/platform.dart';
+import 'package:denial_flutter_sdk/rendering.dart' show WindowSurfaceFit;
 
 import 'phone_desk_input.dart';
 import 'reference_shell_state.dart';
@@ -159,6 +160,8 @@ class ReferenceInputLayoutCoordinator {
             window: window,
             area: cards[index],
             clip: cards[index],
+            // A split pane shows the whole client.
+            fit: BoxFit.contain,
           ),
         );
       }
@@ -286,44 +289,33 @@ class ReferenceInputLayoutCoordinator {
     required Rect area,
     required Rect clip,
     double contentOffset = 0,
+    BoxFit fit = BoxFit.cover,
   }) {
     final frame = window.presentationCoordinateRect;
     final content = window.contentCoordinateRect;
     if (frame.isEmpty || content.isEmpty) {
       return const <InputWindowRegion>[];
     }
-    // Match the texture's top-centred BoxFit.cover, including the interval
-    // between an output configure and the client's replacement buffer.
-    final widthScale = area.width / frame.width;
-    final heightScale = area.height / frame.height;
-    final scale = widthScale > heightScale ? widthScale : heightScale;
-    final frameLeft = area.left + (area.width - frame.width * scale) / 2.0;
-    final frameTop = area.top - contentOffset;
-    final fullContentRect = Rect.fromLTWH(
-      frameLeft,
-      frameTop,
-      frame.width * scale,
-      frame.height * scale,
+    // The same fit the window texture paints with, including the interval
+    // between an output configure and the client's replacement buffer: a
+    // split pane shows the whole client (`contain`) while a lone app covers
+    // the screen. Two copies of this maths drifted apart once and every touch
+    // in a pane landed above the finger.
+    final mapping = WindowSurfaceFit.resolve(
+      area: area,
+      frame: frame,
+      content: content,
+      fit: fit,
+      topOffset: contentOffset,
     );
-    final clientRect = Rect.fromLTWH(
-      frameLeft + (content.left - frame.left) * scale,
-      frameTop + (content.top - frame.top) * scale,
-      content.width * scale,
-      content.height * scale,
-    );
-    final rect = clientRect.intersect(clip);
+    final rect = mapping.contentRect.intersect(clip);
     if (rect.isEmpty) {
       return const <InputWindowRegion>[];
     }
-    final sourceRect = Rect.fromLTWH(
-      content.left + (rect.left - clientRect.left) / scale,
-      content.top + (rect.top - clientRect.top) / scale,
-      rect.width / scale,
-      rect.height / scale,
-    );
+    final sourceRect = mapping.screenToSource(rect);
     final regions = <InputWindowRegion>[];
     for (final popup in window.popupRootsFrontToBack) {
-      final popupRect = window.mapSurfaceRect(popup, fullContentRect);
+      final popupRect = window.mapSurfaceRect(popup, mapping.surfaceRect);
       final clipped = popupRect.intersect(rect);
       if (clipped.isEmpty ||
           popupRect.width <= 0.0 ||

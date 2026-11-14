@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/widgets.dart';
 
 import '../models/denial_window.dart';
@@ -8,6 +6,7 @@ import '../theme/shell_theme.dart';
 
 import 'window_backdrop_cache.dart';
 import 'window_plane.dart';
+import 'window_surface_fit.dart';
 import 'window_surface_tree.dart';
 
 /// Fills its parent with a compositor window, covering it like the mobile
@@ -49,7 +48,13 @@ class WindowTextureRect extends StatelessWidget {
         (theme.transparencyMode == ShellTransparencyMode.glass ||
             theme.backdropBlurSigma > 0);
     final cache = glass ? WindowBackdropCache.maybeOf(context) : null;
-    final windowSize = Size(window.width.toDouble(), window.height.toDouble());
+    // The surface the compositor reports is the size the client actually
+    // shows; the buffer behind it may be larger by the display scale. Fitting
+    // the surface keeps this mapping identical to the one input resolves.
+    final frame = window.presentationCoordinateRect;
+    final windowSize = frame.isEmpty
+        ? Size(window.width.toDouble(), window.height.toDouble())
+        : frame.size;
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     final texture = window.popupSurfaceLayers.isEmpty
         ? singleWindowPlaneTexture(window)
@@ -60,21 +65,18 @@ class WindowTextureRect extends StatelessWidget {
         if (windowSize.isEmpty || parent.isEmpty || !parent.isFinite) {
           return const SizedBox.shrink();
         }
-        // The window keeps its aspect and covers the parent from the top,
-        // like the mobile stage. As on the desktop, the plane is laid out at
-        // its on-screen size and maps the buffer itself: its material is
-        // resolved in the plane's own units and must not sit under a
-        // buffer-to-screen scale.
-        final scale = fit == BoxFit.contain
-            ? math.min(
-                parent.width / windowSize.width,
-                parent.height / windowSize.height,
-              )
-            : math.max(
-                parent.width / windowSize.width,
-                parent.height / windowSize.height,
-              );
-        final size = windowSize * scale;
+        // The window keeps its aspect and sits at the top of the parent, like
+        // the mobile stage. As on the desktop, the plane is laid out at its
+        // on-screen size and maps the buffer itself: its material is resolved
+        // in the plane's own units and must not sit under a buffer-to-screen
+        // scale.
+        final mapping = WindowSurfaceFit.resolve(
+          area: Offset.zero & parent,
+          frame: Offset.zero & windowSize,
+          content: Offset.zero & windowSize,
+          fit: fit,
+        );
+        final size = mapping.surfaceRect.size;
         final radius = borderRadius.topLeft.x;
         final backdrop = glass && cache == null
             ? theme.backdropFilterConfigAt(

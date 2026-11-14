@@ -55,4 +55,5 @@ export 'src/widgets/window_surface_tree.dart'
         canDrawWindowLayersDirectly,
         singleWindowPlaneTexture,
         windowPlaneTextureForLayer;
+export 'src/widgets/window_surface_fit.dart' show WindowSurfaceFit;
 export 'src/widgets/window_texture_rect.dart' show WindowTextureRect;
