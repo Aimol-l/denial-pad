@@ -99,6 +99,7 @@ class DenialSettingsApplication extends ConsumerStatefulWidget {
     this.initialPage = SettingsPageId.appearance,
     this.onOpenWallpaperSelector,
     this.onPickCursorZip,
+    this.onPickIconTheme,
     this.onPickProfileImage,
     super.key,
   });
@@ -106,6 +107,7 @@ class DenialSettingsApplication extends ConsumerStatefulWidget {
   final SettingsPageId initialPage;
   final Future<void> Function()? onOpenWallpaperSelector;
   final Future<String?> Function()? onPickCursorZip;
+  final Future<String?> Function()? onPickIconTheme;
   final ProfileImagePicker? onPickProfileImage;
 
   @override
@@ -203,6 +205,7 @@ class _DenialSettingsApplicationState
                     onOpenWallpaperSelector: () =>
                         unawaited(_openWallpaperSelector()),
                     onPickCursorZip: widget.onPickCursorZip,
+                    onPickIconTheme: widget.onPickIconTheme,
                     onPickProfileImage: widget.onPickProfileImage,
                   ),
                 ),
@@ -336,6 +339,7 @@ class _SettingsPageBody extends ConsumerWidget {
     required this.onOpenAccentPicker,
     required this.onOpenWallpaperSelector,
     required this.onPickCursorZip,
+    required this.onPickIconTheme,
     required this.onPickProfileImage,
   });
 
@@ -343,6 +347,7 @@ class _SettingsPageBody extends ConsumerWidget {
   final VoidCallback onOpenAccentPicker;
   final VoidCallback onOpenWallpaperSelector;
   final Future<String?> Function()? onPickCursorZip;
+  final Future<String?> Function()? onPickIconTheme;
   final ProfileImagePicker? onPickProfileImage;
 
   @override
@@ -396,6 +401,19 @@ class _SettingsPageBody extends ConsumerWidget {
           iconThemes: iconThemes,
           iconThemesLoading: iconThemesLoading,
           onIconThemeChanged: controller.setIconTheme,
+          onImportIconTheme: onPickIconTheme == null
+              ? null
+              : () async {
+                  final path = await onPickIconTheme!();
+                  if (path == null) {
+                    return const <ShellIconThemeData>[];
+                  }
+                  return ref
+                      .read(iconThemeCatalogProvider.notifier)
+                      .importArchive(path);
+                },
+          onRemoveIconTheme: (theme) =>
+              ref.read(iconThemeCatalogProvider.notifier).remove(theme),
           onCornerRadiusScaleChanged: controller.setCornerRadiusScale,
           onPanelOpacityChanged: controller.setPanelOpacity,
           onCardOpacityChanged: controller.setCardOpacity,

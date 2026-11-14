@@ -3318,11 +3318,70 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsFontSystemDefault => 'System default';
 
   @override
+  String get settingsIconThemeAutoBadge => 'Auto';
+
+  @override
+  String get settingsIconThemeDelete => 'Remove';
+
+  @override
+  String settingsIconThemeDeleteBody(String name) {
+    return '“$name” will be removed from your icons folder.';
+  }
+
+  @override
+  String get settingsIconThemeDeleteTitle => 'Remove icon theme?';
+
+  @override
   String get settingsIconThemeDescription =>
       'Applications take their icons from the chosen theme. Themes are read from the icons folder of every data directory.';
 
   @override
+  String get settingsIconThemeErrorEmpty => 'the archive is empty';
+
+  @override
+  String get settingsIconThemeErrorExtract =>
+      'the archive could not be unpacked';
+
+  @override
+  String get settingsIconThemeErrorMissing => 'choose a regular archive file';
+
+  @override
+  String get settingsIconThemeErrorNoTheme => 'the archive has no index.theme';
+
+  @override
+  String get settingsIconThemeErrorTooLarge =>
+      'the archive is larger than 512 MB';
+
+  @override
+  String get settingsIconThemeErrorUnsafe =>
+      'the archive contains paths outside its folder';
+
+  @override
+  String get settingsIconThemeErrorUnsupported =>
+      'use a .tar.xz, .tar.gz or .zip archive';
+
+  @override
   String get settingsIconThemeFollowScheme => 'Follow light/dark';
+
+  @override
+  String get settingsIconThemeHint =>
+      'Pick a theme to apply it immediately. Downloaded themes live in your user icons folder; bundled themes cannot be removed.';
+
+  @override
+  String get settingsIconThemeInstall => 'Install from file…';
+
+  @override
+  String settingsIconThemeInstallFailed(String reason) {
+    return 'Could not install the theme: $reason';
+  }
+
+  @override
+  String settingsIconThemeInstalled(String names) {
+    return 'Installed: $names';
+  }
+
+  @override
+  String get settingsIconThemeInstalling => 'Installing…';
 
   @override
   String get settingsIconThemeLabel => 'Icon theme';

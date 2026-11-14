@@ -3163,11 +3163,66 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsFontSystemDefault => '系统默认';
 
   @override
+  String get settingsIconThemeAutoBadge => '自动';
+
+  @override
+  String get settingsIconThemeDelete => '删除';
+
+  @override
+  String settingsIconThemeDeleteBody(String name) {
+    return '“$name”会从用户图标目录中移除。';
+  }
+
+  @override
+  String get settingsIconThemeDeleteTitle => '删除图标主题？';
+
+  @override
   String get settingsIconThemeDescription =>
       '应用图标取自所选的图标主题；主题从各数据目录的 icons 文件夹读取。';
 
   @override
+  String get settingsIconThemeErrorEmpty => '压缩包是空的';
+
+  @override
+  String get settingsIconThemeErrorExtract => '压缩包无法解压';
+
+  @override
+  String get settingsIconThemeErrorMissing => '请选择一个压缩包文件';
+
+  @override
+  String get settingsIconThemeErrorNoTheme => '压缩包里没有 index.theme';
+
+  @override
+  String get settingsIconThemeErrorTooLarge => '压缩包超过 512 MB';
+
+  @override
+  String get settingsIconThemeErrorUnsafe => '压缩包包含越界路径';
+
+  @override
+  String get settingsIconThemeErrorUnsupported =>
+      '请选择 .tar.xz、.tar.gz 或 .zip 压缩包';
+
+  @override
   String get settingsIconThemeFollowScheme => '跟随明暗';
+
+  @override
+  String get settingsIconThemeHint => '点选即应用；下载来的主题放在用户目录，系统自带主题不可删除。';
+
+  @override
+  String get settingsIconThemeInstall => '从文件安装…';
+
+  @override
+  String settingsIconThemeInstallFailed(String reason) {
+    return '安装失败：$reason';
+  }
+
+  @override
+  String settingsIconThemeInstalled(String names) {
+    return '已安装：$names';
+  }
+
+  @override
+  String get settingsIconThemeInstalling => '正在安装…';
 
   @override
   String get settingsIconThemeLabel => '图标主题';

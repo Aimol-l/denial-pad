@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:denial_flutter_sdk/materials.dart';
@@ -27,9 +26,6 @@ const settingsColorSchemeControlKey = ValueKey<String>(
 );
 const settingsFontFamilyControlKey = ValueKey<String>(
   'settings-font-family-control',
-);
-const settingsIconThemeControlKey = ValueKey<String>(
-  'settings-icon-theme-control',
 );
 const settingsBackdropBlurToggleKey = ValueKey<String>(
   'settings-backdrop-blur-toggle',
@@ -68,6 +64,8 @@ class SettingsAppearancePage extends StatefulWidget {
     required this.iconThemes,
     required this.iconThemesLoading,
     required this.onIconThemeChanged,
+    required this.onImportIconTheme,
+    required this.onRemoveIconTheme,
     required this.onCornerRadiusScaleChanged,
     required this.onPanelOpacityChanged,
     required this.onCardOpacityChanged,
@@ -109,6 +107,8 @@ class SettingsAppearancePage extends StatefulWidget {
   final List<ShellIconThemeData> iconThemes;
   final bool iconThemesLoading;
   final ValueChanged<String> onIconThemeChanged;
+  final Future<List<ShellIconThemeData>> Function()? onImportIconTheme;
+  final Future<void> Function(ShellIconThemeData) onRemoveIconTheme;
   final ValueChanged<double> onCornerRadiusScaleChanged;
   final ValueChanged<double> onPanelOpacityChanged;
   final ValueChanged<double> onCardOpacityChanged;
@@ -332,45 +332,6 @@ class _SettingsAppearancePageState extends State<SettingsAppearancePage> {
           ],
         ),
         SettingsCardGroup(
-          key: const ValueKey('appearance-icons-card'),
-          title: l10n.settingsIconThemeTitle,
-          children: [
-            SettingsCardPadding(
-              child: SettingsSelect<String>(
-                key: settingsIconThemeControlKey,
-                label: l10n.settingsIconThemeLabel,
-                description: widget.iconThemesLoading
-                    ? l10n.settingsIconThemeLoading
-                    : l10n.settingsIconThemeDescription,
-                value: widget.settings.iconTheme,
-                choices: <SettingsChoice<String>>[
-                  SettingsChoice('', l10n.settingsIconThemeFollowScheme),
-                  for (final theme in widget.iconThemes)
-                    SettingsChoice(theme.id, theme.name),
-                  // A theme can be removed while it is still the choice; the
-                  // selector must keep showing it rather than fail to match.
-                  if (widget.settings.iconTheme.isNotEmpty &&
-                      !widget.iconThemes.any(
-                        (theme) => theme.id == widget.settings.iconTheme,
-                      ))
-                    SettingsChoice(
-                      widget.settings.iconTheme,
-                      widget.settings.iconTheme,
-                    ),
-                ],
-                onChanged: widget.onIconThemeChanged,
-              ),
-            ),
-            SettingsCardPadding(
-              child: _IconThemePreview(
-                themes: widget.iconThemes,
-                selected: widget.settings.iconTheme,
-                brightness: widget.settings.effectiveBrightness,
-              ),
-            ),
-          ],
-        ),
-        SettingsCardGroup(
           key: const ValueKey('appearance-windows-card'),
           title: l10n.settingsAppearanceWindows,
           children: [
@@ -444,6 +405,20 @@ class _SettingsAppearancePageState extends State<SettingsAppearancePage> {
               onImport: widget.onImportCursorZip,
               onRemove: widget.onRemoveCursorTheme,
               onError: (error) => setState(() => _cursorError = error),
+            ),
+          ],
+        ),
+        SettingsCardGroup(
+          key: const ValueKey('appearance-icons-card'),
+          title: l10n.settingsIconThemeTitle,
+          children: [
+            _IconThemeSettings(
+              settings: widget.settings,
+              themes: widget.iconThemes,
+              catalogLoading: widget.iconThemesLoading,
+              onThemeChanged: widget.onIconThemeChanged,
+              onImport: widget.onImportIconTheme,
+              onRemove: widget.onRemoveIconTheme,
             ),
           ],
         ),
@@ -1141,86 +1116,604 @@ class _AccentPresets extends StatelessWidget {
   }
 }
 
-/// The sample icons of the theme the selector would use right now.
-class _IconThemePreview extends StatelessWidget {
-  const _IconThemePreview({
+/// The icon theme grid, with install and remove.
+class _IconThemeSettings extends StatefulWidget {
+  const _IconThemeSettings({
+    required this.settings,
     required this.themes,
-    required this.selected,
-    required this.brightness,
+    required this.catalogLoading,
+    required this.onThemeChanged,
+    required this.onImport,
+    required this.onRemove,
   });
 
+  final ShellAppearanceSettings settings;
   final List<ShellIconThemeData> themes;
-  final String selected;
-  final Brightness brightness;
+  final bool catalogLoading;
+  final ValueChanged<String> onThemeChanged;
+  final Future<List<ShellIconThemeData>> Function()? onImport;
+  final Future<void> Function(ShellIconThemeData) onRemove;
 
-  static const List<String> _samples = <String>[
-    'application-default-icon',
-    'folder',
-    'web-browser',
-    'utilities-terminal',
-  ];
+  @override
+  State<_IconThemeSettings> createState() => _IconThemeSettingsState();
+}
 
-  static const List<String> _contexts = <String>[
-    'apps/scalable',
-    'apps/48',
-    'apps/32',
-    'apps/22',
-    'places/scalable',
-    'places/48',
-    'places/32',
-    'places/22',
-  ];
+class _IconThemeSettingsState extends State<_IconThemeSettings> {
+  bool _busy = false;
+  String? _error;
+  String? _status;
+
+  Future<void> _import() async {
+    final import = widget.onImport;
+    if (import == null || _busy) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _status = null;
+    });
+    try {
+      final installed = await import();
+      if (!mounted || installed.isEmpty) {
+        return;
+      }
+      setState(() {
+        _status = context.l10n.settingsIconThemeInstalled(
+          installed.map((theme) => theme.name).join('\u3001'),
+        );
+      });
+      // A theme the user went to the trouble of installing is the one they
+      // want to see, so it becomes the choice.
+      widget.onThemeChanged(installed.first.id);
+    } on IconThemeException catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = context.l10n.settingsIconThemeInstallFailed(
+            _reason(context, error.code),
+          );
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = context.l10n.settingsIconThemeInstallFailed(
+            context.l10n.commonError,
+          );
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  String _reason(BuildContext context, String code) {
+    final l10n = context.l10n;
+    return switch (code) {
+      'missing' => l10n.settingsIconThemeErrorMissing,
+      'empty' => l10n.settingsIconThemeErrorEmpty,
+      'too-large' => l10n.settingsIconThemeErrorTooLarge,
+      'unsupported' => l10n.settingsIconThemeErrorUnsupported,
+      'unsafe' => l10n.settingsIconThemeErrorUnsafe,
+      'no-theme' => l10n.settingsIconThemeErrorNoTheme,
+      _ => l10n.settingsIconThemeErrorExtract,
+    };
+  }
+
+  Future<void> _remove(ShellIconThemeData theme) async {
+    if (_busy) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(context.l10n.settingsIconThemeDeleteTitle),
+        content: Text(context.l10n.settingsIconThemeDeleteBody(theme.name)),
+        actions: <Widget>[
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(context.l10n.commonCancel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(context.l10n.settingsIconThemeDelete),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) {
+      return;
+    }
+    setState(() {
+      _busy = true;
+      _error = null;
+      _status = null;
+    });
+    try {
+      await widget.onRemove(theme);
+      if (widget.settings.iconTheme == theme.id) {
+        widget.onThemeChanged('');
+      }
+      if (mounted) {
+        setState(() => _status = null);
+      }
+    } on IconThemeException catch (error) {
+      if (mounted) {
+        setState(() {
+          _error = context.l10n.settingsIconThemeInstallFailed(
+            _reason(context, error.code),
+          );
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() {
+          _error = context.l10n.settingsIconThemeInstallFailed(
+            context.l10n.commonError,
+          );
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final id = selected.isNotEmpty
-        ? selected
-        : brightness == Brightness.light
+    final l10n = context.l10n;
+    final colors = context.applicationColors;
+    final selectedId = widget.settings.iconTheme;
+    final autoId = widget.settings.effectiveBrightness == Brightness.light
         ? followSchemeLightIconTheme
         : followSchemeDarkIconTheme;
-    ShellIconThemeData? theme;
-    for (final candidate in themes) {
-      if (candidate.id == id) {
-        theme = candidate;
+    ShellIconThemeData? autoTheme;
+    for (final candidate in widget.themes) {
+      if (candidate.id == autoId) {
+        autoTheme = candidate;
         break;
       }
     }
-    if (theme == null) {
-      return const SizedBox.shrink();
-    }
-    final paths = <String>[
-      for (final sample in _samples) ?_samplePath(theme.path, sample),
-    ];
-    if (paths.isEmpty) {
-      return const SizedBox.shrink();
-    }
-    return Semantics(
-      label: context.l10n.settingsIconThemePreview,
-      child: SizedBox(
-        height: 34,
-        child: Row(
-          children: [
-            for (final path in paths.take(4))
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: SizedBox.square(
-                  dimension: 34,
-                  child: AppIconImage(iconPath: path),
+    return SettingsCardPadding(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      l10n.settingsIconThemeLabel,
+                      style: ShellText.cardTitle,
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.catalogLoading
+                          ? l10n.settingsIconThemeLoading
+                          : l10n.settingsIconThemeDescription,
+                      style: ShellText.base.copyWith(
+                        color: colors.secondary,
+                        fontSize: 11.5,
+                        height: 1.45,
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 16),
+              _IconThemeInstallButton(
+                label: l10n.settingsIconThemeInstall,
+                busy: _busy,
+                enabled: widget.onImport != null && !_busy,
+                onPressed: _import,
+              ),
+            ],
+          ),
+          if (_error case final error?) ...[
+            const SizedBox(height: 12),
+            _IconThemeNotice(message: error, error: true),
           ],
+          if (_status case final status?) ...[
+            const SizedBox(height: 12),
+            _IconThemeNotice(message: status, error: false),
+          ],
+          const SizedBox(height: 14),
+          if (widget.catalogLoading && widget.themes.isEmpty)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else
+            LayoutBuilder(
+              builder: (context, constraints) {
+                const gap = 12.0;
+                final columns = (constraints.maxWidth / 262).floor().clamp(
+                  2,
+                  5,
+                );
+                final width =
+                    (constraints.maxWidth - gap * (columns - 1)) / columns;
+                return Wrap(
+                  spacing: gap,
+                  runSpacing: gap,
+                  children: <Widget>[
+                    _IconThemeCard(
+                      title: l10n.settingsIconThemeFollowScheme,
+                      badge: l10n.settingsIconThemeAutoBadge,
+                      width: width,
+                      previews: autoTheme?.previews ?? const <String>[],
+                      selected: selectedId.isEmpty,
+                      enabled: !_busy,
+                      onSelected: () => widget.onThemeChanged(''),
+                    ),
+                    for (final theme in widget.themes)
+                      _IconThemeCard(
+                        title: theme.name,
+                        width: width,
+                        previews: theme.previews,
+                        selected: theme.id == selectedId,
+                        enabled: !_busy,
+                        onSelected: () => widget.onThemeChanged(theme.id),
+                        onRemove: theme.userInstalled
+                            ? () => _remove(theme)
+                            : null,
+                      ),
+                  ],
+                );
+              },
+            ),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Icon(
+                Icons.info_outline_rounded,
+                size: 13,
+                color: colors.secondary,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  l10n.settingsIconThemeHint,
+                  style: ShellText.base.copyWith(
+                    color: colors.secondary,
+                    fontSize: 11,
+                    height: 1.45,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _IconThemeInstallButton extends StatelessWidget {
+  const _IconThemeInstallButton({
+    required this.label,
+    required this.busy,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final String label;
+  final bool busy;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShellTheme.of(context);
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? onPressed : null,
+        child: AnimatedOpacity(
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : Motion.tile,
+          opacity: enabled ? 1 : 0.5,
+          child: Container(
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            decoration: BoxDecoration(
+              color: theme.accent.withAlpha(26),
+              borderRadius: BorderRadius.circular(999),
+              border: Border.all(color: theme.accent.withAlpha(110)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: <Widget>[
+                if (busy)
+                  SizedBox.square(
+                    dimension: 13,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: theme.accent,
+                    ),
+                  )
+                else
+                  Icon(
+                    Icons.file_download_outlined,
+                    size: 15,
+                    color: theme.accent,
+                  ),
+                const SizedBox(width: 7),
+                Text(
+                  label,
+                  style: ShellText.base.copyWith(
+                    color: theme.accent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+}
 
-  static String? _samplePath(String themePath, String name) {
-    for (final kind in _contexts) {
-      final file = File('$themePath/$kind/$name.svg');
-      if (file.existsSync()) {
-        return file.path;
-      }
-    }
-    return null;
+class _IconThemeNotice extends StatelessWidget {
+  const _IconThemeNotice({required this.message, required this.error});
+
+  final String message;
+  final bool error;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = error
+        ? context.shellColors.performanceBad
+        : context.shellColors.performanceGood;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+      decoration: BoxDecoration(
+        color: color.withAlpha(20),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: color.withAlpha(70)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Icon(
+            error ? Icons.error_outline_rounded : Icons.check_circle_outline,
+            size: 15,
+            color: color,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: ShellText.base.copyWith(
+                color: color,
+                fontSize: 11.5,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One theme in the grid: its sample icons, name, and selected/remove state.
+class _IconThemeCard extends StatefulWidget {
+  const _IconThemeCard({
+    required this.title,
+    required this.width,
+    required this.previews,
+    required this.selected,
+    required this.enabled,
+    required this.onSelected,
+    this.badge,
+    this.onRemove,
+  });
+
+  final String title;
+  final double width;
+  final List<String> previews;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onSelected;
+  final String? badge;
+  final VoidCallback? onRemove;
+
+  @override
+  State<_IconThemeCard> createState() => _IconThemeCardState();
+}
+
+class _IconThemeCardState extends State<_IconThemeCard> {
+  bool _hovered = false;
+  bool _focused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ShellTheme.of(context);
+    final accent = theme.accent;
+    final colors = context.applicationColors;
+    final enabled = widget.enabled;
+    final previews = widget.previews;
+    return Semantics(
+      button: true,
+      selected: widget.selected,
+      enabled: enabled,
+      label: widget.title,
+      child: FocusableActionDetector(
+        enabled: enabled,
+        mouseCursor: enabled
+            ? ShellMouseCursors.link
+            : SystemMouseCursors.basic,
+        onShowFocusHighlight: (value) => setState(() => _focused = value),
+        onShowHoverHighlight: (value) => setState(() => _hovered = value),
+        shortcuts: const <ShortcutActivator, Intent>{
+          SingleActivator(LogicalKeyboardKey.enter): ActivateIntent(),
+          SingleActivator(LogicalKeyboardKey.space): ActivateIntent(),
+        },
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (_) {
+              if (enabled) {
+                widget.onSelected();
+              }
+              return null;
+            },
+          ),
+        },
+        child: GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: enabled ? widget.onSelected : null,
+          onLongPress: enabled && widget.onRemove != null
+              ? widget.onRemove
+              : null,
+          child: AnimatedOpacity(
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : Motion.tile,
+            opacity: enabled ? 1 : 0.52,
+            child: AnimatedContainer(
+              duration: MediaQuery.disableAnimationsOf(context)
+                  ? Duration.zero
+                  : Motion.tile,
+              width: widget.width,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: widget.selected
+                    ? Color.alphaBlend(accent.withAlpha(30), colors.control)
+                    : colors.control,
+                borderRadius: DenialSurfaceGeometry.borderRadiusOf(context),
+                border: Border.all(
+                  color: widget.selected
+                      ? accent
+                      : _hovered || _focused
+                      ? colors.foreground
+                      : colors.separator,
+                ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: Text(
+                          widget.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: ShellText.cardTitle,
+                        ),
+                      ),
+                      if (widget.onRemove case final remove?)
+                        Tooltip(
+                          message: context.l10n.settingsIconThemeDelete,
+                          child: IconButton(
+                            onPressed: enabled ? remove : null,
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            iconSize: 18,
+                            visualDensity: VisualDensity.compact,
+                          ),
+                        )
+                      else if (widget.badge case final badge?)
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 7,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: accent.withAlpha(28),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
+                          child: Text(
+                            badge,
+                            style: ShellText.base.copyWith(
+                              color: accent,
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        )
+                      else if (widget.selected)
+                        Icon(
+                          Icons.check_circle_rounded,
+                          size: 18,
+                          color: accent,
+                        ),
+                    ],
+                  ),
+                  const SizedBox(height: 10),
+                  Stack(
+                    children: <Widget>[
+                      Container(
+                        height: 112,
+                        padding: const EdgeInsets.all(9),
+                        decoration: BoxDecoration(
+                          color: colors.canvas,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Column(
+                          children: <Widget>[
+                            for (var row = 0; row < 2; row += 1)
+                              Expanded(
+                                child: Row(
+                                  children: <Widget>[
+                                    for (
+                                      var column = 0;
+                                      column < 3;
+                                      column += 1
+                                    )
+                                      Expanded(
+                                        child: Center(
+                                          child: SizedBox.square(
+                                            dimension: 34,
+                                            child: AppIconImage(
+                                              iconPath:
+                                                  row * 3 + column <
+                                                      previews.length
+                                                  ? previews[row * 3 + column]
+                                                  : null,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                      if (widget.selected && widget.onRemove != null)
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: Icon(
+                            Icons.check_circle_rounded,
+                            size: 17,
+                            color: accent,
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

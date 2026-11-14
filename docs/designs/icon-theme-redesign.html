@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Denial 外观 · 图标主题 — 设计稿</title>
+<style>
+  :root {
+    --accent: #6d5bd0;
+    --accent-soft: rgba(109, 91, 208, .12);
+    --accent-line: rgba(109, 91, 208, .45);
+    --ink: #1c1c1f;
+    --muted: #5f6470;
+    --faint: #9aa0ad;
+    --line: #e6e8ec;
+    --bg: #f4f5f8;
+    --status: 44px;
+    --rail: 268px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Noto Sans SC", "Noto Sans CJK SC", system-ui, sans-serif;
+    padding: 46px 0 90px;
+    -webkit-user-select: none; user-select: none;
+  }
+  .doc { max-width: 1760px; margin: 0 auto; padding: 0 44px; }
+  h1 { font-size: 31px; font-weight: 650; letter-spacing: -.01em; }
+  .sub { margin-top: 10px; color: var(--muted); font-size: 14px; line-height: 1.75; max-width: 1000px; }
+  .sub b { color: var(--ink); font-weight: 600; }
+  .sub code { background: #eceaf6; border-radius: 5px; padding: 1px 6px; font-size: 12.5px; color: #5b4bb8; }
+
+  .board { margin-top: 50px; }
+  .board .cap { display: flex; align-items: baseline; gap: 12px; margin-bottom: 15px; }
+  .board .cap .tag { font-size: 10.5px; font-weight: 700; letter-spacing: .1em; color: var(--accent); border: 1px solid var(--accent-line); border-radius: 999px; padding: 3px 10px; }
+  .board .cap .t { font-size: 18px; font-weight: 620; }
+  .board .cap .n { margin-left: auto; font-size: 12px; color: var(--faint); }
+  .note { margin-top: 13px; font-size: 12.5px; color: var(--muted); line-height: 1.75; max-width: 1500px; }
+  .note b { color: var(--ink); font-weight: 600; }
+  .note code { background: #eceaf6; border-radius: 4px; padding: 0 5px; color: #5b4bb8; font-size: 12px; }
+
+  /* ---------- 设置窗口 ---------- */
+  .device {
+    position: relative; margin: 0 auto; width: 1600px; height: 1000px;
+    border-radius: 22px; overflow: hidden; background: #fbfbfc;
+    box-shadow: 0 22px 60px rgba(20,22,28,.16), 0 0 0 1px #e0e2e8;
+  }
+  .statusbar {
+    position: absolute; left: 0; right: 0; top: 0; height: var(--status); z-index: 30;
+    display: flex; align-items: center; padding: 0 26px; gap: 12px;
+    font-size: 13px; color: #2b2b30; background: rgba(255,255,255,.86);
+    border-bottom: 1px solid rgba(0,0,0,.05);
+  }
+  .statusbar .clock { font-weight: 620; }
+  .statusbar .mid { margin: 0 auto; font-size: 12px; color: #7a7f8a; }
+  .statusbar .dots { display: flex; gap: 7px; align-items: center; }
+  .statusbar .dot { width: 6px; height: 6px; border-radius: 50%; background: #2b2b30; opacity: .42; }
+  .statusbar .batt { width: 22px; height: 11px; border: 1.4px solid #2b2b30; border-radius: 3px; opacity: .55; }
+
+  .shade-body { position: absolute; inset: var(--status) 0 0 0; display: flex; }
+
+  .rail {
+    width: var(--rail); flex: 0 0 var(--rail); padding: 26px 18px 20px 22px;
+    border-right: 1px solid var(--line); background: #f7f7fa;
+  }
+  .rail .brand { display: flex; align-items: center; gap: 9px; font-size: 17px; font-weight: 650; margin-bottom: 22px; padding-left: 6px; }
+  .rail .brand .mark { width: 20px; height: 20px; border-radius: 6px; background: var(--accent); box-shadow: inset 0 0 0 2px rgba(255,255,255,.35); }
+  .rail .group { margin: 16px 0 6px; padding-left: 10px; font-size: 10.5px; letter-spacing: .08em; color: var(--faint); }
+  .rail .item { display: flex; align-items: center; gap: 10px; height: 36px; padding: 0 10px; border-radius: 9px; font-size: 13.5px; color: #3c3f47; }
+  .rail .item .ic { width: 16px; height: 16px; border-radius: 4px; background: #dfe2e9; }
+  .rail .item.on { background: #eceaf6; color: #4b3fa8; font-weight: 600; }
+  .rail .item.on .ic { background: var(--accent); opacity: .75; }
+
+  .page { flex: 1; min-width: 0; padding: 26px 30px 0; background: #fbfbfc; overflow: hidden; }
+  .page-head { display: flex; align-items: flex-start; }
+  .page-head h2 { font-size: 26px; font-weight: 650; }
+  .page-head .lead { margin-top: 4px; font-size: 12.5px; color: var(--faint); }
+  .page-head .reset { margin-left: auto; display: flex; align-items: center; gap: 7px; height: 30px; padding: 0 13px; border: 1px solid var(--line); border-radius: 999px; font-size: 12px; color: var(--muted); background: #fff; }
+  .page-head .reset .ic { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid #9aa0ad; }
+
+  .card { margin-top: 20px; border-radius: 18px; background: #fff; border: 1px solid var(--line); overflow: hidden; }
+  .card > .ct { padding: 16px 20px 0; font-size: 15px; font-weight: 650; }
+  .card .cbody { padding: 14px 20px 20px; }
+
+  /* ---------- 图标卡片 ---------- */
+  .icon-card-head { display: flex; align-items: flex-start; gap: 16px; }
+  .icon-card-head .label { font-size: 13.5px; font-weight: 620; }
+  .icon-card-head .desc { margin-top: 4px; font-size: 12px; color: var(--faint); line-height: 1.6; max-width: 640px; }
+  .install {
+    margin-left: auto; display: flex; align-items: center; gap: 8px;
+    height: 34px; padding: 0 15px; border-radius: 999px;
+    border: 1px solid var(--accent-line); background: var(--accent-soft);
+    color: #5344b3; font-size: 12.5px; font-weight: 620; white-space: nowrap;
+  }
+  .install .ic { width: 14px; height: 14px; position: relative; }
+  .install .ic::before { content: ""; position: absolute; left: 6px; top: 0; width: 2px; height: 8px; background: currentColor; border-radius: 2px; }
+  .install .ic::after { content: ""; position: absolute; left: 3px; top: 5px; width: 8px; height: 8px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); border-radius: 1px; }
+
+  .grid { margin-top: 18px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+
+  .tile {
+    position: relative; border-radius: 14px; border: 1px solid var(--line);
+    background: #fff; padding: 10px 10px 8px; text-align: center;
+  }
+  .tile .preview {
+    height: 104px; border-radius: 10px; background: #f2f3f7;
+    display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(2, 1fr);
+    place-items: center; padding: 9px 12px; gap: 6px 10px;
+  }
+  .tile .preview svg { width: 30px; height: 30px; display: block; }
+  .tile .name { margin-top: 8px; font-size: 12.5px; font-weight: 600; color: #2b2d34; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .tile.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent) inset; }
+  .tile.selected .check {
+    position: absolute; right: 7px; top: 7px; width: 19px; height: 19px; border-radius: 50%;
+    background: var(--accent); color: #fff; font-size: 11px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 1px 3px rgba(40,30,90,.35);
+  }
+  .tile.hover { border-color: #cfd3dc; }
+  .tile.hover .remove {
+    position: absolute; left: 7px; top: 7px; height: 20px; padding: 0 8px; border-radius: 999px;
+    background: rgba(20,22,28,.72); color: #fff; font-size: 10.5px; font-weight: 600;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .tile.auto .preview { background: linear-gradient(105deg, #f2f3f7 0 50%, #23252c 50% 100%); }
+  .tile.auto .preview .dark { display: none; }
+  .tile.auto .preview .halo { background: rgba(255,255,255,.14); border-radius: 8px; }
+  .tile.auto .auto-badge {
+    position: absolute; right: 7px; top: 7px; height: 19px; padding: 0 8px; border-radius: 999px;
+    background: #eceaf6; color: #5344b3; font-size: 10px; font-weight: 700; letter-spacing: .04em;
+    display: flex; align-items: center;
+  }
+
+  /* 每个主题的一点差异，让设计稿读得出来 */
+  .t-folder { fill: var(--f); }
+  .t-folder-2 { fill: var(--f2, var(--f)); }
+  .t-ink { fill: var(--k, #3a3d45); }
+  .t-paper { fill: #ffffff; }
+  .t-teal { fill: var(--teal, #35c1ae); }
+  .t-red { fill: #d94848; }
+
+  .th-breeze { --f: #3daee9; --f2: #49b6ec; --k: #40444c; --teal: #27ae9b; }
+  .th-colloid { --f: #4d9fe8; --f2: #5aa9ee; --k: #4a4d55; --teal: #35c1ae; }
+  .th-colloid-dark { --f: #6db3ee; --f2: #7cbbf1; --k: #5a5e66; --teal: #4bcdbb; }
+  .th-adwaita { --f: #62a0ea; --f2: #78aeea; --k: #5e6168; --teal: #33c6a8; }
+  .th-pastel { --f: #86c1e8; --f2: #9bcfee; --k: #666b78; --teal: #67c8c0; }
+
+  .hint { margin-top: 14px; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--faint); }
+  .hint .ic { width: 14px; height: 14px; border-radius: 50%; border: 1.4px solid #b9bec8; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #9aa0ad; }
+
+  /* ---------- 细节板 ---------- */
+  .detail-wrap { display: flex; gap: 26px; align-items: flex-start; }
+  .zoom {
+    width: 640px; flex: 0 0 640px; background: #fff; border: 1px solid var(--line);
+    border-radius: 18px; padding: 22px;
+  }
+  .zoom .tile { width: 250px; margin: 0 auto; padding: 12px 12px 10px; }
+  .zoom .tile .preview { height: 150px; padding: 14px 18px; gap: 10px 16px; }
+  .zoom .tile .preview svg { width: 46px; height: 46px; }
+  .zoom .tile .name { font-size: 14px; margin-top: 10px; }
+
+  .annos { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+  .anno { display: flex; gap: 12px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 13px; padding: 13px 16px; }
+  .anno .num { width: 22px; height: 22px; flex: 0 0 22px; border-radius: 50%; background: var(--accent-soft); color: #5344b3; font-size: 11.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; }
+  .anno .tx { font-size: 12.5px; line-height: 1.65; color: #4a4e58; }
+  .anno .tx b { color: var(--ink); font-weight: 620; }
+  .anno .tx code { background: #f0f1f6; border-radius: 4px; padding: 0 5px; font-size: 11.5px; color: #5b4bb8; }
+
+  /* ---------- 安装流程 ---------- */
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .step { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+  .step .no { font-size: 10.5px; font-weight: 700; letter-spacing: .08em; color: var(--accent); }
+  .step h3 { margin-top: 6px; font-size: 14.5px; font-weight: 650; }
+  .step p { margin-top: 6px; font-size: 12px; line-height: 1.65; color: var(--muted); }
+  .step .stage { margin-top: 14px; border-radius: 12px; background: #f6f7fa; border: 1px solid #eceef3; padding: 14px; }
+
+  .picker { background: #fff; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font-size: 12px; }
+  .picker .ph { display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-bottom: 1px solid #eff0f4; color: #6b7080; }
+  .picker .ph .pill { margin-left: auto; font-size: 10.5px; color: #8a90a0; }
+  .picker .row { display: flex; align-items: center; gap: 9px; padding: 8px 12px; color: #3c3f47; }
+  .picker .row.on { background: var(--accent-soft); color: #4b3fa8; font-weight: 600; }
+  .picker .row .fi { width: 16px; height: 16px; border-radius: 4px; background: #dfe3ea; }
+  .picker .row.zip .fi { background: #f0c36b; }
+  .picker .row.dir .fi { background: #8ab8ef; }
+
+  .importing { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+  .importing .spin { width: 26px; height: 26px; border-radius: 50%; border: 3px solid #e4e6ee; border-top-color: var(--accent); }
+  .importing .t1 { font-size: 12.5px; font-weight: 600; }
+  .importing .t2 { margin-top: 3px; font-size: 11px; color: var(--faint); }
+
+  .notice { display: flex; gap: 10px; align-items: flex-start; border-radius: 12px; padding: 12px; font-size: 12px; line-height: 1.6; }
+  .notice.err { background: #fdf1f1; border: 1px solid #f3d6d6; color: #8d3b3b; }
+  .notice.ok { background: #eef8f2; border: 1px solid #d5ecdd; color: #2f6b47; }
+  .notice .ic { width: 16px; height: 16px; flex: 0 0 16px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; color: #fff; }
+  .notice.err .ic { background: #cf5b5b; }
+  .notice.ok .ic { background: #43a06a; }
+
+  .rules { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 24px; }
+  .rule { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 15px 17px; }
+  .rule h4 { font-size: 13px; font-weight: 650; }
+  .rule p { margin-top: 6px; font-size: 12px; line-height: 1.7; color: var(--muted); }
+  .rule code { background: #f0f1f6; border-radius: 4px; padding: 0 5px; font-size: 11.5px; color: #5b4bb8; }
+</style>
+</head>
+<body>
+<div class="doc">
+  <h1>外观 · 图标主题 — 设计稿</h1>
+  <p class="sub">
+    参照 KDE 系统设置的「图标」页：<b>网格卡片 + 六枚样例图标预览</b>，用户下载 KDE 图标包（<code>.tar.xz</code> / <code>.zip</code>）后
+    点「从文件安装…」加载，选中即生效。Denial 不需要「应用」按钮，点选立即应用。
+  </p>
+
+  <div class="board">
+    <div class="cap"><span class="tag">A</span><span class="t">外观页里的图标卡片</span><span class="n">1600 × 1000 · 与现有卡片同一套材质</span></div>
+    <div class="device">
+      <div class="statusbar">
+        <span class="clock">18:41</span>
+        <span class="mid">Denial · 设置</span>
+        <span class="dots"><i class="dot"></i><i class="dot"></i><i class="dot"></i><span class="batt"></span></span>
+      </div>
+      <div class="shade-body">
+        <aside class="rail">
+          <div class="brand"><span class="mark"></span>设置</div>
+          <div class="group">个性化</div>
+          <div class="item"><span class="ic"></span>你</div>
+          <div class="item on"><span class="ic"></span>外观</div>
+          <div class="item"><span class="ic"></span>语言</div>
+          <div class="group">输入</div>
+          <div class="item"><span class="ic"></span>键盘</div>
+          <div class="item"><span class="ic"></span>鼠标和触控板</div>
+          <div class="item"><span class="ic"></span>快捷键</div>
+          <div class="group">桌面</div>
+          <div class="item"><span class="ic"></span>应用环境</div>
+          <div class="item"><span class="ic"></span>动画</div>
+          <div class="item"><span class="ic"></span>桌面布局</div>
+          <div class="item"><span class="ic"></span>浮层</div>
+          <div class="item"><span class="ic"></span>锁屏</div>
+          <div class="group">系统</div>
+          <div class="item"><span class="ic"></span>权限</div>
+          <div class="item"><span class="ic"></span>音频</div>
+          <div class="item"><span class="ic"></span>此设备</div>
+          <div class="item"><span class="ic"></span>关于</div>
+        </aside>
+
+        <main class="page">
+          <div class="page-head">
+            <div>
+              <h2>外观</h2>
+              <div class="lead">让桌面更合你的心意。</div>
+            </div>
+            <div class="reset"><span class="ic"></span>重置页面</div>
+          </div>
+
+          <section class="card" style="margin-top:18px">
+            <div class="ct">字体</div>
+            <div class="cbody" style="padding-top:10px">
+              <div style="display:flex;align-items:center;gap:20px">
+                <div style="flex:1">
+                  <div style="font-size:13.5px;font-weight:620">字体系列</div>
+                  <div style="margin-top:4px;font-size:12px;color:#9aa0ad">在整个 Denial Shell 中使用系统字体或已安装的字体。</div>
+                </div>
+                <div style="width:300px;height:36px;border-radius:10px;border:1px solid #e6e8ec;background:#f7f7fa;display:flex;align-items:center;padding:0 12px;font-size:12.5px;color:#3c3f47">
+                  系统默认
+                  <span style="margin-left:auto;color:#9aa0ad">▾</span>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" style="margin-top:16px">
+            <div class="ct">图标</div>
+            <div class="cbody">
+              <div class="icon-card-head">
+                <div>
+                  <div class="label">图标主题</div>
+                  <div class="desc">应用图标取自选中的主题。可以下载 KDE 图标包后从文件安装，主题会装到 <code style="background:#f0f1f6;border-radius:4px;padding:0 5px;color:#5b4bb8">~/.local/share/icons</code>。</div>
+                </div>
+                <div class="install"><span class="ic"></span>从文件安装…</div>
+              </div>
+
+              <div class="grid">
+                <!-- 跟随明暗 -->
+                <div class="tile auto">
+                  <div class="preview th-colloid">
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" class="t-teal"/><circle cx="16" cy="16" r="4.5" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-folder" d="M3 9a3 3 0 0 1 3-3h7l3 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path class="t-folder-2" d="M3 12h26v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" opacity=".55"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-paper" d="M7 4h12l6 6v18H7z"/><path class="t-ink" d="M19 4v6h6" opacity=".25"/><rect x="10" y="15" width="12" height="2" rx="1" class="t-ink" opacity=".55"/><rect x="10" y="19" width="9" height="2" rx="1" class="t-ink" opacity=".4"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-ink" d="M8 6h16v6h-2l-1 18H11L10 12H8z" opacity=".7"/><path class="t-paper" d="M12 3h8v3h-8z"/><rect x="13" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/><rect x="17" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#e6e8ee"/><circle cx="16" cy="16" r="6" class="t-red"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" class="t-ink" opacity=".8"/><circle cx="16" cy="16" r="4" fill="#fff"/><g fill="#fff"><rect x="15" y="2" width="2" height="5" rx="1"/><rect x="15" y="25" width="2" height="5" rx="1"/><rect x="2" y="15" width="5" height="2" rx="1"/><rect x="25" y="15" width="5" height="2" rx="1"/></g></svg>
+                  </div>
+                  <div class="name">跟随明暗</div>
+                  <div class="auto-badge">自动</div>
+                </div>
+
+                <!-- Colloid -->
+                <div class="tile selected th-colloid">
+                  <div class="preview">
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" class="t-teal"/><path d="M13 10l9 6-9 6z" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-folder" d="M3 9a3 3 0 0 1 3-3h7l3 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path class="t-folder-2" d="M3 12h26v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" opacity=".55"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-paper" d="M7 4h12l6 6v18H7z"/><path class="t-ink" d="M19 4v6h6" opacity=".25"/><rect x="10" y="15" width="12" height="2" rx="1" class="t-ink" opacity=".55"/><rect x="10" y="19" width="9" height="2" rx="1" class="t-ink" opacity=".4"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-ink" d="M8 6h16v6h-2l-1 18H11L10 12H8z" opacity=".7"/><path class="t-paper" d="M12 3h8v3h-8z"/><rect x="13" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/><rect x="17" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#e6e8ee"/><circle cx="16" cy="16" r="6" class="t-red"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" class="t-ink" opacity=".8"/><circle cx="16" cy="16" r="4" fill="#fff"/><g fill="#fff"><rect x="15" y="2" width="2" height="5" rx="1"/><rect x="15" y="25" width="2" height="5" rx="1"/><rect x="2" y="15" width="5" height="2" rx="1"/><rect x="25" y="15" width="5" height="2" rx="1"/></g></svg>
+                  </div>
+                  <div class="name">Colloid</div>
+                  <div class="check">✓</div>
+                </div>
+
+                <!-- Colloid Light -->
+                <div class="tile th-pastel">
+                  <div class="preview">
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" class="t-teal"/><path d="M13 10l9 6-9 6z" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-folder" d="M3 9a3 3 0 0 1 3-3h7l3 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path class="t-folder-2" d="M3 12h26v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" opacity=".55"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-paper" d="M7 4h12l6 6v18H7z"/><path class="t-ink" d="M19 4v6h6" opacity=".25"/><rect x="10" y="15" width="12" height="2" rx="1" class="t-ink" opacity=".55"/><rect x="10" y="19" width="9" height="2" rx="1" class="t-ink" opacity=".4"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-ink" d="M8 6h16v6h-2l-1 18H11L10 12H8z" opacity=".7"/><path class="t-paper" d="M12 3h8v3h-8z"/><rect x="13" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/><rect x="17" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#e6e8ee"/><circle cx="16" cy="16" r="6" class="t-red"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" class="t-ink" opacity=".8"/><circle cx="16" cy="16" r="4" fill="#fff"/><g fill="#fff"><rect x="15" y="2" width="2" height="5" rx="1"/><rect x="15" y="25" width="2" height="5" rx="1"/><rect x="2" y="15" width="5" height="2" rx="1"/><rect x="25" y="15" width="5" height="2" rx="1"/></g></svg>
+                  </div>
+                  <div class="name">Colloid-Light</div>
+                </div>
+
+                <!-- Adwaita -->
+                <div class="tile th-adwaita">
+                  <div class="preview">
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" class="t-teal"/><path d="M13 10l9 6-9 6z" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-folder" d="M3 9a3 3 0 0 1 3-3h7l3 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path class="t-folder-2" d="M3 12h26v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" opacity=".55"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-paper" d="M7 4h12l6 6v18H7z"/><path class="t-ink" d="M19 4v6h6" opacity=".25"/><rect x="10" y="15" width="12" height="2" rx="1" class="t-ink" opacity=".55"/><rect x="10" y="19" width="9" height="2" rx="1" class="t-ink" opacity=".4"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-ink" d="M8 6h16v6h-2l-1 18H11L10 12H8z" opacity=".7"/><path class="t-paper" d="M12 3h8v3h-8z"/><rect x="13" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/><rect x="17" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#e6e8ee"/><circle cx="16" cy="16" r="6" class="t-red"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" class="t-ink" opacity=".8"/><circle cx="16" cy="16" r="4" fill="#fff"/><g fill="#fff"><rect x="15" y="2" width="2" height="5" rx="1"/><rect x="15" y="25" width="2" height="5" rx="1"/><rect x="2" y="15" width="5" height="2" rx="1"/><rect x="25" y="15" width="5" height="2" rx="1"/></g></svg>
+                  </div>
+                  <div class="name">Adwaita</div>
+                </div>
+
+                <!-- Colloid-Dark -->
+                <div class="tile th-colloid-dark">
+                  <div class="preview">
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" class="t-teal"/><path d="M13 10l9 6-9 6z" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-folder" d="M3 9a3 3 0 0 1 3-3h7l3 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path class="t-folder-2" d="M3 12h26v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" opacity=".55"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-paper" d="M7 4h12l6 6v18H7z"/><path class="t-ink" d="M19 4v6h6" opacity=".25"/><rect x="10" y="15" width="12" height="2" rx="1" class="t-ink" opacity=".55"/><rect x="10" y="19" width="9" height="2" rx="1" class="t-ink" opacity=".4"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-ink" d="M8 6h16v6h-2l-1 18H11L10 12H8z" opacity=".7"/><path class="t-paper" d="M12 3h8v3h-8z"/><rect x="13" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/><rect x="17" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#e6e8ee"/><circle cx="16" cy="16" r="6" class="t-red"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" class="t-ink" opacity=".8"/><circle cx="16" cy="16" r="4" fill="#fff"/><g fill="#fff"><rect x="15" y="2" width="2" height="5" rx="1"/><rect x="15" y="25" width="2" height="5" rx="1"/><rect x="2" y="15" width="5" height="2" rx="1"/><rect x="25" y="15" width="5" height="2" rx="1"/></g></svg>
+                  </div>
+                  <div class="name">Colloid-Dark</div>
+                </div>
+
+                <!-- 已下载的 pastel -->
+                <div class="tile th-pastel hover">
+                  <div class="preview">
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" class="t-teal"/><path d="M13 10l9 6-9 6z" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-folder" d="M3 9a3 3 0 0 1 3-3h7l3 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path class="t-folder-2" d="M3 12h26v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" opacity=".55"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-paper" d="M7 4h12l6 6v18H7z"/><path class="t-ink" d="M19 4v6h6" opacity=".25"/><rect x="10" y="15" width="12" height="2" rx="1" class="t-ink" opacity=".55"/><rect x="10" y="19" width="9" height="2" rx="1" class="t-ink" opacity=".4"/></svg>
+                    <svg viewBox="0 0 32 32"><path class="t-ink" d="M8 6h16v6h-2l-1 18H11L10 12H8z" opacity=".7"/><path class="t-paper" d="M12 3h8v3h-8z"/><rect x="13" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/><rect x="17" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#e6e8ee"/><circle cx="16" cy="16" r="6" class="t-red"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
+                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" class="t-ink" opacity=".8"/><circle cx="16" cy="16" r="4" fill="#fff"/><g fill="#fff"><rect x="15" y="2" width="2" height="5" rx="1"/><rect x="15" y="25" width="2" height="5" rx="1"/><rect x="2" y="15" width="5" height="2" rx="1"/><rect x="25" y="15" width="5" height="2" rx="1"/></g></svg>
+                  </div>
+                  <div class="name">Colloid-pastel-blue</div>
+                  <div class="remove">删除</div>
+                </div>
+              </div>
+
+              <div class="hint"><span class="ic">i</span>点选即应用；下载来的主题放在用户目录，系统自带主题不可删除。</div>
+            </div>
+          </section>
+
+          <section class="card" style="margin-top:16px">
+            <div class="ct">窗口</div>
+            <div class="cbody" style="padding-top:12px;display:flex;align-items:center">
+              <div style="font-size:13.5px;font-weight:620">全局圆角</div>
+              <div style="margin-left:auto;width:420px;height:4px;border-radius:2px;background:#eceef3;position:relative">
+                <span style="position:absolute;left:55%;top:-5px;width:14px;height:14px;border-radius:50%;background:#fff;border:2px solid var(--accent)"></span>
+              </div>
+              <div style="width:48px;text-align:right;font-size:12px;color:#5f6470">70%</div>
+            </div>
+          </section>
+        </main>
+      </div>
+    </div>
+    <p class="note">
+      「图标」卡片沿用外观页现有的卡片：<b>标题 + 一行说明 + 右上角安装按钮 + 4 列主题网格</b>。
+      第一格固定是「跟随明暗」，其余按主题名排序；卡片高度随主题数量增长，页面本身滚动。
+    </p>
+  </div>
+
+  <div class="board">
+    <div class="cap"><span class="tag">B</span><span class="t">主题卡片：状态与结构</span><span class="n">放大 2×</span></div>
+    <div class="detail-wrap">
+      <div class="zoom">
+        <div class="tile selected">
+          <div class="preview th-colloid">
+            <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" class="t-teal"/><path d="M13 10l9 6-9 6z" fill="#fff"/></svg>
+            <svg viewBox="0 0 32 32"><path class="t-folder" d="M3 9a3 3 0 0 1 3-3h7l3 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path class="t-folder-2" d="M3 12h26v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" opacity=".55"/></svg>
+            <svg viewBox="0 0 32 32"><path class="t-paper" d="M7 4h12l6 6v18H7z"/><path class="t-ink" d="M19 4v6h6" opacity=".25"/><rect x="10" y="15" width="12" height="2" rx="1" class="t-ink" opacity=".55"/><rect x="10" y="19" width="9" height="2" rx="1" class="t-ink" opacity=".4"/></svg>
+            <svg viewBox="0 0 32 32"><path class="t-ink" d="M8 6h16v6h-2l-1 18H11L10 12H8z" opacity=".7"/><path class="t-paper" d="M12 3h8v3h-8z"/><rect x="13" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/><rect x="17" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/></svg>
+            <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#e6e8ee"/><circle cx="16" cy="16" r="6" class="t-red"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
+            <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" class="t-ink" opacity=".8"/><circle cx="16" cy="16" r="4" fill="#fff"/><g fill="#fff"><rect x="15" y="2" width="2" height="5" rx="1"/><rect x="15" y="25" width="2" height="5" rx="1"/><rect x="2" y="15" width="5" height="2" rx="1"/><rect x="25" y="15" width="5" height="2" rx="1"/></g></svg>
+          </div>
+          <div class="name">Colloid</div>
+          <div class="check">✓</div>
+        </div>
+      </div>
+      <div class="annos">
+        <div class="anno"><span class="num">1</span><div class="tx"><b>3 × 2 样例图标</b>：播放器、文件夹、文本、回收站、求助、设置。取自主题内的 <code>apps/</code>、<code>places/</code>、<code>mimetypes/</code>，缺失时按尺寸/上下文回退，都找不到就用兜底图标占位，不阻塞渲染。</div></div>
+        <div class="anno"><span class="num">2</span><div class="tx"><b>名称</b>取 <code>index.theme</code> 的 <code>Name</code>（本地化后缀忽略），单行省略；目录名只用于去重和删除。</div></div>
+        <div class="anno"><span class="num">3</span><div class="tx"><b>选中</b>：2px 强调色描边 + 右上角 ✓。点选立即写入设置并重解析所有应用图标，不需要「应用」按钮。</div></div>
+        <div class="anno"><span class="num">4</span><div class="tx"><b>悬停/长按</b>：用户安装的主题左上角出现「删除」，确认后从 <code>~/.local/share/icons</code> 移除；系统主题不显示删除。</div></div>
+        <div class="anno"><span class="num">5</span><div class="tx"><b>跟随明暗</b>：第一格，预览左浅右深；选中时按 Shell 实际明暗在 Colloid-Light / Colloid-Dark 之间切换。</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="board">
+    <div class="cap"><span class="tag">C</span><span class="t">从文件安装</span><span class="n">.tar.xz / .zip → 解包校验 → 出现在网格</span></div>
+    <div class="flow">
+      <div class="step">
+        <div class="no">STEP 1</div>
+        <h3>选择文件</h3>
+        <p>点「从文件安装…」打开 Denial 的文件选择器，只接受 <code>.tar.xz</code>、<code>.tar.gz</code>、<code>.zip</code>。</p>
+        <div class="stage">
+          <div class="picker">
+            <div class="ph"><span>~/Downloads</span><span class="pill">图标包</span></div>
+            <div class="row dir"><span class="fi"></span>xiaomi</div>
+            <div class="row on zip"><span class="fi"></span>01-Colloid.tar.xz</div>
+            <div class="row zip"><span class="fi"></span>Breeze.tar.gz</div>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no">STEP 2</div>
+        <h3>校验并安装</h3>
+        <p>解压到临时目录，找到所有含 <code>index.theme</code> 的目录（支持一个包多个主题），校验大小后移动到 <code>~/.local/share/icons</code>。</p>
+        <div class="stage">
+          <div class="importing">
+            <div class="spin"></div>
+            <div>
+              <div class="t1">正在安装 01-Colloid…</div>
+              <div class="t2">找到 Colloid、Colloid-Light、Colloid-Dark</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="no">STEP 3</div>
+        <h3>结果</h3>
+        <p>成功的主题立刻出现在网格里；选中它们即可生效。失败时保留原主题不变。</p>
+        <div class="stage" style="display:flex;flex-direction:column;gap:10px">
+          <div class="notice ok"><span class="ic">✓</span><div>已安装 2 个主题：Colloid-Light、Colloid-Dark。</div></div>
+          <div class="notice err"><span class="ic">!</span><div>这个压缩包不是图标主题：找不到 <b>index.theme</b>。</div></div>
+        </div>
+      </div>
+    </div>
+    <p class="note">
+      压缩包里的主题可以嵌套任意一层（KDE 的包常是 <code>01-Colloid/Colloid-Light/...</code>）；同名主题覆盖前先备份为 <code>&lt;id&gt;.bak</code>。
+      解析在后台 isolate 里做，安装期间页面不卡；包大小上限 512&nbsp;MB，解压后上限 2&nbsp;GB。
+    </p>
+  </div>
+
+  <div class="board">
+    <div class="cap"><span class="tag">D</span><span class="t">行为与边界</span><span class="n">实现约束</span></div>
+    <div class="rules">
+      <div class="rule"><h4>解析顺序</h4><p>选中主题 → <code>hicolor</code> → <code>Adwaita</code> → 其余已安装主题。应用自带的 <code>pixmaps</code>/<code>hicolor</code> 图标仍然优先，符合 freedesktop 规则。</p></div>
+      <div class="rule"><h4>跟随明暗</h4><p>空值 = 跟随；按 <code>effectiveBrightness</code>（含玻璃外观）选 Colloid-Light / Colloid-Dark，主题不在时退回默认顺序。</p></div>
+      <div class="rule"><h4>安装位置</h4><p>用户主题装到 <code>~/.local/share/icons/&lt;id&gt;</code>；扫描 <code>$XDG_DATA_DIRS/icons</code>，系统主题只读。</p></div>
+      <div class="rule"><h4>安全</h4><p>拒绝绝对路径与 <code>..</code>；不跟随符号链接；只接受普通文件；解包后校验 <code>index.theme</code> 与 <code>[Icon Theme]</code> 段。</p></div>
+      <div class="rule"><h4>刷新</h4><p>安装/删除后刷新目录缓存并重建主题网格；换主题时启动器、任务栏、通知图标一起重解析，无需重启。</p></div>
+      <div class="rule"><h4>空状态</h4><p>只有系统主题时也显示网格；「跟随明暗」始终存在。安装按钮在导入期间禁用并显示进度。</p></div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

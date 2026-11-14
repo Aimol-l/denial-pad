@@ -5920,17 +5920,113 @@ abstract class AppLocalizations {
   /// **'System default'**
   String get settingsFontSystemDefault;
 
+  /// Badge on the icon theme tile that follows the light/dark scheme.
+  ///
+  /// In en, this message translates to:
+  /// **'Auto'**
+  String get settingsIconThemeAutoBadge;
+
+  /// Action that deletes a user-installed icon theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove'**
+  String get settingsIconThemeDelete;
+
+  /// Confirmation body before deleting an icon theme.
+  ///
+  /// In en, this message translates to:
+  /// **'“{name}” will be removed from your icons folder.'**
+  String settingsIconThemeDeleteBody(String name);
+
+  /// Confirmation title before deleting an icon theme.
+  ///
+  /// In en, this message translates to:
+  /// **'Remove icon theme?'**
+  String get settingsIconThemeDeleteTitle;
+
   /// Explanation for the icon theme selector.
   ///
   /// In en, this message translates to:
   /// **'Applications take their icons from the chosen theme. Themes are read from the icons folder of every data directory.'**
   String get settingsIconThemeDescription;
 
+  /// Install failure detail for an empty archive.
+  ///
+  /// In en, this message translates to:
+  /// **'the archive is empty'**
+  String get settingsIconThemeErrorEmpty;
+
+  /// Install failure detail when unpacking fails.
+  ///
+  /// In en, this message translates to:
+  /// **'the archive could not be unpacked'**
+  String get settingsIconThemeErrorExtract;
+
+  /// Install failure detail when the chosen path is not a file.
+  ///
+  /// In en, this message translates to:
+  /// **'choose a regular archive file'**
+  String get settingsIconThemeErrorMissing;
+
+  /// Install failure detail when no icon theme is inside the archive.
+  ///
+  /// In en, this message translates to:
+  /// **'the archive has no index.theme'**
+  String get settingsIconThemeErrorNoTheme;
+
+  /// Install failure detail for an oversized archive.
+  ///
+  /// In en, this message translates to:
+  /// **'the archive is larger than 512 MB'**
+  String get settingsIconThemeErrorTooLarge;
+
+  /// Install failure detail for an archive that would escape its folder.
+  ///
+  /// In en, this message translates to:
+  /// **'the archive contains paths outside its folder'**
+  String get settingsIconThemeErrorUnsafe;
+
+  /// Install failure detail for an unsupported archive suffix.
+  ///
+  /// In en, this message translates to:
+  /// **'use a .tar.xz, .tar.gz or .zip archive'**
+  String get settingsIconThemeErrorUnsupported;
+
   /// Option that picks a light or dark icon theme with the shell's color scheme.
   ///
   /// In en, this message translates to:
   /// **'Follow light/dark'**
   String get settingsIconThemeFollowScheme;
+
+  /// Hint under the icon theme grid.
+  ///
+  /// In en, this message translates to:
+  /// **'Pick a theme to apply it immediately. Downloaded themes live in your user icons folder; bundled themes cannot be removed.'**
+  String get settingsIconThemeHint;
+
+  /// Button that installs an icon theme from an archive.
+  ///
+  /// In en, this message translates to:
+  /// **'Install from file…'**
+  String get settingsIconThemeInstall;
+
+  /// Failure message when an icon theme archive cannot be installed.
+  ///
+  /// In en, this message translates to:
+  /// **'Could not install the theme: {reason}'**
+  String settingsIconThemeInstallFailed(String reason);
+
+  /// Success message listing the icon themes that were just installed.
+  ///
+  /// In en, this message translates to:
+  /// **'Installed: {names}'**
+  String settingsIconThemeInstalled(String names);
+
+  /// Status while an icon theme archive is being unpacked.
+  ///
+  /// In en, this message translates to:
+  /// **'Installing…'**
+  String get settingsIconThemeInstalling;
 
   /// Label for the icon theme selector.
   ///

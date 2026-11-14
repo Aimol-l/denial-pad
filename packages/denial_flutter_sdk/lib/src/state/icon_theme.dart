@@ -32,6 +32,20 @@ class IconThemeCatalogController
       await ref.read(iconThemeRepositoryProvider).discover(),
     );
   }
+
+  /// Installs every theme in [archivePath] and returns the new themes.
+  Future<List<ShellIconThemeData>> importArchive(String archivePath) async {
+    final repository = ref.read(iconThemeRepositoryProvider);
+    final installed = await repository.install(archivePath);
+    state = AsyncData(await repository.discover());
+    return installed;
+  }
+
+  Future<void> remove(ShellIconThemeData theme) async {
+    final repository = ref.read(iconThemeRepositoryProvider);
+    await repository.remove(theme);
+    state = AsyncData(await repository.discover());
+  }
 }
 
 final availableShellIconThemesProvider = Provider<List<ShellIconThemeData>>(
