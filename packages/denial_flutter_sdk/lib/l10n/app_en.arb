@@ -4507,10 +4507,6 @@
   "@settingsFontSystemDefault": {
     "description": "Option that restores the platform's default font family."
   },
-  "settingsIconThemeAutoBadge": "Auto",
-  "@settingsIconThemeAutoBadge": {
-    "description": "Badge on the icon theme tile that follows the light/dark scheme."
-  },
   "settingsIconThemeDelete": "Remove",
   "@settingsIconThemeDelete": {
     "description": "Action that deletes a user-installed icon theme."
@@ -4559,10 +4555,6 @@
   "settingsIconThemeErrorUnsupported": "use a .tar.xz, .tar.gz or .zip archive",
   "@settingsIconThemeErrorUnsupported": {
     "description": "Install failure detail for an unsupported archive suffix."
-  },
-  "settingsIconThemeFollowScheme": "Follow light/dark",
-  "@settingsIconThemeFollowScheme": {
-    "description": "Option that picks a light or dark icon theme with the shell's color scheme."
   },
   "settingsIconThemeHint": "Pick a theme to apply it immediately. Downloaded themes live in your user icons folder; bundled themes cannot be removed.",
   "@settingsIconThemeHint": {

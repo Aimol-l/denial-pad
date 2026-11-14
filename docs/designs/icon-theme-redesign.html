@@ -208,7 +208,7 @@
   <h1>外观 · 图标主题 — 设计稿</h1>
   <p class="sub">
     参照 KDE 系统设置的「图标」页：<b>网格卡片 + 六枚样例图标预览</b>，用户下载 KDE 图标包（<code>.tar.xz</code> / <code>.zip</code>）后
-    点「从文件安装…」加载，选中即生效。Denial 不需要「应用」按钮，点选立即应用。
+    点「从文件安装…」加载，选中即生效；默认主题 Colloid-Light，随装随换。Denial 不需要「应用」按钮，点选立即应用。
   </p>
 
   <div class="board">
@@ -280,20 +280,6 @@
               </div>
 
               <div class="grid">
-                <!-- 跟随明暗 -->
-                <div class="tile auto">
-                  <div class="preview th-colloid">
-                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="12" class="t-teal"/><circle cx="16" cy="16" r="4.5" fill="#fff"/></svg>
-                    <svg viewBox="0 0 32 32"><path class="t-folder" d="M3 9a3 3 0 0 1 3-3h7l3 3h10a3 3 0 0 1 3 3v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path class="t-folder-2" d="M3 12h26v12a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" opacity=".55"/></svg>
-                    <svg viewBox="0 0 32 32"><path class="t-paper" d="M7 4h12l6 6v18H7z"/><path class="t-ink" d="M19 4v6h6" opacity=".25"/><rect x="10" y="15" width="12" height="2" rx="1" class="t-ink" opacity=".55"/><rect x="10" y="19" width="9" height="2" rx="1" class="t-ink" opacity=".4"/></svg>
-                    <svg viewBox="0 0 32 32"><path class="t-ink" d="M8 6h16v6h-2l-1 18H11L10 12H8z" opacity=".7"/><path class="t-paper" d="M12 3h8v3h-8z"/><rect x="13" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/><rect x="17" y="14" width="2" height="10" rx="1" fill="#fff" opacity=".5"/></svg>
-                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" fill="#e6e8ee"/><circle cx="16" cy="16" r="6" class="t-red"/><circle cx="16" cy="16" r="3" fill="#fff"/></svg>
-                    <svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="11" class="t-ink" opacity=".8"/><circle cx="16" cy="16" r="4" fill="#fff"/><g fill="#fff"><rect x="15" y="2" width="2" height="5" rx="1"/><rect x="15" y="25" width="2" height="5" rx="1"/><rect x="2" y="15" width="5" height="2" rx="1"/><rect x="25" y="15" width="5" height="2" rx="1"/></g></svg>
-                  </div>
-                  <div class="name">跟随明暗</div>
-                  <div class="auto-badge">自动</div>
-                </div>
-
                 <!-- Colloid -->
                 <div class="tile selected th-colloid">
                   <div class="preview">
@@ -380,8 +366,8 @@
       </div>
     </div>
     <p class="note">
-      「图标」卡片沿用外观页现有的卡片：<b>标题 + 一行说明 + 右上角安装按钮 + 4 列主题网格</b>。
-      第一格固定是「跟随明暗」，其余按主题名排序；卡片高度随主题数量增长，页面本身滚动。
+      「图标」卡片沿用外观页现有的卡片：<b>标题 + 一行说明 + 右上角安装按钮 + 4 列主题网格</b>，
+      按主题名排序；卡片高度随主题数量增长，页面本身滚动。卡片位于光标卡片之后。
     </p>
   </div>
 
@@ -407,7 +393,6 @@
         <div class="anno"><span class="num">2</span><div class="tx"><b>名称</b>取 <code>index.theme</code> 的 <code>Name</code>（本地化后缀忽略），单行省略；目录名只用于去重和删除。</div></div>
         <div class="anno"><span class="num">3</span><div class="tx"><b>选中</b>：2px 强调色描边 + 右上角 ✓。点选立即写入设置并重解析所有应用图标，不需要「应用」按钮。</div></div>
         <div class="anno"><span class="num">4</span><div class="tx"><b>悬停/长按</b>：用户安装的主题左上角出现「删除」，确认后从 <code>~/.local/share/icons</code> 移除；系统主题不显示删除。</div></div>
-        <div class="anno"><span class="num">5</span><div class="tx"><b>跟随明暗</b>：第一格，预览左浅右深；选中时按 Shell 实际明暗在 Colloid-Light / Colloid-Dark 之间切换。</div></div>
       </div>
     </div>
   </div>
@@ -462,7 +447,6 @@
     <div class="cap"><span class="tag">D</span><span class="t">行为与边界</span><span class="n">实现约束</span></div>
     <div class="rules">
       <div class="rule"><h4>解析顺序</h4><p>选中主题 → <code>hicolor</code> → <code>Adwaita</code> → 其余已安装主题。应用自带的 <code>pixmaps</code>/<code>hicolor</code> 图标仍然优先，符合 freedesktop 规则。</p></div>
-      <div class="rule"><h4>跟随明暗</h4><p>空值 = 跟随；按 <code>effectiveBrightness</code>（含玻璃外观）选 Colloid-Light / Colloid-Dark，主题不在时退回默认顺序。</p></div>
       <div class="rule"><h4>安装位置</h4><p>用户主题装到 <code>~/.local/share/icons/&lt;id&gt;</code>；扫描 <code>$XDG_DATA_DIRS/icons</code>，系统主题只读。</p></div>
       <div class="rule"><h4>安全</h4><p>拒绝绝对路径与 <code>..</code>；不跟随符号链接；只接受普通文件；解包后校验 <code>index.theme</code> 与 <code>[Icon Theme]</code> 段。</p></div>
       <div class="rule"><h4>刷新</h4><p>安装/删除后刷新目录缓存并重建主题网格；换主题时启动器、任务栏、通知图标一起重解析，无需重启。</p></div>

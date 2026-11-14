@@ -36,8 +36,7 @@ export 'src/state/icon_theme.dart'
     show
         IconThemeCatalogController,
         availableShellIconThemesProvider,
-        followSchemeDarkIconTheme,
-        followSchemeLightIconTheme,
+        defaultIconTheme,
         iconThemeCatalogProvider,
         iconThemeRepositoryProvider,
         resolvedShellIconThemeProvider;

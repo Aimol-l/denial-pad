@@ -1266,17 +1266,11 @@ class _IconThemeSettingsState extends State<_IconThemeSettings> {
   Widget build(BuildContext context) {
     final l10n = context.l10n;
     final colors = context.applicationColors;
-    final selectedId = widget.settings.iconTheme;
-    final autoId = widget.settings.effectiveBrightness == Brightness.light
-        ? followSchemeLightIconTheme
-        : followSchemeDarkIconTheme;
-    ShellIconThemeData? autoTheme;
-    for (final candidate in widget.themes) {
-      if (candidate.id == autoId) {
-        autoTheme = candidate;
-        break;
-      }
-    }
+    // No stored choice means Denial's default theme is the one in use, so the
+    // grid marks it rather than opening with nothing selected.
+    final selectedId = widget.settings.iconTheme.isEmpty
+        ? defaultIconTheme
+        : widget.settings.iconTheme;
     return SettingsCardPadding(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1345,15 +1339,6 @@ class _IconThemeSettingsState extends State<_IconThemeSettings> {
                   spacing: gap,
                   runSpacing: gap,
                   children: <Widget>[
-                    _IconThemeCard(
-                      title: l10n.settingsIconThemeFollowScheme,
-                      badge: l10n.settingsIconThemeAutoBadge,
-                      width: width,
-                      previews: autoTheme?.previews ?? const <String>[],
-                      selected: selectedId.isEmpty,
-                      enabled: !_busy,
-                      onSelected: () => widget.onThemeChanged(''),
-                    ),
                     for (final theme in widget.themes)
                       _IconThemeCard(
                         title: theme.name,
@@ -1521,7 +1506,6 @@ class _IconThemeCard extends StatefulWidget {
     required this.selected,
     required this.enabled,
     required this.onSelected,
-    this.badge,
     this.onRemove,
   });
 
@@ -1531,7 +1515,6 @@ class _IconThemeCard extends StatefulWidget {
   final bool selected;
   final bool enabled;
   final VoidCallback onSelected;
-  final String? badge;
   final VoidCallback? onRemove;
 
   @override
@@ -1626,25 +1609,6 @@ class _IconThemeCardState extends State<_IconThemeCard> {
                             icon: const Icon(Icons.delete_outline_rounded),
                             iconSize: 18,
                             visualDensity: VisualDensity.compact,
-                          ),
-                        )
-                      else if (widget.badge case final badge?)
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: accent.withAlpha(28),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                          child: Text(
-                            badge,
-                            style: ShellText.base.copyWith(
-                              color: accent,
-                              fontSize: 9.5,
-                              fontWeight: FontWeight.w700,
-                            ),
                           ),
                         )
                       else if (widget.selected)

@@ -3318,9 +3318,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsFontSystemDefault => 'System default';
 
   @override
-  String get settingsIconThemeAutoBadge => 'Auto';
-
-  @override
   String get settingsIconThemeDelete => 'Remove';
 
   @override
@@ -3359,9 +3356,6 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get settingsIconThemeErrorUnsupported =>
       'use a .tar.xz, .tar.gz or .zip archive';
-
-  @override
-  String get settingsIconThemeFollowScheme => 'Follow light/dark';
 
   @override
   String get settingsIconThemeHint =>

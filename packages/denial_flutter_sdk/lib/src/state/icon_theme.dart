@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show Brightness;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/startup_environment.dart';
@@ -54,22 +53,19 @@ final availableShellIconThemesProvider = Provider<List<ShellIconThemeData>>(
 
 /// The icon theme the shell draws from.
 ///
-/// An explicit choice wins; otherwise the theme follows the scheme the shell
-/// actually shows, so a light UI gets `Colloid-Light` and a dark one
-/// `Colloid-Dark`. A theme that is not installed simply resolves to nothing,
-/// and the icon search falls back to the default order.
+/// The chosen theme wins; with no choice the shell keeps Denial's own default
+/// theme when it is installed. A theme that is not installed simply resolves
+/// to nothing, and the icon search falls back to the default order.
 final resolvedShellIconThemeProvider = Provider<String>((ref) {
-  final appearance = ref.watch(
-    shellSettingsProvider.select((settings) => settings.appearance),
-  );
-  final chosen = appearance.iconTheme.trim();
-  if (chosen.isNotEmpty) {
-    return chosen;
-  }
-  return appearance.effectiveBrightness == Brightness.light
-      ? followSchemeLightIconTheme
-      : followSchemeDarkIconTheme;
+  final chosen = ref
+      .watch(
+        shellSettingsProvider.select(
+          (settings) => settings.appearance.iconTheme,
+        ),
+      )
+      .trim();
+  return chosen.isNotEmpty ? chosen : defaultIconTheme;
 });
 
-const String followSchemeLightIconTheme = 'Colloid-Light';
-const String followSchemeDarkIconTheme = 'Colloid-Dark';
+/// The theme a fresh install shows; the user may replace it in Appearance.
+const String defaultIconTheme = 'Colloid-Light';

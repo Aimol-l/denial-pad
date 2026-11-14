@@ -3163,9 +3163,6 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsFontSystemDefault => '系统默认';
 
   @override
-  String get settingsIconThemeAutoBadge => '自动';
-
-  @override
   String get settingsIconThemeDelete => '删除';
 
   @override
@@ -3201,9 +3198,6 @@ class AppLocalizationsZh extends AppLocalizations {
   @override
   String get settingsIconThemeErrorUnsupported =>
       '请选择 .tar.xz、.tar.gz 或 .zip 压缩包';
-
-  @override
-  String get settingsIconThemeFollowScheme => '跟随明暗';
 
   @override
   String get settingsIconThemeHint => '点选即应用；下载来的主题放在用户目录，系统自带主题不可删除。';

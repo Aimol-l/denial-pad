@@ -5920,12 +5920,6 @@ abstract class AppLocalizations {
   /// **'System default'**
   String get settingsFontSystemDefault;
 
-  /// Badge on the icon theme tile that follows the light/dark scheme.
-  ///
-  /// In en, this message translates to:
-  /// **'Auto'**
-  String get settingsIconThemeAutoBadge;
-
   /// Action that deletes a user-installed icon theme.
   ///
   /// In en, this message translates to:
@@ -5991,12 +5985,6 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'use a .tar.xz, .tar.gz or .zip archive'**
   String get settingsIconThemeErrorUnsupported;
-
-  /// Option that picks a light or dark icon theme with the shell's color scheme.
-  ///
-  /// In en, this message translates to:
-  /// **'Follow light/dark'**
-  String get settingsIconThemeFollowScheme;
 
   /// Hint under the icon theme grid.
   ///
