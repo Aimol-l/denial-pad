@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Deploy the built Flutter applications to a tablet.
+#
+# A bundle is more than `libapp.so`: `data/flutter_assets` carries the icon
+# font, which icon tree-shaking rebuilds with a different glyph set on every
+# build. Copying only the shared object leaves the last build's font behind and
+# new icons render as empty buttons. This copies each whole bundle directory.
+#
+# Usage:
+#   tools/denial-deploy-bundle [--host user@address] [--key PATH]
+#                              [--no-build] [--compositor] [--no-reboot]
+#
+# Environment:
+#   DENIAL_TABLET_HOST   default host, e.g. user@192.168.31.252
+#   DENIAL_TABLET_KEY    default ssh identity
+#   DENIAL_TARGET_ARCH   passed through to the builds (aarch64 for the tablet)
+#
+# The compositor is only sent with --compositor: it changes far less often than
+# the UI, and installing it forces the same reboot the bundles already need.
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+
+HOST="${DENIAL_TABLET_HOST:-}"
+KEY="${DENIAL_TABLET_KEY:-}"
+BUILD=1
+COMPOSITOR=0
+REBOOT=1
+
+usage() {
+    sed -n '5,25p' "$0" | sed 's/^# \{0,1\}//'
+    exit "${1:-0}"
+}
+
+die() {
+    printf 'denial-deploy-bundle: %s\n' "$*" >&2
+    exit 1
+}
+
+while (($#)); do
+    case "$1" in
+        --host) [[ $# -ge 2 ]] || die "--host needs a value"; HOST="$2"; shift 2 ;;
+        --key) [[ $# -ge 2 ]] || die "--key needs a value"; KEY="$2"; shift 2 ;;
+        --no-build) BUILD=0; shift ;;
+        --compositor) COMPOSITOR=1; shift ;;
+        --no-reboot) REBOOT=0; shift ;;
+        -h | --help) usage 0 ;;
+        *) die "unknown option: $1 (try --help)" ;;
+    esac
+done
+
+[[ -n "$HOST" ]] || die "no host: pass --host or set DENIAL_TABLET_HOST"
+if [[ -n "$KEY" ]]; then
+    [[ -r "$KEY" ]] || die "cannot read the ssh identity: $KEY"
+fi
+
+# The Flutter builds name their output after the Flutter architecture, not the
+# Rust one.
+case "${DENIAL_TARGET_ARCH:-$(uname -m)}" in
+    aarch64 | arm64) flutter_arch=arm64 ;;
+    x86_64 | amd64) flutter_arch=x64 ;;
+    *) die "unsupported DENIAL_TARGET_ARCH: ${DENIAL_TARGET_ARCH:-$(uname -m)}" ;;
+esac
+
+shell_bundle="$ROOT/dart_shell/build/linux/$flutter_arch/release/bundle"
+settings_bundle="$ROOT/settings_app/build/linux/$flutter_arch/release/bundle"
+compositor_bin="$ROOT/${CARGO_TARGET_DIR:-$HOME/.cache/denial/pc-build/rust}/$([ "$flutter_arch" = arm64 ] && echo aarch64-unknown-linux-gnu || echo x86_64-unknown-linux-gnu)/release/deniald"
+
+ssh_args=(-o BatchMode=yes -o ConnectTimeout=10)
+[[ -n "$KEY" ]] && ssh_args+=(-i "$KEY")
+scp_args=(-o BatchMode=yes)
+[[ -n "$KEY" ]] && scp_args+=(-i "$KEY")
+
+remote() {
+    ssh "${ssh_args[@]}" "$HOST" "$@"
+}
+
+if ((BUILD)); then
+    printf '==> building the shell bundle\n'
+    (cd -- "$ROOT" && ./tools/denial-pc bundle)
+    printf '==> building the settings app\n'
+    (cd -- "$ROOT" && ./tools/denial-pc settings)
+    if ((COMPOSITOR)); then
+        printf '==> building the compositor\n'
+        (cd -- "$ROOT" && ./tools/denial-pc compositor)
+    fi
+fi
+
+[[ -d "$shell_bundle" ]] || die "no shell bundle at $shell_bundle"
+[[ -d "$settings_bundle" ]] || die "no settings bundle at $settings_bundle"
+if ((COMPOSITOR)); then
+    [[ -x "$compositor_bin" ]] || die "no compositor at $compositor_bin"
+fi
+
+work="$(mktemp -d "${TMPDIR:-/tmp}/denial-deploy.XXXXXX")"
+trap 'rm -rf -- "$work"' EXIT
+
+tar -C "$shell_bundle" -czf "$work/shell.tgz" .
+tar -C "$settings_bundle" -czf "$work/settings.tgz" .
+if ((COMPOSITOR)); then
+    cp -- "$compositor_bin" "$work/deniald"
+fi
+
+local_font="$shell_bundle/data/flutter_assets/fonts/MaterialIcons-Regular.otf"
+want_font=""
+if [[ -f "$local_font" ]]; then
+    want_font="$(md5sum "$local_font" | cut -d' ' -f1)"
+fi
+
+printf '==> copying to %s\n' "$HOST"
+scp "${scp_args[@]}" "$work/shell.tgz" "$work/settings.tgz" "$HOST:/tmp/" >/dev/null
+if ((COMPOSITOR)); then
+    scp "${scp_args[@]}" "$work/deniald" "$HOST:/tmp/deniald-deploy" >/dev/null
+fi
+
+printf '==> installing\n'
+remote "sudo tar -C /usr/lib/denial/flutter -xzf /tmp/shell.tgz &&
+    sudo tar -C /usr/lib/denial/settings -xzf /tmp/settings.tgz &&
+    rm -f /tmp/shell.tgz /tmp/settings.tgz" >/dev/null
+if ((COMPOSITOR)); then
+    remote "sudo install -m755 /tmp/deniald-deploy /usr/bin/deniald && rm -f /tmp/deniald-deploy" >/dev/null
+fi
+
+# The font is the part a bare libapp.so copy used to miss; check it landed.
+if [[ -n "$want_font" ]]; then
+    got_font="$(remote "md5sum /usr/lib/denial/flutter/data/flutter_assets/fonts/MaterialIcons-Regular.otf" |
+        cut -d' ' -f1)"
+    if [[ "$got_font" != "$want_font" ]]; then
+        die "the icon font on the tablet does not match the build ($got_font != $want_font)"
+    fi
+    printf '    icon font matches the build (%s)\n' "$want_font"
+fi
+
+if ((REBOOT)); then
+    printf '==> rebooting %s\n' "$HOST"
+    remote 'sudo systemctl reboot' || true
+    printf '    waiting for it to come back\n'
+    sleep 45
+    for _ in $(seq 1 30); do
+        if remote 'echo ok' 2>/dev/null | grep -q ok; then
+            printf '    back\n'
+            exit 0
+        fi
+        sleep 6
+    done
+    die "the tablet did not come back within three minutes"
+fi
+
+printf 'deployed; restart the session yourself (--no-reboot was given)\n'
