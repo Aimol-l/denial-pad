@@ -202,6 +202,10 @@ IconData? _actionIconFor(String label) {
     'like' || 'favourite' || 'favorite' => Icons.favorite_border_rounded,
     'unlike' || 'unfavourite' || 'unfavorite' => Icons.favorite_rounded,
     'playlist' || 'queue' => Icons.queue_music_rounded,
+    // NetEase also sends `trash` and `lyric`; without them the card falls
+    // back to the raw label and shows a word next to the icons.
+    'trash' || 'delete' || 'remove' => Icons.delete_outline_rounded,
+    'lyric' || 'lyrics' => Icons.lyrics_rounded,
     'download' => Icons.download_rounded,
     'share' => Icons.share_rounded,
     'comment' => Icons.mode_comment_outlined,
