@@ -258,15 +258,17 @@ class _HomeSurfaceState extends ConsumerState<HomeSurface>
   // Input --------------------------------------------------------------------
 
   void _pointerDown(PointerDownEvent event) {
-    // A pointer whose up went to an overlay (the all-apps drawer closing on a
-    // background tap) never reaches _pointerUp here. A new pointer means the
-    // old one is gone; drop the stale state instead of swallowing every tap.
-    if (_pointer != null && _pointer != event.pointer) {
+    // A pointer whose up went to an overlay (a launch transition, the all-apps
+    // drawer closing on a background tap) never reaches _pointerUp here, and
+    // the shell then swallowed every later tap. Home has no multi-touch
+    // gesture, so a down while we still hold a pointer means that pointer is
+    // gone: drop its state instead of waiting for an up that will not come.
+    if (_pointer != null) {
       _pointer = null;
       _heldWidget = null;
       _taps.reset();
+      if (drag.active) drag.end(cancelled: true);
     }
-    if (_pointer != null) return;
     _pointer = event.pointer;
     _swallowTap = false;
     if (resize.active && !_onResizeFrame(event.position)) {

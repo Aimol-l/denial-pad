@@ -186,10 +186,22 @@ class ShellSettingsController extends Notifier<ShellSettings> {
   }
 
   void setColorSchemePreference(DesktopColorSchemePreference preference) {
+    final appearance = state.appearance;
     _update(
       state.copyWith(
-        appearance: state.appearance.copyWith(
+        appearance: appearance.copyWith(
           colorSchemePreference: preference,
+          // Glass draws its own light/dark scheme, so the theme row alone
+          // would change a field nothing reads and look like a no-op. Move
+          // both entries together and either control works on its own.
+          glass: appearance.transparencyMode == ShellTransparencyMode.glass
+              ? appearance.glass.copyWith(
+                  appearance:
+                      preference.effectiveBrightness == Brightness.light
+                      ? ShellGlassAppearance.light
+                      : ShellGlassAppearance.dark,
+                )
+              : null,
         ),
       ),
     );
@@ -273,7 +285,21 @@ class ShellSettingsController extends Notifier<ShellSettings> {
   }
 
   void setGlassConfiguration(ShellGlassConfiguration value) {
-    _updateAppearance(glass: value);
+    final appearance = state.appearance;
+    _update(
+      state.copyWith(
+        appearance: appearance.copyWith(
+          glass: value,
+          // The glass appearance is the scheme while glass is on; keep the
+          // theme row showing which one is in use.
+          colorSchemePreference: value.appearance == appearance.glass.appearance
+              ? null
+              : (value.appearance == ShellGlassAppearance.light
+                    ? DesktopColorSchemePreference.preferLight
+                    : DesktopColorSchemePreference.preferDark),
+        ),
+      ),
+    );
   }
 
   void setFocusedWindowBorderEnabled(bool value) {
