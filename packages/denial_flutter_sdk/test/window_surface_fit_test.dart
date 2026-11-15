@@ -16,7 +16,8 @@ void main() {
       content: landscape,
       fit: BoxFit.contain,
     );
-    expect(fit.scale, 0.5);
+    expect(fit.scaleX, 0.5);
+    expect(fit.scaleY, 0.5);
     // 955 - 500 of spare height splits evenly above and below.
     expect(fit.surfaceRect, const Rect.fromLTWH(0, 227.5, 800, 500));
     expect(fit.contentRect, fit.surfaceRect);
@@ -41,7 +42,7 @@ void main() {
       content: landscape,
       fit: BoxFit.cover,
     );
-    expect(fit.scale, closeTo(0.955, 1e-6));
+    expect(fit.scaleX, closeTo(0.955, 1e-6));
     expect(fit.surfaceRect.top, 0);
     expect(fit.surfaceRect.width, closeTo(1528, 0.01));
     expect(fit.surfaceRect.left, closeTo(-364, 0.01));
@@ -73,7 +74,7 @@ void main() {
       content: portrait,
       fit: BoxFit.contain,
     );
-    expect(fit.scale, closeTo(0.596875, 1e-6));
+    expect(fit.scaleX, closeTo(0.596875, 1e-6));
     expect(fit.surfaceRect.height, closeTo(955, 0.01));
     expect(fit.surfaceRect.center.dx, closeTo(pane.center.dx, 0.01));
     expect(fit.surfaceRect.left, greaterThan(pane.left));
@@ -89,13 +90,34 @@ void main() {
       content: content,
       fit: BoxFit.contain,
     );
-    expect(fit.scale, 0.5);
+    expect(fit.scaleX, 0.5);
+    expect(fit.scaleY, 0.5);
     // 227.5 of spare height above, then the strip inside the frame.
     expect(fit.contentRect, const Rect.fromLTWH(0, 247.5, 800, 480));
     expect(
       fit.screenToSource(const Rect.fromLTWH(0, 247.5, 800, 480)),
       content,
     );
+  });
+
+  test('a pane a few pixels shorter than its window stretches to fill it', () {
+    // The split case: 800x1000 content in an 800x955 pane. Cropping or a gap
+    // would both be visible for a difference this small.
+    const content = Rect.fromLTWH(0, 0, 800, 1000);
+    final fit = WindowSurfaceFit.resolve(
+      area: pane,
+      frame: content,
+      content: content,
+      fit: BoxFit.contain,
+    );
+    expect(fit.surfaceRect, pane);
+    expect(fit.scaleX, 1);
+    expect(fit.scaleY, closeTo(0.955, 1e-6));
+    final source = fit.screenToSource(const Rect.fromLTWH(400, 477.5, 10, 10));
+    expect(source.left, 400);
+    expect(source.top, 500);
+    expect(source.width, closeTo(10, 0.01));
+    expect(source.height, closeTo(10.47, 0.01));
   });
 
   test('an empty frame maps nothing', () {

@@ -12,7 +12,8 @@ import 'package:flutter/widgets.dart';
 @immutable
 class WindowSurfaceFit {
   const WindowSurfaceFit({
-    required this.scale,
+    required this.scaleX,
+    required this.scaleY,
     required this.fit,
     required this.frame,
     required this.content,
@@ -36,7 +37,8 @@ class WindowSurfaceFit {
   }) {
     if (area.isEmpty || frame.isEmpty || content.isEmpty) {
       return WindowSurfaceFit(
-        scale: 1,
+        scaleX: 1,
+        scaleY: 1,
         fit: fit,
         frame: frame,
         content: content,
@@ -46,37 +48,58 @@ class WindowSurfaceFit {
     }
     final widthScale = area.width / frame.width;
     final heightScale = area.height / frame.height;
-    final scale = fit == BoxFit.contain
-        ? math.min(widthScale, heightScale)
-        : math.max(widthScale, heightScale);
-    final left = area.left + (area.width - frame.width * scale) / 2.0;
+    final contained = fit == BoxFit.contain;
+    // A pane a few pixels shorter than its window would otherwise leave a
+    // thin gap on both sides. That difference is under a tenth of the size,
+    // so stretching it is invisible and the window still fills the pane.
+    final stretches = contained && _closeScales(widthScale, heightScale);
+    final scaleX = stretches
+        ? widthScale
+        : (contained
+              ? math.min(widthScale, heightScale)
+              : math.max(widthScale, heightScale));
+    final scaleY = stretches ? heightScale : scaleX;
+    final left = area.left + (area.width - frame.width * scaleX) / 2.0;
     // A contained window is a whole-window view: the spare space splits
     // evenly around it instead of hanging every pixel off the bottom.
-    final spareHeight = area.height - frame.height * scale;
+    final spareHeight = area.height - frame.height * scaleY;
     final top =
-        area.top + (fit == BoxFit.contain ? spareHeight / 2.0 : 0.0) - topOffset;
+        area.top +
+        (contained && !stretches ? spareHeight / 2.0 : 0.0) -
+        topOffset;
     return WindowSurfaceFit(
-      scale: scale,
+      scaleX: scaleX,
+      scaleY: scaleY,
       fit: fit,
       frame: frame,
       content: content,
       surfaceRect: Rect.fromLTWH(
         left,
         top,
-        frame.width * scale,
-        frame.height * scale,
+        frame.width * scaleX,
+        frame.height * scaleY,
       ),
       contentRect: Rect.fromLTWH(
-        left + (content.left - frame.left) * scale,
-        top + (content.top - frame.top) * scale,
-        content.width * scale,
-        content.height * scale,
+        left + (content.left - frame.left) * scaleX,
+        top + (content.top - frame.top) * scaleY,
+        content.width * scaleX,
+        content.height * scaleY,
       ),
     );
   }
 
-  /// Screen pixels per client pixel.
-  final double scale;
+  /// Two scales are close enough that stretching beats cropping or a gap.
+  static bool _closeScales(double first, double second) {
+    final largest = math.max(first, second);
+    if (largest <= 0) return false;
+    return (first - second).abs() / largest < 0.08;
+  }
+
+  /// Screen pixels per client pixel, horizontally.
+  final double scaleX;
+
+  /// Screen pixels per client pixel, vertically.
+  final double scaleY;
 
   /// How the surface fills the area it was given.
   final BoxFit fit;
@@ -109,10 +132,10 @@ class WindowSurfaceFit {
   Rect screenToSource(Rect onScreen) {
     if (isEmpty) return Rect.zero;
     return Rect.fromLTWH(
-      content.left + (onScreen.left - contentRect.left) / scale,
-      content.top + (onScreen.top - contentRect.top) / scale,
-      onScreen.width / scale,
-      onScreen.height / scale,
+      content.left + (onScreen.left - contentRect.left) / scaleX,
+      content.top + (onScreen.top - contentRect.top) / scaleY,
+      onScreen.width / scaleX,
+      onScreen.height / scaleY,
     );
   }
 }
