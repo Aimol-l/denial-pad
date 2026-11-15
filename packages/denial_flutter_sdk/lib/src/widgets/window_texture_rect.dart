@@ -104,7 +104,7 @@ class WindowTextureRect extends StatelessWidget {
                 ),
               );
         Widget covered = OverflowBox(
-          alignment: Alignment.topCenter,
+          alignment: mapping.alignment,
           minWidth: size.width,
           maxWidth: size.width,
           minHeight: size.height,

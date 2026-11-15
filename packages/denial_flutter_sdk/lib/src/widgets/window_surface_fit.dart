@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart';
 class WindowSurfaceFit {
   const WindowSurfaceFit({
     required this.scale,
+    required this.fit,
     required this.frame,
     required this.content,
     required this.surfaceRect,
@@ -21,9 +22,11 @@ class WindowSurfaceFit {
 
   /// Fits the client surface, given in client coordinates, into [area].
   ///
-  /// The surface sits at the top of the area, horizontally centred, exactly
-  /// like the texture the shell paints. [topOffset] lifts the surface, for a
-  /// scene the shell scrolls up behind the edge panel.
+  /// The surface is horizontally centred, exactly like the texture the shell
+  /// paints: a covering surface starts at the top, a contained one sits in the
+  /// middle of its area with the spare space split around it. [topOffset]
+  /// lifts the surface, for a scene the shell scrolls up behind the edge
+  /// panel.
   factory WindowSurfaceFit.resolve({
     required Rect area,
     required Rect frame,
@@ -34,6 +37,7 @@ class WindowSurfaceFit {
     if (area.isEmpty || frame.isEmpty || content.isEmpty) {
       return WindowSurfaceFit(
         scale: 1,
+        fit: fit,
         frame: frame,
         content: content,
         surfaceRect: Rect.zero,
@@ -46,9 +50,14 @@ class WindowSurfaceFit {
         ? math.min(widthScale, heightScale)
         : math.max(widthScale, heightScale);
     final left = area.left + (area.width - frame.width * scale) / 2.0;
-    final top = area.top - topOffset;
+    // A contained window is a whole-window view: the spare space splits
+    // evenly around it instead of hanging every pixel off the bottom.
+    final spareHeight = area.height - frame.height * scale;
+    final top =
+        area.top + (fit == BoxFit.contain ? spareHeight / 2.0 : 0.0) - topOffset;
     return WindowSurfaceFit(
       scale: scale,
+      fit: fit,
       frame: frame,
       content: content,
       surfaceRect: Rect.fromLTWH(
@@ -69,6 +78,9 @@ class WindowSurfaceFit {
   /// Screen pixels per client pixel.
   final double scale;
 
+  /// How the surface fills the area it was given.
+  final BoxFit fit;
+
   /// The client surface as the compositor describes it, in client coordinates.
   final Rect frame;
 
@@ -82,6 +94,15 @@ class WindowSurfaceFit {
   final Rect contentRect;
 
   bool get isEmpty => surfaceRect.isEmpty || contentRect.isEmpty;
+
+  /// How the surface sits in its area when the fit leaves spare space: a
+  /// contained window is centred, a covering one starts at the top.
+  Alignment get alignment => alignmentFor(fit);
+
+  /// The alignment any widget that fits its own child must use, so the paint
+  /// and the input route cannot pick different ones.
+  static Alignment alignmentFor(BoxFit fit) =>
+      fit == BoxFit.contain ? Alignment.center : Alignment.topCenter;
 
   /// An on-screen rectangle in client coordinates, as the input route sends it
   /// to the compositor.

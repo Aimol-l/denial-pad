@@ -9,7 +9,7 @@ void main() {
   // A landscape client that kept its own size instead of the pane's.
   const landscape = Rect.fromLTWH(0, 0, 1600, 1000);
 
-  test('a pane shows the whole window, top-centred', () {
+  test('a pane shows the whole window, centred in the pane', () {
     final fit = WindowSurfaceFit.resolve(
       area: pane,
       frame: landscape,
@@ -17,8 +17,21 @@ void main() {
       fit: BoxFit.contain,
     );
     expect(fit.scale, 0.5);
-    expect(fit.surfaceRect, const Rect.fromLTWH(0, 0, 800, 500));
+    // 955 - 500 of spare height splits evenly above and below.
+    expect(fit.surfaceRect, const Rect.fromLTWH(0, 227.5, 800, 500));
     expect(fit.contentRect, fit.surfaceRect);
+    expect(fit.alignment, Alignment.center);
+  });
+
+  test('a covering window still starts at the top', () {
+    final fit = WindowSurfaceFit.resolve(
+      area: pane,
+      frame: landscape,
+      content: landscape,
+      fit: BoxFit.cover,
+    );
+    expect(fit.surfaceRect.top, 0);
+    expect(fit.alignment, Alignment.topCenter);
   });
 
   test('covering the pane crops the same window at the same top edge', () {
@@ -43,12 +56,12 @@ void main() {
     );
     // The middle of the painted window maps to the middle of the client.
     expect(
-      fit.screenToSource(const Rect.fromLTWH(400, 250, 10, 10)),
+      fit.screenToSource(const Rect.fromLTWH(400, 477.5, 10, 10)),
       const Rect.fromLTWH(800, 500, 20, 20),
     );
-    // The bottom row of the pane is blank wallpaper now: input there must not
+    // The spare band below the window is wallpaper: input there must not
     // reach the client's bottom row.
-    final belowWindow = fit.screenToSource(const Rect.fromLTWH(400, 700, 10, 10));
+    final belowWindow = fit.screenToSource(const Rect.fromLTWH(400, 900, 10, 10));
     expect(belowWindow.top, greaterThan(1000));
   });
 
@@ -77,9 +90,10 @@ void main() {
       fit: BoxFit.contain,
     );
     expect(fit.scale, 0.5);
-    expect(fit.contentRect, const Rect.fromLTWH(0, 20, 800, 480));
+    // 227.5 of spare height above, then the strip inside the frame.
+    expect(fit.contentRect, const Rect.fromLTWH(0, 247.5, 800, 480));
     expect(
-      fit.screenToSource(const Rect.fromLTWH(0, 20, 800, 480)),
+      fit.screenToSource(const Rect.fromLTWH(0, 247.5, 800, 480)),
       content,
     );
   });

@@ -291,8 +291,12 @@ class ReferenceInputLayoutCoordinator {
     double contentOffset = 0,
     BoxFit fit = BoxFit.cover,
   }) {
-    final frame = window.presentationCoordinateRect;
-    final content = window.contentCoordinateRect;
+    // The same rectangle the texture is fitted into: an in-bundle Flutter app
+    // is laid out from its geometry, a client surface from its surface.
+    final frame = window.contentFitRect;
+    final content = window.isLocalFlutter
+        ? window.contentFitRect
+        : window.contentCoordinateRect;
     if (frame.isEmpty || content.isEmpty) {
       return const <InputWindowRegion>[];
     }

@@ -366,6 +366,21 @@ class DenialWindow {
       ? Rect.fromLTWH(surfaceX, surfaceY, surfaceWidth, surfaceHeight)
       : contentCoordinateRect;
 
+  /// The rectangle the shell fits this window's content into, in its own
+  /// coordinates. The texture and the native input route both resolve their
+  /// scale and offset from it, so they cannot disagree about where a window
+  /// lands or which client pixel a touch means.
+  ///
+  /// An in-bundle Flutter app is laid out from its geometry; a client surface
+  /// from the surface the compositor reports.
+  Rect get contentFitRect {
+    final geometry = this.geometry;
+    if (isLocalFlutter && geometry != null && !geometry.isEmpty) {
+      return geometry;
+    }
+    return presentationCoordinateRect;
+  }
+
   double get nativeInsetTop =>
       (contentCoordinateRect.top - presentationCoordinateRect.top)
           .clamp(0.0, presentationCoordinateRect.height)

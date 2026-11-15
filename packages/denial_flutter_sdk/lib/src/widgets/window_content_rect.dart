@@ -10,6 +10,7 @@ import 'package:denial_flutter_sdk/effects.dart';
 import '../theme/shell_theme.dart';
 
 import 'window_backdrop_cache.dart';
+import 'window_surface_fit.dart';
 import 'window_texture_rect.dart';
 
 /// Presents either compositor texture content or an in-bundle Flutter app.
@@ -64,7 +65,7 @@ class WindowContentRect extends ConsumerWidget {
     final cache = translucent ? WindowBackdropCache.maybeOf(context) : null;
     Widget content = FittedBox(
       fit: fit,
-      alignment: Alignment.topCenter,
+      alignment: WindowSurfaceFit.alignmentFor(fit),
       child: SizedBox.fromSize(
         size: layoutSize,
         child: MediaQuery(
@@ -102,13 +103,12 @@ class WindowContentRect extends ConsumerWidget {
   }
 }
 
+/// The size an in-bundle app is laid out at: the same rectangle the input
+/// route uses, so a split pane cannot paint at one size and hit at another.
 Size _localLayoutSize(DenialWindow window) {
-  final width = window.geometryWidth > 0
-      ? window.geometryWidth
-      : window.width.toDouble();
-  final height = window.geometryHeight > 0
-      ? window.geometryHeight
-      : window.height.toDouble();
+  final rect = window.contentFitRect;
+  final width = rect.width > 0 ? rect.width : window.width.toDouble();
+  final height = rect.height > 0 ? rect.height : window.height.toDouble();
   return Size(
     width.clamp(64.0, 16384.0).toDouble(),
     height.clamp(64.0, 16384.0).toDouble(),

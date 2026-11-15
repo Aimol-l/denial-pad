@@ -160,6 +160,18 @@ for entry in \
     fi
 done
 
+# Android apps live behind droidloom, which starts beside the compositor and
+# exits when its Wayland socket is not up yet. Its unit only allows five
+# one-second restarts, so a slower boot left it dead and every Android app
+# unlaunchable. A user drop-in waits for the socket first.
+if remote 'test -e /usr/lib/systemd/user/droidloom.service' >/dev/null 2>&1; then
+    remote 'mkdir -p ~/.config/systemd/user/droidloom.service.d' >/dev/null
+    scp "${scp_args[@]}" "$ROOT/tools/droidloom-wait-for-compositor.conf" \
+        "$HOST:.config/systemd/user/droidloom.service.d/wait-for-compositor.conf" >/dev/null
+    remote 'systemctl --user daemon-reload || true' >/dev/null
+    printf '    droidloom waits for the compositor socket\n'
+fi
+
 # The font is the part a bare libapp.so copy used to miss; check it landed.
 if [[ -n "$want_font" ]]; then
     got_font="$(remote "md5sum /usr/lib/denial/flutter/data/flutter_assets/fonts/MaterialIcons-Regular.otf" |
