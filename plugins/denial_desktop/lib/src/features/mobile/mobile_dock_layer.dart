@@ -206,6 +206,12 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
   bool _reorderMoved = false;
   bool _pointerOverDock = false;
   bool _removeArmed = false;
+
+  /// Where an icon dragged in from the desktop would land, and whether the
+  /// finger is over the dock at all. Kept apart from a lifted icon's own
+  /// reorder so the two previews never fight.
+  bool _draggingOverDock = false;
+  int? _dropPreviewIndex;
   Timer? _removeArmTimer;
 
   /// How long the finger must stay outside the dock before a drop removes
@@ -244,7 +250,19 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
   }
 
   void _pointerChanged() {
-    if (mounted) setState(() {});
+    if (!mounted) return;
+    final drag = _drag?.drag.value;
+    final over =
+        drag != null &&
+        drag.landing == null &&
+        drag.item.isApp &&
+        _overDock(_drag!.pointer.value);
+    final index = over ? _dockInsertIndex(_drag!.pointer.value) : null;
+    if (over == _draggingOverDock && index == _dropPreviewIndex) return;
+    setState(() {
+      _draggingOverDock = over;
+      _dropPreviewIndex = index;
+    });
   }
 
   void _dragChanged() {
@@ -254,14 +272,31 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
         current.landing != null &&
         !wasLanding &&
         current.item.isApp &&
-        _overDock(_drag!.pointer.value)) {
-      unawaited(
-        _takeFromDesktop(current.item, _dockInsertIndex(_drag!.pointer.value)),
-      );
+        _dropPreviewIndex != null) {
+      final index = _dropPreviewIndex!;
+      // Close the gap before the entry is written: otherwise the preview
+      // slot and the new icon sit in the dock together for a moment.
+      setState(() {
+        _draggingOverDock = false;
+        _dropPreviewIndex = null;
+      });
+      unawaited(_takeFromDesktop(current.item, index));
       ref.read(hapticsServiceProvider).pulse();
     }
     _lastDrag = current;
-    if (mounted) setState(() {});
+    if (current != null) {
+      // The preview follows the pointer notifier; this callback runs for
+      // every drag update and must not rebuild the dock each frame.
+      return;
+    }
+    // The drag is over. The pointer notifier may never report again, so the
+    // slot preview is cleared here rather than waiting for it.
+    if (!_draggingOverDock && _dropPreviewIndex == null) return;
+    if (!mounted) return;
+    setState(() {
+      _draggingOverDock = false;
+      _dropPreviewIndex = null;
+    });
   }
 
   bool _overDock(Offset pointer) {
@@ -502,17 +537,17 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
     final theme = ShellTheme.of(context);
     final radius = theme.scaledRadius(24);
     final accent = theme.accentPalette.primary;
-    final draggingOver =
-        _drag?.drag.value != null &&
-        _drag!.drag.value!.landing == null &&
-        _drag!.drag.value!.item.isApp &&
-        _overDock(_drag!.pointer.value);
     // A lifted icon is painted above the dock, so its slot is left empty and
     // the row itself never takes the red outline meant for a removal drop.
-    final lifting = _dragItem != null;
+    // A drag in from the desktop previews its slot the same way.
+    final preview = _dragItem == null ? _dropPreviewIndex : null;
+    final insertSlot = _dragItem != null ? _dragIndex : preview;
+    final lifting = insertSlot != null;
     final outline = _removeArmed
         ? const Color(0xFFB0443F)
-        : (draggingOver || lifting ? accent : context.shellColors.hairlineSoft);
+        : (lifting || _draggingOverDock
+              ? accent
+              : context.shellColors.hairlineSoft);
 
     Widget entry(HomeGridItem item, {required bool pinned}) {
       final running = _windowFor(item, windows, launcher);
@@ -554,7 +589,7 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
               blurRadius: 34,
               offset: Offset(0, 14),
             ),
-            if (draggingOver || lifting)
+            if (lifting || _draggingOverDock)
               BoxShadow(
                 color: outline.withValues(alpha: 0.30),
                 blurRadius: 26,
@@ -576,14 +611,14 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
               // that can show where it will land.
               SizedBox(
                 key: _laneKey,
-                width: pinned.length * _dockCell,
+                width: (pinned.length + (preview != null ? 1 : 0)) * _dockCell,
                 height: 74,
                 child: Stack(
                   clipBehavior: Clip.none,
                   children: [
-                    if (lifting)
+                    if (insertSlot != null)
                       AnimatedPositioned(
-                        left: _dragIndex * _dockCell,
+                        left: insertSlot * _dockCell,
                         top: 7,
                         width: _dockCell,
                         height: 60,
@@ -605,7 +640,12 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
                     for (final (index, item) in pinned.indexed)
                       AnimatedPositioned(
                         key: ValueKey<String>('dock-slot-${item.id}'),
-                        left: index * _dockCell,
+                        // An incoming icon opens a gap at its slot.
+                        left:
+                            (preview != null && index >= preview
+                                ? index + 1
+                                : index) *
+                            _dockCell,
                         top: 0,
                         width: _dockCell,
                         height: 74,
@@ -1333,121 +1373,130 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
             child: FractionallySizedBox(
               widthFactor: 0.84,
               heightFactor: 0.76,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: theme.cardColor(context.shellColors.panelBackground),
-                  borderRadius: BorderRadius.circular(theme.scaledRadius(18)),
-                  border: Border.all(color: context.shellColors.hairlineSoft),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x66000000),
-                      blurRadius: 40,
-                      offset: Offset(0, 18),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(child: _searchField(context)),
-                          const SizedBox(width: 18),
-                          Text(
-                            searching ? l10n.dockSearchApps : l10n.dockAllApps,
-                            style: TextStyle(
-                              color: context.shellColors.panelText,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w600,
-                              height: 1.1,
-                            ),
-                          ),
-                          GestureDetector(
-                            behavior: HitTestBehavior.opaque,
-                            onTap: widget.onClose,
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
-                              child: Icon(
-                                Icons.close_rounded,
-                                size: 22,
-                                color: context.shellColors.textTertiary,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (!searching && visibleGroups.isNotEmpty) ...[
-                        const SizedBox(height: 14),
-                        _groupTabs(context, visibleGroups, page),
-                      ],
-                      const SizedBox(height: 12),
-                      Expanded(
-                        child: PageView.builder(
-                          controller: _pageController,
-                          onPageChanged: (index) =>
-                              setState(() => _page = index),
-                          itemCount: pageCount,
-                          itemBuilder: (context, index) {
-                            if (visibleGroups.isEmpty) {
-                              return _emptyState(context);
-                            }
-                            return _AppsGrid(
-                              items: visibleGroups[index] == 'all'
-                                  ? items
-                                  : groups[visibleGroups[index]]!,
-                              onLaunch: widget.onLaunch,
-                              onLongPress: _showMenu,
-                            );
-                          },
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(top: 6),
-                        child: Row(
-                          children: [
-                            if (!searching && visibleGroups.length > 1)
-                              Text(
-                                '←  滑动切换分组  →',
-                                style: TextStyle(
-                                  color: context.shellColors.textTertiary,
-                                  fontSize: 11.5,
-                                ),
-                              ),
-                            const Spacer(),
-                            if (!searching && visibleGroups.length > 1)
-                              Row(
-                                children: [
-                                  for (
-                                    var index = 0;
-                                    index < visibleGroups.length;
-                                    index += 1
-                                  )
-                                    AnimatedContainer(
-                                      duration:
-                                          MediaQuery.disableAnimationsOf(
-                                            context,
-                                          )
-                                          ? Duration.zero
-                                          : const Duration(milliseconds: 180),
-                                      margin: const EdgeInsets.only(left: 6),
-                                      width: index == page ? 18 : 6,
-                                      height: 6,
-                                      decoration: BoxDecoration(
-                                        color: index == page
-                                            ? theme.accent
-                                            : context.shellColors.textTertiary
-                                                  .withAlpha(70),
-                                        borderRadius: BorderRadius.circular(3),
-                                      ),
-                                    ),
-                                ],
-                              ),
-                          ],
-                        ),
+              child: ShellBackdropBlur(
+                separateChild: true,
+                blur: theme.effectivePanelOpacity < 1.0,
+                borderRadius: BorderRadius.circular(theme.scaledRadius(18)),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: theme.cardColor(context.shellColors.panelBackground),
+                    borderRadius: BorderRadius.circular(theme.scaledRadius(18)),
+                    border: Border.all(color: context.shellColors.hairlineSoft),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x66000000),
+                        blurRadius: 40,
+                        offset: Offset(0, 18),
                       ),
                     ],
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: _searchField(context)),
+                            const SizedBox(width: 18),
+                            Text(
+                              searching
+                                  ? l10n.dockSearchApps
+                                  : l10n.dockAllApps,
+                              style: TextStyle(
+                                color: context.shellColors.panelText,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w600,
+                                height: 1.1,
+                              ),
+                            ),
+                            GestureDetector(
+                              behavior: HitTestBehavior.opaque,
+                              onTap: widget.onClose,
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
+                                child: Icon(
+                                  Icons.close_rounded,
+                                  size: 22,
+                                  color: context.shellColors.textTertiary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (!searching && visibleGroups.isNotEmpty) ...[
+                          const SizedBox(height: 14),
+                          _groupTabs(context, visibleGroups, page),
+                        ],
+                        const SizedBox(height: 12),
+                        Expanded(
+                          child: PageView.builder(
+                            controller: _pageController,
+                            onPageChanged: (index) =>
+                                setState(() => _page = index),
+                            itemCount: pageCount,
+                            itemBuilder: (context, index) {
+                              if (visibleGroups.isEmpty) {
+                                return _emptyState(context);
+                              }
+                              return _AppsGrid(
+                                items: visibleGroups[index] == 'all'
+                                    ? items
+                                    : groups[visibleGroups[index]]!,
+                                onLaunch: widget.onLaunch,
+                                onLongPress: _showMenu,
+                              );
+                            },
+                          ),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Row(
+                            children: [
+                              if (!searching && visibleGroups.length > 1)
+                                Text(
+                                  '←  滑动切换分组  →',
+                                  style: TextStyle(
+                                    color: context.shellColors.textTertiary,
+                                    fontSize: 11.5,
+                                  ),
+                                ),
+                              const Spacer(),
+                              if (!searching && visibleGroups.length > 1)
+                                Row(
+                                  children: [
+                                    for (
+                                      var index = 0;
+                                      index < visibleGroups.length;
+                                      index += 1
+                                    )
+                                      AnimatedContainer(
+                                        duration:
+                                            MediaQuery.disableAnimationsOf(
+                                              context,
+                                            )
+                                            ? Duration.zero
+                                            : const Duration(milliseconds: 180),
+                                        margin: const EdgeInsets.only(left: 6),
+                                        width: index == page ? 18 : 6,
+                                        height: 6,
+                                        decoration: BoxDecoration(
+                                          color: index == page
+                                              ? theme.accent
+                                              : context.shellColors.textTertiary
+                                                    .withAlpha(70),
+                                          borderRadius: BorderRadius.circular(
+                                            3,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
