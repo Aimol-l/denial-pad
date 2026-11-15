@@ -786,6 +786,9 @@ class AppLocalizationsEn extends AppLocalizations {
   String get dockAllApps => 'All apps';
 
   @override
+  String get dockMoveToDesktop => 'Release to move to desktop';
+
+  @override
   String get dockNoApplications => 'No applications to show';
 
   @override

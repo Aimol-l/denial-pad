@@ -217,21 +217,28 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
     _desktopRefreshInFlight = true;
     try {
       final repository = ref.read(desktopAppsRepositoryProvider);
-      final apps = await _loadApplications(repository, reason: reason);
+      final current = state.asData?.value;
+      if (current == null) {
+        return;
+      }
+      final localApps = ref
+          .read(localFlutterApplicationRegistryProvider)
+          .applications;
+      // An icon entering or leaving the desktop folder changes the grid, not
+      // the catalog of installed apps. Rescanning every .desktop entry for
+      // that cost seconds, so a moved icon lingered on screen.
+      final shortcutsOnly = reason == 'shortcuts';
+      final apps = shortcutsOnly
+          ? null
+          : await _loadApplications(repository, reason: reason);
       final shortcuts = await _loadShortcuts(repository);
       if (!_isBuildActive(generation)) {
         return;
       }
       _lastDesktopRefresh = DateTime.now();
-      final current = state.asData?.value;
-      if (current == null) {
-        return;
-      }
-
-      final localApps = ref
-          .read(localFlutterApplicationRegistryProvider)
-          .applications;
-      final catalog = HomeGridLayout.catalogItems(apps, localApps);
+      final catalog = apps == null
+          ? current.catalog
+          : HomeGridLayout.catalogItems(apps, localApps);
       final slots = HomeGridLayout.refreshSlotsForApps(
         current.slots,
         shortcuts,
@@ -348,11 +355,12 @@ class HomeGridController extends AsyncNotifier<HomeGridState> {
   bool _isBuildActive(int generation) =>
       ref.mounted && generation == _buildGeneration;
 
+  /// Runs on this isolate: the repository keeps its icon index and resolved
+  /// icons, so re-reading a folder after an icon enters or leaves it costs a
+  /// few file reads instead of rescanning every icon theme. An isolate copy
+  /// would throw that cache away each time and make the grid lag seconds.
   Future<List<DesktopApp>> _loadShortcuts(DesktopAppsRepository repository) {
-    return Isolate.run(
-      repository.loadDesktopShortcuts,
-      debugName: 'denia-launcher-shortcuts',
-    );
+    return repository.loadDesktopShortcuts();
   }
 
   Future<List<DesktopApp>> _loadApplications(

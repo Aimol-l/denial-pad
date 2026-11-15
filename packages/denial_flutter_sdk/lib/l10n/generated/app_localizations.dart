@@ -1466,6 +1466,12 @@ abstract class AppLocalizations {
   /// **'All apps'**
   String get dockAllApps;
 
+  /// Shown above the dock while a lifted icon is held outside it long enough to be moved to the desktop.
+  ///
+  /// In en, this message translates to:
+  /// **'Release to move to desktop'**
+  String get dockMoveToDesktop;
+
   /// All-apps drawer empty state.
   ///
   /// In en, this message translates to:

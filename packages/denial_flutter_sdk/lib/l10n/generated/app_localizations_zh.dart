@@ -762,6 +762,9 @@ class AppLocalizationsZh extends AppLocalizations {
   String get dockAllApps => '全部应用';
 
   @override
+  String get dockMoveToDesktop => '松开，移到桌面';
+
+  @override
   String get dockNoApplications => '还没有可显示的应用';
 
   @override

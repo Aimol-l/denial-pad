@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -82,6 +82,71 @@ class DockPinnedController extends AsyncNotifier<List<String>> {
     await _save(next);
   }
 
+  /// Moves a pinned app onto the desktop: the dock entry goes away and a
+  /// shortcut for the same entry appears in the desktop folder, unless the
+  /// folder already points at it.
+  Future<void> moveToDesktop(String id, String? desktopEntry) async {
+    // Place the shortcut first: if the folder refuses it, the app must stay
+    // reachable in the dock instead of vanishing from both.
+    if (desktopEntry != null && desktopEntry.isNotEmpty) {
+      final desktop = Directory(
+        ref.read(runtimePathsProvider).desktopDirectory,
+      );
+      try {
+        if (!await _desktopHasEntry(desktop, desktopEntry)) {
+          await desktop.create(recursive: true);
+          await Link(p.join(desktop.path, p.basename(desktopEntry)))
+              .create(desktopEntry);
+        }
+      } on FileSystemException {
+        return;
+      }
+    }
+    await remove(id);
+  }
+
+  /// Adds an app at [index] instead of the end, for a drop between icons.
+  Future<void> insertAt(String id, int index) async {
+    final current = state.value ?? defaults;
+    if (current.contains(id)) return;
+    final next = [...current];
+    next.insert(index.clamp(0, next.length), id);
+    state = AsyncData(next);
+    await _save(next);
+  }
+
+  /// Pins an app dragged out of the desktop folder. Its shortcut leaves the
+  /// folder, so the icon moves into the dock instead of being copied.
+  Future<void> pinFromDesktop(HomeGridItem item, {int? index}) async {
+    await (index == null ? add(item.id) : insertAt(item.id, index));
+    final entry = item.app?.desktopPath;
+    if (entry == null || entry.isEmpty) return;
+    final desktop = ref.read(runtimePathsProvider).desktopDirectory;
+    if (p.dirname(entry) != desktop) return;
+    try {
+      await File(entry).delete();
+    } on FileSystemException {
+      // The pin already landed; removing the shortcut is best effort.
+    }
+  }
+
+  Future<bool> _desktopHasEntry(Directory desktop, String entry) async {
+    if (!await desktop.exists()) return false;
+    await for (final entity in desktop.list(followLinks: false)) {
+      if (!entity.path.toLowerCase().endsWith('.desktop')) continue;
+      if (entity is Link) {
+        try {
+          if (await entity.resolveSymbolicLinks() == entry) return true;
+        } on FileSystemException {
+          continue;
+        }
+      } else if (p.equals(entity.path, entry)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   /// Saves a new order for the pinned apps. The set must be the same, so a
   /// stale drag can never drop or invent an app.
   Future<void> reorder(List<String> ids) async {
@@ -118,6 +183,7 @@ class MobileDockLayer extends ConsumerStatefulWidget {
 
 class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
   final _dockKey = GlobalKey();
+  final _laneKey = GlobalKey();
   HomeDragController? _drag;
   HomeDrag? _lastDrag;
   bool _drawerOpen = false;
@@ -132,13 +198,25 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
   /// icon keeps following it after the order moves under the finger.
   double _dragAnchorX = 0;
 
-  /// Follows the finger every frame; only the dragged icon listens, so the
-  /// dock's glass does not rebuild while it moves.
-  final ValueNotifier<double> _dragDx = ValueNotifier<double>(0);
+  /// The lifted icon's position, so it can be painted above the dock and
+  /// outside the glass clip. Only the floating tile listens to it.
+  final ValueNotifier<Offset> _dragPosition = ValueNotifier<Offset>(
+    Offset.zero,
+  );
   bool _reorderMoved = false;
+  bool _pointerOverDock = false;
+  bool _removeArmed = false;
+  Timer? _removeArmTimer;
+
+  /// How long the finger must stay outside the dock before a drop removes
+  /// the app instead of cancelling.
+  static const Duration _removeArmDelay = Duration(milliseconds: 300);
 
   /// One dock cell, the width of [_DockButton].
   static const double _dockCell = 66;
+
+  /// How long an icon takes to slide into a new slot.
+  static const Duration _dockSlide = Duration(milliseconds: 180);
 
   @override
   void didChangeDependencies() {
@@ -154,7 +232,8 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
   @override
   void dispose() {
     _detachDrag();
-    _dragDx.dispose();
+    _removeArmTimer?.cancel();
+    _dragPosition.dispose();
     super.dispose();
   }
 
@@ -176,7 +255,9 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
         !wasLanding &&
         current.item.isApp &&
         _overDock(_drag!.pointer.value)) {
-      unawaited(ref.read(dockPinnedProvider.notifier).add(current.item.id));
+      unawaited(
+        _takeFromDesktop(current.item, _dockInsertIndex(_drag!.pointer.value)),
+      );
       ref.read(hapticsServiceProvider).pulse();
     }
     _lastDrag = current;
@@ -202,14 +283,29 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
       _dragIndex = index;
       _dragAnchorX = global.dx;
       _reorderMoved = false;
+      _pointerOverDock = true;
+      _removeArmed = false;
     });
-    _dragDx.value = 0;
+    _dragPosition.value = global;
     ref.read(hapticsServiceProvider).pulse();
   }
 
   void _moveDockDrag(Offset global) {
     final order = _reorder;
     if (order == null) return;
+    _dragPosition.value = global;
+    final overDock = _dockContains(global);
+    if (overDock != _pointerOverDock) {
+      setState(() => _pointerOverDock = overDock);
+      // Leaving the dock arms removal after a short hold; coming back
+      // disarms it, so a slip through the edge removes nothing.
+      if (overDock) {
+        _cancelRemoveArm();
+      } else {
+        _armRemoveLater();
+      }
+    }
+    if (!overDock) return;
     final steps = ((global.dx - _dragAnchorX) / _dockCell).round();
     if (steps != 0) {
       final target = (_dragIndex + steps).clamp(0, order.length - 1);
@@ -224,7 +320,59 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
         ref.read(hapticsServiceProvider).pulse();
       }
     }
-    _dragDx.value = global.dx - _dragAnchorX;
+  }
+
+  void _armRemoveLater() {
+    _removeArmTimer?.cancel();
+    _removeArmTimer = Timer(_removeArmDelay, () {
+      if (!mounted || _reorder == null || _pointerOverDock) return;
+      setState(() => _removeArmed = true);
+      ref.read(hapticsServiceProvider).pulse();
+    });
+  }
+
+  void _cancelRemoveArm() {
+    _removeArmTimer?.cancel();
+    _removeArmTimer = null;
+    if (_removeArmed) setState(() => _removeArmed = false);
+  }
+
+  /// Where a drop at [global] slots into the pinned row.
+  int _dockInsertIndex(Offset global) {
+    final saved =
+        ref.read(dockPinnedProvider).value ?? DockPinnedController.defaults;
+    final box = _laneKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return saved.length;
+    final localX = box.globalToLocal(global).dx;
+    return (localX / _dockCell).round().clamp(0, saved.length);
+  }
+
+  /// A move touches two folders at once; the watchers debounce, so ask the
+  /// launcher to rescan now instead of letting an icon linger for seconds.
+  Future<void> _refreshDesktop() async {
+    await ref
+        .read(homeGridControllerProvider.notifier)
+        .refreshDesktopApps(reason: 'shortcuts');
+  }
+
+  Future<void> _returnToDesktop(HomeGridItem item) async {
+    await ref
+        .read(dockPinnedProvider.notifier)
+        .moveToDesktop(item.id, item.app?.desktopPath);
+    await _refreshDesktop();
+  }
+
+  Future<void> _takeFromDesktop(HomeGridItem item, int index) async {
+    await ref
+        .read(dockPinnedProvider.notifier)
+        .pinFromDesktop(item, index: index);
+    await _refreshDesktop();
+  }
+
+  bool _dockContains(Offset global) {
+    final box = _dockKey.currentContext?.findRenderObject();
+    if (box is! RenderBox || !box.hasSize) return false;
+    return (box.localToGlobal(Offset.zero) & box.size).contains(global);
   }
 
   void _endDockDrag() {
@@ -232,24 +380,37 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
     if (order == null) return;
     final item = _dragItem;
     final moved = _reorderMoved;
+    final armed = _removeArmed;
+    final overDock = _pointerOverDock;
+    _removeArmTimer?.cancel();
+    _removeArmTimer = null;
     setState(() {
       _reorder = null;
       _dragItem = null;
       _dragIndex = 0;
       _dragAnchorX = 0;
       _reorderMoved = false;
+      _pointerOverDock = false;
+      _removeArmed = false;
     });
-    _dragDx.value = 0;
+    if (item == null) return;
+    if (armed) {
+      unawaited(_returnToDesktop(item));
+      return;
+    }
+    // Released outside without the hold: the drag is cancelled, as if the
+    // icon had never left its slot.
+    if (!overDock) return;
     if (moved) {
       unawaited(ref.read(dockPinnedProvider.notifier).reorder(order));
-    } else if (item != null) {
-      // A long press that never travelled still opens the menu. Wait for the
-      // frame that handles this pointer up: the new menu would otherwise be
-      // dismissed by the very release that opened it.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) _showDockMenu(item);
-      });
+      return;
     }
+    // A long press that never travelled still opens the menu. Wait for the
+    // frame that handles this pointer up: the new menu would otherwise be
+    // dismissed by the very release that opened it.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _showDockMenu(item);
+    });
   }
 
   void _showDockMenu(HomeGridItem item) {
@@ -346,23 +507,32 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
         _drag!.drag.value!.landing == null &&
         _drag!.drag.value!.item.isApp &&
         _overDock(_drag!.pointer.value);
+    // A lifted icon is painted above the dock, so its slot is left empty and
+    // the row itself never takes the red outline meant for a removal drop.
+    final lifting = _dragItem != null;
+    final outline = _removeArmed
+        ? const Color(0xFFB0443F)
+        : (draggingOver || lifting ? accent : context.shellColors.hairlineSoft);
 
     Widget entry(HomeGridItem item, {required bool pinned}) {
       final running = _windowFor(item, windows, launcher);
-      final dragging = pinned && _dragItem?.id == item.id;
-      return _DockButton(
-        // Keeps each icon's press state with the app when the row reorders.
-        key: ValueKey<String>(item.id),
-        item: item,
-        running: running != null,
-        active: running != null && running.objectId == foreground,
-        pinned: pinned,
-        dragging: dragging,
-        dragOffset: dragging ? _dragDx : null,
-        onDragStart: pinned ? (global) => _startDockDrag(item, global) : null,
-        onDragMove: pinned ? _moveDockDrag : null,
-        onDragEnd: pinned ? _endDockDrag : null,
-        onTap: (rect) => launchHomeApp(context, ref, item, rect),
+      final lifted = pinned && _dragItem?.id == item.id;
+      return Opacity(
+        // The floating tile already shows this app; the slot stays for the
+        // row's layout and for the insertion preview.
+        opacity: lifted ? 0 : 1,
+        child: _DockButton(
+          // Keeps each icon's press state with the app when the row reorders.
+          key: ValueKey<String>(item.id),
+          item: item,
+          running: running != null,
+          active: running != null && running.objectId == foreground,
+          pinned: pinned,
+          onDragStart: pinned ? (global) => _startDockDrag(item, global) : null,
+          onDragMove: pinned ? _moveDockDrag : null,
+          onDragEnd: pinned ? _endDockDrag : null,
+          onTap: (rect) => launchHomeApp(context, ref, item, rect),
+        ),
       );
     }
 
@@ -377,19 +547,16 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
         decoration: BoxDecoration(
           color: theme.cardColor(context.shellColors.panelBackground),
           borderRadius: BorderRadius.circular(radius),
-          border: Border.all(
-            color: draggingOver ? accent : context.shellColors.hairlineSoft,
-            width: draggingOver ? 2 : 1,
-          ),
+          border: Border.all(color: outline, width: lifting ? 2 : 1),
           boxShadow: [
             const BoxShadow(
               color: Color(0x66000000),
               blurRadius: 34,
               offset: Offset(0, 14),
             ),
-            if (draggingOver)
+            if (draggingOver || lifting)
               BoxShadow(
-                color: accent.withValues(alpha: 0.30),
+                color: outline.withValues(alpha: 0.30),
                 blurRadius: 26,
                 spreadRadius: 2,
               ),
@@ -404,11 +571,51 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
                 onPressed: () => setState(() => _drawerOpen = true),
               ),
               const _DockDivider(),
-              for (final item in pinned)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 9),
-                  child: entry(item, pinned: true),
+              // Fixed slots: each icon animates to its index, so the row
+              // slides and never jumps, and a lifted icon leaves a real gap
+              // that can show where it will land.
+              SizedBox(
+                key: _laneKey,
+                width: pinned.length * _dockCell,
+                height: 74,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    if (lifting)
+                      AnimatedPositioned(
+                        left: _dragIndex * _dockCell,
+                        top: 7,
+                        width: _dockCell,
+                        height: 60,
+                        duration: _dockSlide,
+                        curve: Curves.easeOutCubic,
+                        child: IgnorePointer(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: outline.withValues(alpha: 0.10),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: outline.withValues(alpha: 0.55),
+                                width: 1.6,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    for (final (index, item) in pinned.indexed)
+                      AnimatedPositioned(
+                        key: ValueKey<String>('dock-slot-${item.id}'),
+                        left: index * _dockCell,
+                        top: 0,
+                        width: _dockCell,
+                        height: 74,
+                        duration: _dockSlide,
+                        curve: Curves.easeOutCubic,
+                        child: entry(item, pinned: true),
+                      ),
+                  ],
                 ),
+              ),
               if (runningExtras.isNotEmpty) ...[
                 const _DockDivider(),
                 for (final item in runningExtras)
@@ -448,6 +655,85 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
               ),
             ),
           ),
+          // The lifted icon floats above the dock: inside it, the glass clip
+          // would cut it off the moment the finger leaves the bar.
+          if (_dragItem != null)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: ValueListenableBuilder<Offset>(
+                  valueListenable: _dragPosition,
+                  builder: (context, position, child) => Stack(
+                    children: [
+                      Positioned(
+                        left: position.dx - 33,
+                        top: position.dy - 33,
+                        child: child!,
+                      ),
+                    ],
+                  ),
+                  child: SizedBox(
+                    width: 66,
+                    height: 66,
+                    child: Center(
+                      child: Transform.scale(
+                        scale: 1.12,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [
+                              BoxShadow(
+                                color:
+                                    (_removeArmed
+                                            ? const Color(0xFFB0443F)
+                                            : accent)
+                                        .withValues(alpha: 0.42),
+                                blurRadius: 24,
+                                spreadRadius: 3,
+                              ),
+                            ],
+                          ),
+                          child: SizedBox.square(
+                            dimension: 54,
+                            child: LauncherIcon.of(_dragItem!),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          if (_removeArmed && visible)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 138,
+              child: IgnorePointer(
+                child: Center(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFB0443F),
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 9,
+                      ),
+                      child: Text(
+                        context.l10n.dockMoveToDesktop,
+                        style: const TextStyle(
+                          color: Color(0xFFF2F1EF),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.none,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (_drawerOpen && visible)
             Positioned.fill(
               child: _AllAppsDrawer(
@@ -565,8 +851,6 @@ class _DockButton extends StatefulWidget {
     required this.active,
     required this.pinned,
     required this.onTap,
-    this.dragging = false,
-    this.dragOffset,
     this.onDragStart,
     this.onDragMove,
     this.onDragEnd,
@@ -578,13 +862,6 @@ class _DockButton extends StatefulWidget {
   final bool pinned;
   final void Function(Rect iconRect) onTap;
 
-  /// The icon is picked up for reordering.
-  final bool dragging;
-
-  /// How far the dragged icon follows the finger, in logical pixels. Only the
-  /// dragged icon listens, so a moving finger repaints one tile rather than
-  /// the whole dock.
-  final ValueListenable<double>? dragOffset;
   final void Function(Offset global)? onDragStart;
   final void Function(Offset global)? onDragMove;
   final VoidCallback? onDragEnd;
@@ -605,25 +882,11 @@ class _DockButtonState extends State<_DockButton> {
     return box.localToGlobal(Offset.zero) & box.size;
   }
 
-  /// Wraps the tile so it follows the finger without rebuilding the row.
-  Widget _followDrag(Widget tile) {
-    final offset = widget.dragOffset;
-    if (!widget.dragging || offset == null) return tile;
-    return ValueListenableBuilder<double>(
-      valueListenable: offset,
-      builder: (context, dx, child) =>
-          Transform.translate(offset: Offset(dx, -6), child: child),
-      child: tile,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = ShellTheme.of(context);
     final accent = theme.accentPalette.primary;
-    final scale = widget.dragging
-        ? 1.12
-        : (_pressed ? 0.93 : (_hover ? 1.05 : 1.0));
+    final scale = _pressed ? 0.93 : (_hover ? 1.05 : 1.0);
     return Tooltip(
       // The dock owns the long press (it lifts the icon); a tooltip trigger
       // on the same gesture competes for it. Hover still shows the name.
@@ -661,34 +924,30 @@ class _DockButtonState extends State<_DockButton> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  _followDrag(
-                    AnimatedScale(
-                      scale: scale,
+                  AnimatedScale(
+                    scale: scale,
+                    duration: const Duration(milliseconds: 150),
+                    curve: Curves.easeOutCubic,
+                    child: AnimatedSlide(
+                      offset: _hover ? const Offset(0, -0.06) : Offset.zero,
                       duration: const Duration(milliseconds: 150),
                       curve: Curves.easeOutCubic,
-                      child: AnimatedSlide(
-                        offset: _hover ? const Offset(0, -0.06) : Offset.zero,
-                        duration: const Duration(milliseconds: 150),
-                        curve: Curves.easeOutCubic,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(16),
-                            boxShadow: widget.active || widget.dragging
-                                ? [
-                                    BoxShadow(
-                                      color: accent.withValues(
-                                        alpha: widget.dragging ? 0.42 : 0.30,
-                                      ),
-                                      blurRadius: widget.dragging ? 24 : 18,
-                                      spreadRadius: widget.dragging ? 3 : 1,
-                                    ),
-                                  ]
-                                : null,
-                          ),
-                          child: SizedBox.square(
-                            dimension: 54,
-                            child: LauncherIcon.of(widget.item),
-                          ),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: widget.active
+                              ? [
+                                  BoxShadow(
+                                    color: accent.withValues(alpha: 0.30),
+                                    blurRadius: 18,
+                                    spreadRadius: 1,
+                                  ),
+                                ]
+                              : null,
+                        ),
+                        child: SizedBox.square(
+                          dimension: 54,
+                          child: LauncherIcon.of(widget.item),
                         ),
                       ),
                     ),

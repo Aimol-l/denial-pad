@@ -227,6 +227,7 @@
   "appGroupSystem": "系统",
   "dockAddToDesktop": "添加到桌面",
   "dockAllApps": "全部应用",
+  "dockMoveToDesktop": "松开，移到桌面",
   "dockNoApplications": "还没有可显示的应用",
   "dockNoMatches": "没有匹配的应用",
   "dockSearchApps": "搜索应用",

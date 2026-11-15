@@ -1,0 +1,606 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Dock 拖动重排 — 交互原型</title>
+<style>
+  :root {
+    --page: #f7f6f3;
+    --raised: #ffffff;
+    --control: #eeece7;
+    --fg: #292825;
+    --fg2: #625f59;
+    --fg3: #8f8b83;
+    --hairline: rgba(98, 95, 89, 0.16);
+    --accent: #6b3f73;
+    --accent-soft: rgba(107, 63, 115, 0.12);
+    --danger: #b0443f;
+    --cell: 66px;
+    --radius: 24px;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: "Inter", "Noto Sans SC", system-ui, sans-serif;
+    color: var(--fg);
+    background: #1d1c1a;
+    overflow: hidden;
+  }
+
+  /* A tablet-shaped stage with a wallpaper, so the dock's glass has
+     something to blur. */
+  .stage {
+    position: relative;
+    width: min(100vw, 1600px);
+    height: min(100vh, 1000px);
+    margin: 0 auto;
+    overflow: hidden;
+    background:
+      radial-gradient(1200px 700px at 20% 10%, #cfe0e8 0%, rgba(207, 224, 232, 0) 60%),
+      radial-gradient(900px 600px at 85% 25%, #e9c7c0 0%, rgba(233, 199, 192, 0) 55%),
+      radial-gradient(1000px 800px at 60% 95%, #b9c9b0 0%, rgba(185, 201, 176, 0) 60%),
+      linear-gradient(160deg, #dfe7ea 0%, #efe6df 45%, #dfe3d6 100%);
+    user-select: none;
+    touch-action: none;
+  }
+
+  .clock {
+    position: absolute;
+    left: 56px;
+    top: 44px;
+    color: #2b2a28;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+  }
+  .clock .time { font-size: 76px; font-weight: 200; letter-spacing: -2px; line-height: 1; }
+  .clock .date { margin-top: 8px; font-size: 15px; font-weight: 600; opacity: 0.75; }
+
+  .desktop {
+    position: absolute;
+    inset: 0 0 150px 0;
+    /* Clear the clock: the grid starts under it, not through it. */
+    padding: 200px 48px 0;
+  }
+  .desktop-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, 96px);
+    gap: 18px 8px;
+    align-content: start;
+  }
+  .desktop-icon {
+    width: 96px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    cursor: default;
+  }
+  .desktop-icon .label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #2b2a28;
+    text-shadow: 0 1px 3px rgba(255, 255, 255, 0.6);
+    max-width: 92px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .tile {
+    width: 54px;
+    height: 54px;
+    border-radius: 16px;
+    display: grid;
+    place-items: center;
+    font-size: 26px;
+    box-shadow: 0 2px 8px rgba(20, 18, 16, 0.18);
+    background: var(--raised);
+    flex: none;
+  }
+
+  .tile.firefox { background: linear-gradient(180deg, #ffd8a8, #ff9f43); }
+  .tile.weread  { background: linear-gradient(180deg, #cfe6ff, #3f8cf0); }
+  .tile.netease { background: linear-gradient(180deg, #ff8a80, #d7261e); }
+  .tile.flomo   { background: linear-gradient(180deg, #f3eeff, #cbbcf5); }
+  .tile.settings{ background: linear-gradient(180deg, #f2f1ef, #cfccc4); }
+  .tile.files   { background: linear-gradient(180deg, #bfe3ff, #5aa9e6); }
+
+  /* Dock ------------------------------------------------------------------ */
+  .dock {
+    position: absolute;
+    left: 50%;
+    bottom: 22px;
+    transform: translateX(-50%);
+    height: 92px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0 12px;
+    border-radius: var(--radius);
+    background: rgba(255, 255, 255, 0.34);
+    backdrop-filter: blur(26px) saturate(1.5);
+    -webkit-backdrop-filter: blur(26px) saturate(1.5);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    box-shadow: 0 14px 34px rgba(20, 18, 16, 0.28);
+    transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  }
+  .dock.remove-armed {
+    border-color: rgba(176, 68, 63, 0.85);
+    background: rgba(255, 240, 238, 0.42);
+    box-shadow: 0 14px 34px rgba(20, 18, 16, 0.28), 0 0 0 2px rgba(176, 68, 63, 0.25);
+  }
+  .dock.hover {
+    border-color: var(--accent);
+    box-shadow: 0 14px 34px rgba(20, 18, 16, 0.28), 0 0 22px rgba(107, 63, 115, 0.35);
+  }
+
+  .all-apps {
+    width: 62px;
+    height: 62px;
+    border: 0;
+    border-radius: 16px;
+    background: transparent;
+    font-size: 24px;
+    color: var(--fg);
+    display: grid;
+    place-items: center;
+    cursor: default;
+  }
+
+  .divider { width: 1px; height: 34px; margin: 0 6px; background: rgba(98, 95, 89, 0.22); }
+
+  /* Pinned icons live in one absolutely positioned lane so a leaving slot
+     slides instead of the whole row jumping. */
+  .lane { position: relative; height: 74px; }
+
+  .dock-icon {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: var(--cell);
+    height: 74px;
+    display: grid;
+    place-items: center;
+    transition: transform 190ms cubic-bezier(0.22, 0.9, 0.28, 1);
+    will-change: transform;
+  }
+  .dock-icon .tile { transition: transform 140ms ease, box-shadow 140ms ease; }
+  .dock-icon.pressed .tile {
+    transform: scale(1.12) translateY(-6px);
+    box-shadow: 0 10px 22px rgba(20, 18, 16, 0.32), 0 0 16px rgba(107, 63, 115, 0.4);
+  }
+  .dock-icon.hidden { opacity: 0; pointer-events: none; }
+
+  .slot-hint {
+    position: absolute;
+    top: 50%;
+    width: var(--cell);
+    height: 60px;
+    margin-top: -30px;
+    border-radius: 16px;
+    border: 2px dashed rgba(107, 63, 115, 0.55);
+    background: rgba(107, 63, 115, 0.08);
+    transition: transform 190ms cubic-bezier(0.22, 0.9, 0.28, 1), opacity 120ms;
+    opacity: 0;
+  }
+  .slot-hint.on { opacity: 1; }
+  .slot-hint.remove {
+    border-color: rgba(176, 68, 63, 0.7);
+    background: rgba(176, 68, 63, 0.08);
+  }
+
+  /* The icon under the finger. */
+  .ghost {
+    position: fixed;
+    z-index: 40;
+    width: 66px;
+    height: 66px;
+    display: grid;
+    place-items: center;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1);
+    transition: opacity 120ms ease;
+  }
+  .ghost.on { opacity: 1; }
+  .ghost .tile {
+    transform: scale(1.16);
+    box-shadow: 0 16px 30px rgba(20, 18, 16, 0.32), 0 0 22px rgba(107, 63, 115, 0.4);
+  }
+  .ghost.removing .tile {
+    transform: scale(1.1);
+    box-shadow: 0 16px 30px rgba(20, 18, 16, 0.32), 0 0 0 2px rgba(176, 68, 63, 0.7);
+    filter: saturate(0.6);
+  }
+
+  /* Cancel / remove hint floating above the dock. */
+  .banner {
+    position: absolute;
+    left: 50%;
+    bottom: 132px;
+    transform: translate(-50%, 8px);
+    padding: 9px 16px;
+    border-radius: 999px;
+    background: rgba(41, 40, 37, 0.86);
+    color: #f2f1ef;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    opacity: 0;
+    transition: opacity 140ms ease, transform 140ms ease;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .banner.on { opacity: 1; transform: translate(-50%, 0); }
+  .banner.remove { background: rgba(176, 68, 63, 0.94); }
+
+  /* Onboarding card ------------------------------------------------------- */
+  .notes {
+    position: absolute;
+    right: 24px;
+    top: 24px;
+    width: 320px;
+    padding: 16px 18px;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.62);
+    backdrop-filter: blur(20px) saturate(1.4);
+    -webkit-backdrop-filter: blur(20px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 10px 26px rgba(20, 18, 16, 0.16);
+    font-size: 12.5px;
+    line-height: 1.65;
+    color: var(--fg2);
+  }
+  .notes h1 { margin: 0 0 6px; font-size: 14px; color: var(--fg); letter-spacing: 0.2px; }
+  .notes b { color: var(--fg); font-weight: 650; }
+  .notes ul { margin: 8px 0 0; padding-left: 16px; }
+  .notes li { margin: 3px 0; }
+  .notes .order {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px dashed rgba(98, 95, 89, 0.25);
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 11px;
+    color: var(--fg3);
+    word-break: break-all;
+  }
+  .notes button {
+    margin-top: 10px;
+    border: 1px solid var(--hairline);
+    background: var(--raised);
+    color: var(--fg);
+    font: inherit;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+  .notes button:hover { background: var(--control); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="clock">
+    <div class="time">09:41</div>
+    <div class="date">11 月 15 日 星期日</div>
+  </div>
+
+  <div class="desktop">
+    <div class="desktop-grid" id="desktopGrid"></div>
+  </div>
+
+  <div class="banner" id="banner"></div>
+
+  <div class="dock" id="dock">
+    <button class="all-apps" aria-label="全部应用">&#9650;</button>
+    <div class="divider"></div>
+    <div class="lane" id="lane">
+      <div class="slot-hint" id="slotHint"></div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <h1>Dock 拖动重排 · 原型</h1>
+    <ul>
+      <li><b>长按 0.45 秒</b>拾起图标，它离开 Dock、跟着手指</li>
+      <li>在 Dock 内移动：虚线框标出将插入的位置，两侧图标让位</li>
+      <li><b>拖出 Dock</b>：整条 Dock 变红并提示「松开移到桌面」</li>
+      <li>松手：Dock 内插入 / Dock 外移到桌面；没移动就松手 = 打开菜单</li>
+      <li>拖出后在桌面松手：图标从 Dock 移到桌面（本轮先排到桌面末尾，落点吸附后面再定）</li>
+    </ul>
+    <div class="order" id="orderLine"></div>
+    <button id="reset">重置</button>
+  </div>
+</div>
+<div class="ghost" id="ghost"><div class="tile" id="ghostTile"></div></div>
+
+<script>
+(() => {
+  const CELL = 66;
+  const LONG_PRESS_MS = 450;
+  const DRAG_SLOP = 8;
+
+  const catalog = {
+    firefox:  { emoji: '🦊', label: 'Firefox' },
+    weread:   { emoji: '📖', label: '微信读书' },
+    netease:  { emoji: '🎵', label: '网易云音乐' },
+    flomo:    { emoji: '🐱', label: 'Fushi' },
+    settings: { emoji: '⚙️', label: '设置' },
+    files:    { emoji: '📁', label: '文件' },
+  };
+
+  const initial = {
+    dock: ['firefox', 'weread', 'netease', 'flomo', 'settings'],
+    desktop: ['files'],
+  };
+
+  let state = structuredClone(initial);
+
+  const stage = document.getElementById('stage');
+  const dock = document.getElementById('dock');
+  const lane = document.getElementById('lane');
+  const hint = document.getElementById('slotHint');
+  const ghost = document.getElementById('ghost');
+  const ghostTile = document.getElementById('ghostTile');
+  const banner = document.getElementById('banner');
+  const grid = document.getElementById('desktopGrid');
+  const orderLine = document.getElementById('orderLine');
+
+  let drag = null; // { id, fromIndex, pointerId, startX, startY, active, insertIndex, removing }
+
+  function tileOf(id) {
+    const tile = document.createElement('div');
+    tile.className = 'tile ' + id;
+    tile.textContent = catalog[id].emoji;
+    return tile;
+  }
+
+  function renderDesktop() {
+    grid.innerHTML = '';
+    for (const id of state.desktop) {
+      const wrap = document.createElement('div');
+      wrap.className = 'desktop-icon';
+      wrap.appendChild(tileOf(id));
+      const label = document.createElement('div');
+      label.className = 'label';
+      label.textContent = catalog[id].label;
+      wrap.appendChild(label);
+      grid.appendChild(wrap);
+    }
+  }
+
+  function renderDock() {
+    lane.innerHTML = '';
+    lane.appendChild(hint);
+    lane.style.width = state.dock.length * CELL + 'px';
+    state.dock.forEach((id, index) => {
+      const cell = document.createElement('div');
+      cell.className = 'dock-icon';
+      cell.dataset.id = id;
+      cell.style.transform = `translateX(${index * CELL}px)`;
+      cell.appendChild(tileOf(id));
+      cell.addEventListener('pointerdown', (event) => onPointerDown(event, id, index, cell));
+      lane.appendChild(cell);
+    });
+    hint.classList.remove('on', 'remove');
+    orderLine.textContent = 'dock: ' + state.dock.join(' → ');
+  }
+
+  function layoutDock(excludeId, insertIndex) {
+    let slot = 0;
+    const cells = [...lane.querySelectorAll('.dock-icon')];
+    for (const cell of cells) {
+      const id = cell.dataset.id;
+      if (id === excludeId) {
+        cell.classList.add('hidden');
+        continue;
+      }
+      if (slot === insertIndex) slot += 1;
+      cell.style.transform = `translateX(${slot * CELL}px)`;
+      slot += 1;
+    }
+    if (insertIndex == null) {
+      hint.classList.remove('on');
+      return;
+    }
+    hint.style.transform = `translateX(${insertIndex * CELL}px)`;
+    hint.classList.add('on');
+  }
+
+  function onPointerDown(event, id, index, cell) {
+    if (event.button != null && event.button !== 0) return;
+    event.preventDefault();
+    const pointerId = event.pointerId;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    let timer = setTimeout(() => begin(), LONG_PRESS_MS);
+    let moved = false;
+
+    function onMove(moveEvent) {
+      if (moveEvent.pointerId !== pointerId) return;
+      const dx = moveEvent.clientX - startX;
+      const dy = moveEvent.clientY - startY;
+      if (!drag && Math.hypot(dx, dy) > DRAG_SLOP) {
+        // A slide that never became a long press is a scroll, not a lift.
+        clearTimeout(timer);
+        cleanup();
+        return;
+      }
+      if (!drag) return;
+      update({
+        x: moveEvent.clientX,
+        y: moveEvent.clientY,
+      });
+    }
+
+    function onUp(upEvent) {
+      if (upEvent.pointerId !== pointerId) return;
+      clearTimeout(timer);
+      if (drag) finish();
+      else cleanup();
+    }
+
+    function cleanup() {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    }
+
+    function begin() {
+      const rect = cell.getBoundingClientRect();
+      drag = {
+        id,
+        fromIndex: index,
+        active: true,
+        insertIndex: index,
+        removing: false,
+        lastX: startX,
+        lastY: startY,
+        offsetX: rect.left + rect.width / 2 - startX,
+        offsetY: rect.top + rect.height / 2 - startY,
+        startX,
+        startY,
+        cell,
+      };
+      cell.classList.add('pressed');
+      ghost.classList.add('on');
+      ghost.style.left = startX + drag.offsetX + 'px';
+      ghost.style.top = startY + drag.offsetY + 'px';
+      ghostTile.className = 'tile ' + id;
+      ghostTile.textContent = catalog[id].emoji;
+      layoutDock(id, index);
+      update({ x: startX, y: startY });
+      if (navigator.vibrate) navigator.vibrate(8);
+    }
+
+    function update(point) {
+      if (!drag) return;
+      drag.lastX = point.x;
+      drag.lastY = point.y;
+      const x = point.x + drag.offsetX;
+      const y = point.y + drag.offsetY;
+      ghost.style.left = x + 'px';
+      ghost.style.top = y + 'px';
+
+      const dockRect = dock.getBoundingClientRect();
+      const inside =
+        x >= dockRect.left && x <= dockRect.right &&
+        y >= dockRect.top && y <= dockRect.bottom;
+
+      const others = state.dock.length - 1;
+      const laneRect = lane.getBoundingClientRect();
+      const localX = x - laneRect.left;
+      let insert = Math.round(localX / CELL - 0.5);
+      insert = Math.max(0, Math.min(others, insert));
+
+      drag.removing = !inside;
+      drag.insertIndex = insert;
+
+      dock.classList.toggle('remove-armed', drag.removing);
+      dock.classList.toggle('hover', !drag.removing);
+      ghost.classList.toggle('removing', drag.removing);
+      hint.classList.toggle('remove', drag.removing);
+
+      if (drag.removing) {
+        banner.textContent = '松开，移到桌面';
+        banner.classList.add('on', 'remove');
+        hint.classList.remove('on');
+      } else {
+        banner.textContent = '松开，插到这里';
+        banner.classList.add('on');
+        banner.classList.remove('remove');
+      }
+
+      // Always relayout: the row follows the finger, not only its slot.
+      layoutDock(drag.id, drag.removing ? null : insert);
+      if (!drag.removing) {
+        hint.style.transform = `translateX(${insert * CELL}px)`;
+        hint.classList.add('on');
+      }
+    }
+
+    function finish() {
+      const { id, insertIndex, removing, cell, startX, startY, lastX, lastY } = drag;
+      drag = null;
+      ghost.classList.remove('on', 'removing');
+      dock.classList.remove('remove-armed', 'hover');
+      banner.classList.remove('on', 'remove');
+      cell.classList.remove('pressed');
+      hint.classList.remove('on', 'remove');
+
+      const moved = Math.hypot(lastX - startX, lastY - startY) > 4;
+
+      if (!moved) {
+        // A press that never travelled opens the item menu.
+        renderDock();
+        showMenu(cell, id);
+        cleanup();
+        return;
+      }
+
+      state.dock = state.dock.filter((x) => x !== id);
+      if (removing) {
+        state.desktop.push(id);
+        renderDesktop();
+        renderDock();
+      } else {
+        state.dock.splice(Math.min(insertIndex, state.dock.length), 0, id);
+        renderDock();
+      }
+      cleanup();
+    }
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }
+
+  function showMenu(cell, id) {
+    const rect = cell.getBoundingClientRect();
+    const menu = document.createElement('div');
+    menu.style.cssText = `
+      position: fixed; z-index: 60; min-width: 150px; padding: 6px;
+      border-radius: 12px; background: #fff; color: #292825;
+      border: 1px solid rgba(98,95,89,0.16);
+      box-shadow: 0 12px 30px rgba(20,18,16,0.22); font-size: 13px;
+    `;
+    menu.innerHTML = `<div style="padding:8px 10px;color:#8f8b83;font-size:11.5px">${catalog[id].label}</div>`;
+    const item = document.createElement('div');
+    item.textContent = '从 Dock 移除';
+    item.style.cssText = 'padding:9px 10px;border-radius:8px;cursor:pointer';
+    item.onmouseenter = () => (item.style.background = '#eeece7');
+    item.onmouseleave = () => (item.style.background = 'transparent');
+    item.onclick = () => {
+      menu.remove();
+      state.dock = state.dock.filter((x) => x !== id);
+      state.desktop.push(id);
+      renderDock();
+      renderDesktop();
+    };
+    menu.appendChild(item);
+    menu.style.left = rect.left + 'px';
+    menu.style.top = rect.top - 96 + 'px';
+    document.body.appendChild(menu);
+    const close = (e) => {
+      if (menu.contains(e.target)) return;
+      menu.remove();
+      document.removeEventListener('pointerdown', close);
+    };
+    setTimeout(() => document.addEventListener('pointerdown', close), 0);
+  }
+
+  document.getElementById('reset').onclick = () => {
+    state = structuredClone(initial);
+    renderDock();
+    renderDesktop();
+  };
+
+  renderDock();
+  renderDesktop();
+})();
+</script>
+</body>
+</html>
