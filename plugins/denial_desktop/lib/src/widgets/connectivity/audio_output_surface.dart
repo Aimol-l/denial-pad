@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:denial_flutter_sdk/localization.dart';
 import 'package:denial_flutter_sdk/models.dart' show AudioOutputDevice;
+import 'package:denial_flutter_sdk/effects.dart';
 import 'package:denial_flutter_sdk/shell_theme.dart';
 import 'package:denial_flutter_sdk/state.dart';
 import 'package:denial_flutter_sdk/tokens.dart';
@@ -29,135 +30,140 @@ class AudioOutputSurface extends ConsumerWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 540, maxHeight: 720),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: theme.panelColor(context.shellColors.panelBackground),
-              borderRadius: BorderRadius.circular(theme.panelRadius),
-              border: Border.all(color: context.shellColors.hairline),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 36,
-                        height: 36,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: theme.accent.withValues(alpha: .12),
+          child: ShellBackdropBlur(
+            separateChild: true,
+            blur: theme.effectivePanelOpacity < 1.0,
+            borderRadius: BorderRadius.circular(theme.panelRadius),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.panelColor(context.shellColors.panelBackground),
+                borderRadius: BorderRadius.circular(theme.panelRadius),
+                border: Border.all(color: context.shellColors.hairline),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: theme.accent.withValues(alpha: .12),
+                          ),
+                          child: Icon(
+                            Icons.volume_up_rounded,
+                            size: 19,
+                            color: theme.accent,
+                          ),
                         ),
-                        child: Icon(
-                          Icons.volume_up_rounded,
-                          size: 19,
-                          color: theme.accent,
-                        ),
-                      ),
-                      const SizedBox(width: 11),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              l10n.settingsAudioOutputTitle,
-                              style: ShellText.statusClock.copyWith(
-                                fontSize: 20,
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              active == null
-                                  ? ''
-                                  : l10n.settingsAudioOutputInUse(
-                                      active.description,
-                                    ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: ShellText.base.copyWith(
-                                color: context.shellColors.textTertiary,
-                                fontSize: 11.5,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _SurfaceAction(
-                        label: l10n.settingsRefresh,
-                        icon: Icons.refresh_rounded,
-                        onPressed: state.loading ? null : controller.refresh,
-                      ),
-                      const SizedBox(width: 7),
-                      _SurfaceAction(
-                        label: l10n.actionDismiss,
-                        icon: Icons.close_rounded,
-                        onPressed: onClose,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 14),
-                  // The device list takes the leftover height so the sheet
-                  // matches the Wi-Fi details sheet instead of hugging its
-                  // content.
-                  Expanded(
-                    child: SingleChildScrollView(
-                      child: state.devices.isEmpty
-                          ? Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 12),
-                              child: Text(
-                                state.loading
-                                    ? l10n.settingsAudioOutputLoading
-                                    : l10n.settingsAudioOutputUnavailable,
-                                style: ShellText.base.copyWith(
-                                  color: context.shellColors.textSecondary,
-                                  fontSize: 13,
+                        const SizedBox(width: 11),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                l10n.settingsAudioOutputTitle,
+                                style: ShellText.statusClock.copyWith(
+                                  fontSize: 20,
                                 ),
                               ),
-                            )
-                          : Column(
-                              children: [
-                                for (final (index, device)
-                                    in state.devices.indexed) ...[
-                                  if (index > 0) const SizedBox(height: 10),
-                                  _AudioOutputOption(
-                                    device: device,
-                                    busy: state.changing,
-                                    onSelected: () {
-                                      controller.select(device.name);
-                                      Future<void>.delayed(
-                                        const Duration(milliseconds: 500),
-                                        () {
-                                          ref
-                                              .read(
-                                                quickSettingsProvider.notifier,
-                                              )
-                                              .refreshVolume();
-                                        },
-                                      );
-                                      onClose();
-                                    },
-                                  ),
-                                ],
-                              ],
-                            ),
+                              const SizedBox(height: 2),
+                              Text(
+                                active == null
+                                    ? ''
+                                    : l10n.settingsAudioOutputInUse(
+                                        active.description,
+                                      ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: ShellText.base.copyWith(
+                                  color: context.shellColors.textTertiary,
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        _SurfaceAction(
+                          label: l10n.settingsRefresh,
+                          icon: Icons.refresh_rounded,
+                          onPressed: state.loading ? null : controller.refresh,
+                        ),
+                        const SizedBox(width: 7),
+                        _SurfaceAction(
+                          label: l10n.actionDismiss,
+                          icon: Icons.close_rounded,
+                          onPressed: onClose,
+                        ),
+                      ],
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: Text(
-                      l10n.settingsAudioOutputNote,
-                      style: ShellText.base.copyWith(
-                        color: context.shellColors.textTertiary,
-                        fontSize: 11.5,
-                        height: 1.4,
+                    const SizedBox(height: 14),
+                    // The device list takes the leftover height so the sheet
+                    // matches the Wi-Fi details sheet instead of hugging its
+                    // content.
+                    Expanded(
+                      child: SingleChildScrollView(
+                        child: state.devices.isEmpty
+                            ? Padding(
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                child: Text(
+                                  state.loading
+                                      ? l10n.settingsAudioOutputLoading
+                                      : l10n.settingsAudioOutputUnavailable,
+                                  style: ShellText.base.copyWith(
+                                    color: context.shellColors.textSecondary,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                              )
+                            : Column(
+                                children: [
+                                  for (final (index, device)
+                                      in state.devices.indexed) ...[
+                                    if (index > 0) const SizedBox(height: 10),
+                                    _AudioOutputOption(
+                                      device: device,
+                                      busy: state.changing,
+                                      onSelected: () {
+                                        controller.select(device.name);
+                                        Future<void>.delayed(
+                                          const Duration(milliseconds: 500),
+                                          () {
+                                            ref
+                                                .read(
+                                                  quickSettingsProvider.notifier,
+                                                )
+                                                .refreshVolume();
+                                          },
+                                        );
+                                        onClose();
+                                      },
+                                    ),
+                                  ],
+                                ],
+                              ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: Text(
+                        l10n.settingsAudioOutputNote,
+                        style: ShellText.base.copyWith(
+                          color: context.shellColors.textTertiary,
+                          fontSize: 11.5,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
