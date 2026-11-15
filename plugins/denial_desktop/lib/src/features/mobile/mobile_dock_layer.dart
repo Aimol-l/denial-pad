@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart' show ValueListenable, listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -81,6 +82,19 @@ class DockPinnedController extends AsyncNotifier<List<String>> {
     await _save(next);
   }
 
+  /// Saves a new order for the pinned apps. The set must be the same, so a
+  /// stale drag can never drop or invent an app.
+  Future<void> reorder(List<String> ids) async {
+    final current = state.value ?? defaults;
+    if (ids.length != current.length) return;
+    final wanted = ids.toSet();
+    if (wanted.length != ids.length || !wanted.containsAll(current)) return;
+    if (listEquals(current, ids)) return;
+    final next = List<String>.unmodifiable(ids);
+    state = AsyncData(next);
+    await _save(next);
+  }
+
   Future<void> _save(List<String> ids) async {
     try {
       final file = _file;
@@ -108,6 +122,24 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
   HomeDrag? _lastDrag;
   bool _drawerOpen = false;
 
+  /// The pinned order a long-press drag is showing. Null while no dock icon
+  /// is being moved.
+  List<String>? _reorder;
+  HomeGridItem? _dragItem;
+  int _dragIndex = 0;
+
+  /// Where the finger was the last time the dragged icon slotted in, so the
+  /// icon keeps following it after the order moves under the finger.
+  double _dragAnchorX = 0;
+
+  /// Follows the finger every frame; only the dragged icon listens, so the
+  /// dock's glass does not rebuild while it moves.
+  final ValueNotifier<double> _dragDx = ValueNotifier<double>(0);
+  bool _reorderMoved = false;
+
+  /// One dock cell, the width of [_DockButton].
+  static const double _dockCell = 66;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -122,6 +154,7 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
   @override
   void dispose() {
     _detachDrag();
+    _dragDx.dispose();
     super.dispose();
   }
 
@@ -158,6 +191,67 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
         .contains(pointer);
   }
 
+  void _startDockDrag(HomeGridItem item, Offset global) {
+    final saved =
+        ref.read(dockPinnedProvider).value ?? DockPinnedController.defaults;
+    final index = saved.indexOf(item.id);
+    if (index < 0) return;
+    setState(() {
+      _reorder = [...saved];
+      _dragItem = item;
+      _dragIndex = index;
+      _dragAnchorX = global.dx;
+      _reorderMoved = false;
+    });
+    _dragDx.value = 0;
+    ref.read(hapticsServiceProvider).pulse();
+  }
+
+  void _moveDockDrag(Offset global) {
+    final order = _reorder;
+    if (order == null) return;
+    final steps = ((global.dx - _dragAnchorX) / _dockCell).round();
+    if (steps != 0) {
+      final target = (_dragIndex + steps).clamp(0, order.length - 1);
+      if (target != _dragIndex) {
+        setState(() {
+          final id = order.removeAt(_dragIndex);
+          order.insert(target, id);
+          _dragIndex = target;
+          _dragAnchorX += steps * _dockCell;
+          _reorderMoved = true;
+        });
+        ref.read(hapticsServiceProvider).pulse();
+      }
+    }
+    _dragDx.value = global.dx - _dragAnchorX;
+  }
+
+  void _endDockDrag() {
+    final order = _reorder;
+    if (order == null) return;
+    final item = _dragItem;
+    final moved = _reorderMoved;
+    setState(() {
+      _reorder = null;
+      _dragItem = null;
+      _dragIndex = 0;
+      _dragAnchorX = 0;
+      _reorderMoved = false;
+    });
+    _dragDx.value = 0;
+    if (moved) {
+      unawaited(ref.read(dockPinnedProvider.notifier).reorder(order));
+    } else if (item != null) {
+      // A long press that never travelled still opens the menu. Wait for the
+      // frame that handles this pointer up: the new menu would otherwise be
+      // dismissed by the very release that opened it.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _showDockMenu(item);
+      });
+    }
+  }
+
   void _showDockMenu(HomeGridItem item) {
     ref
         .read(shellPopupControllerProvider.notifier)
@@ -171,9 +265,7 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
             title: _nameOf(context, item),
             onRemove: () {
               handle.close();
-              unawaited(
-                ref.read(dockPinnedProvider.notifier).remove(item.id),
-              );
+              unawaited(ref.read(dockPinnedProvider.notifier).remove(item.id));
             },
           ),
         );
@@ -205,8 +297,10 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
             .where((item) => item.isApp)
             .toList(growable: false) ??
         const <HomeGridItem>[];
-    final pinnedIds =
+    final savedIds =
         ref.watch(dockPinnedProvider).value ?? DockPinnedController.defaults;
+    // A long-press drag previews the order before it is saved.
+    final pinnedIds = _reorder ?? savedIds;
     final launcher = ref.read(appLauncherProvider);
     final byId = {for (final item in catalog) item.id: item};
     final windows = state.openAppWindows;
@@ -255,12 +349,19 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
 
     Widget entry(HomeGridItem item, {required bool pinned}) {
       final running = _windowFor(item, windows, launcher);
+      final dragging = pinned && _dragItem?.id == item.id;
       return _DockButton(
+        // Keeps each icon's press state with the app when the row reorders.
+        key: ValueKey<String>(item.id),
         item: item,
         running: running != null,
         active: running != null && running.objectId == foreground,
         pinned: pinned,
-        onLongPress: pinned ? () => _showDockMenu(item) : null,
+        dragging: dragging,
+        dragOffset: dragging ? _dragDx : null,
+        onDragStart: pinned ? (global) => _startDockDrag(item, global) : null,
+        onDragMove: pinned ? _moveDockDrag : null,
+        onDragEnd: pinned ? _endDockDrag : null,
         onTap: (rect) => launchHomeApp(context, ref, item, rect),
       );
     }
@@ -277,9 +378,7 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
           color: theme.cardColor(context.shellColors.panelBackground),
           borderRadius: BorderRadius.circular(radius),
           border: Border.all(
-            color: draggingOver
-                ? accent
-                : context.shellColors.hairlineSoft,
+            color: draggingOver ? accent : context.shellColors.hairlineSoft,
             width: draggingOver ? 2 : 1,
           ),
           boxShadow: [
@@ -324,36 +423,43 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
       ),
     );
 
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        Align(
-          alignment: Alignment.bottomCenter,
-          child: Padding(
-            padding: const EdgeInsets.only(bottom: 18),
-            child: AnimatedSlide(
-              offset: visible ? Offset.zero : const Offset(0, 1.3),
-              duration: const Duration(milliseconds: 220),
-              curve: Curves.easeOutCubic,
-              child: AnimatedOpacity(
-                opacity: visible ? 1 : 0,
-                duration: const Duration(milliseconds: 180),
-                child: IgnorePointer(ignoring: !visible, child: dock),
+    // The long-press recognizer can lose its end event to the tooltip's own
+    // long press. A pointer listener sees every up and cancel, so a drag
+    // always lands instead of leaving the icon floating.
+    return Listener(
+      onPointerUp: (_) => _endDockDrag(),
+      onPointerCancel: (_) => _endDockDrag(),
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 18),
+              child: AnimatedSlide(
+                offset: visible ? Offset.zero : const Offset(0, 1.3),
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                child: AnimatedOpacity(
+                  opacity: visible ? 1 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  child: IgnorePointer(ignoring: !visible, child: dock),
+                ),
               ),
             ),
           ),
-        ),
-        if (_drawerOpen && visible)
-          Positioned.fill(
-            child: _AllAppsDrawer(
-              onClose: () => setState(() => _drawerOpen = false),
-              onLaunch: (item, rect) {
-                setState(() => _drawerOpen = false);
-                launchHomeApp(context, ref, item, rect);
-              },
+          if (_drawerOpen && visible)
+            Positioned.fill(
+              child: _AllAppsDrawer(
+                onClose: () => setState(() => _drawerOpen = false),
+                onLaunch: (item, rect) {
+                  setState(() => _drawerOpen = false);
+                  launchHomeApp(context, ref, item, rect);
+                },
+              ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -453,12 +559,17 @@ class _AllAppsButtonState extends State<_AllAppsButton> {
 
 class _DockButton extends StatefulWidget {
   const _DockButton({
+    super.key,
     required this.item,
     required this.running,
     required this.active,
     required this.pinned,
     required this.onTap,
-    this.onLongPress,
+    this.dragging = false,
+    this.dragOffset,
+    this.onDragStart,
+    this.onDragMove,
+    this.onDragEnd,
   });
 
   final HomeGridItem item;
@@ -466,7 +577,17 @@ class _DockButton extends StatefulWidget {
   final bool active;
   final bool pinned;
   final void Function(Rect iconRect) onTap;
-  final VoidCallback? onLongPress;
+
+  /// The icon is picked up for reordering.
+  final bool dragging;
+
+  /// How far the dragged icon follows the finger, in logical pixels. Only the
+  /// dragged icon listens, so a moving finger repaints one tile rather than
+  /// the whole dock.
+  final ValueListenable<double>? dragOffset;
+  final void Function(Offset global)? onDragStart;
+  final void Function(Offset global)? onDragMove;
+  final VoidCallback? onDragEnd;
 
   @override
   State<_DockButton> createState() => _DockButtonState();
@@ -484,13 +605,30 @@ class _DockButtonState extends State<_DockButton> {
     return box.localToGlobal(Offset.zero) & box.size;
   }
 
+  /// Wraps the tile so it follows the finger without rebuilding the row.
+  Widget _followDrag(Widget tile) {
+    final offset = widget.dragOffset;
+    if (!widget.dragging || offset == null) return tile;
+    return ValueListenableBuilder<double>(
+      valueListenable: offset,
+      builder: (context, dx, child) =>
+          Transform.translate(offset: Offset(dx, -6), child: child),
+      child: tile,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = ShellTheme.of(context);
     final accent = theme.accentPalette.primary;
-    final scale = _pressed ? 0.93 : (_hover ? 1.05 : 1.0);
+    final scale = widget.dragging
+        ? 1.12
+        : (_pressed ? 0.93 : (_hover ? 1.05 : 1.0));
     return Tooltip(
+      // The dock owns the long press (it lifts the icon); a tooltip trigger
+      // on the same gesture competes for it. Hover still shows the name.
       message: _name,
+      triggerMode: TooltipTriggerMode.manual,
       child: Semantics(
         button: true,
         label: _name,
@@ -502,7 +640,17 @@ class _DockButtonState extends State<_DockButton> {
             onTapDown: (_) => setState(() => _pressed = true),
             onTapUp: (_) => setState(() => _pressed = false),
             onTapCancel: () => setState(() => _pressed = false),
-            onLongPress: widget.onLongPress,
+            // A long press picks the icon up; a press that never travels
+            // still ends in the item menu.
+            onLongPressStart: widget.onDragStart == null
+                ? null
+                : (details) => widget.onDragStart!(details.globalPosition),
+            onLongPressMoveUpdate: widget.onDragMove == null
+                ? null
+                : (details) => widget.onDragMove!(details.globalPosition),
+            onLongPressEnd: widget.onDragEnd == null
+                ? null
+                : (_) => widget.onDragEnd!(),
             onTap: () {
               final rect = _iconRect();
               if (rect != null) widget.onTap(rect);
@@ -513,30 +661,34 @@ class _DockButtonState extends State<_DockButton> {
               child: Stack(
                 alignment: Alignment.center,
                 children: [
-                  AnimatedScale(
-                    scale: scale,
-                    duration: const Duration(milliseconds: 150),
-                    curve: Curves.easeOutCubic,
-                    child: AnimatedSlide(
-                      offset: _hover ? const Offset(0, -0.06) : Offset.zero,
+                  _followDrag(
+                    AnimatedScale(
+                      scale: scale,
                       duration: const Duration(milliseconds: 150),
                       curve: Curves.easeOutCubic,
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(16),
-                          boxShadow: widget.active
-                              ? [
-                                  BoxShadow(
-                                    color: accent.withValues(alpha: 0.30),
-                                    blurRadius: 18,
-                                    spreadRadius: 1,
-                                  ),
-                                ]
-                              : null,
-                        ),
-                        child: SizedBox.square(
-                          dimension: 54,
-                          child: LauncherIcon.of(widget.item),
+                      child: AnimatedSlide(
+                        offset: _hover ? const Offset(0, -0.06) : Offset.zero,
+                        duration: const Duration(milliseconds: 150),
+                        curve: Curves.easeOutCubic,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: widget.active || widget.dragging
+                                ? [
+                                    BoxShadow(
+                                      color: accent.withValues(
+                                        alpha: widget.dragging ? 0.42 : 0.30,
+                                      ),
+                                      blurRadius: widget.dragging ? 24 : 18,
+                                      spreadRadius: widget.dragging ? 3 : 1,
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: SizedBox.square(
+                            dimension: 54,
+                            child: LauncherIcon.of(widget.item),
+                          ),
                         ),
                       ),
                     ),
@@ -717,9 +869,11 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
     if (local == null) {
       return '';
     }
-    return <String>[local.id, local.title, ...local.categories]
-        .join(' ')
-        .toLowerCase();
+    return <String>[
+      local.id,
+      local.title,
+      ...local.categories,
+    ].join(' ').toLowerCase();
   }
 
   String _groupOf(HomeGridItem item) {
@@ -797,7 +951,9 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
     if (target == null) {
       return;
     }
-    final directory = Directory(ref.read(runtimePathsProvider).desktopDirectory);
+    final directory = Directory(
+      ref.read(runtimePathsProvider).desktopDirectory,
+    );
     try {
       await directory.create(recursive: true);
       final link = Link(p.join(directory.path, p.basename(target)));
@@ -821,8 +977,7 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
 
   bool _isOnDesktop(HomeGridItem item) {
     final path = _linkPathOf(item);
-    return path != null &&
-        (Link(path).existsSync() || File(path).existsSync());
+    return path != null && (Link(path).existsSync() || File(path).existsSync());
   }
 
   Future<void> _removeFromDesktop(HomeGridItem item) async {
@@ -942,9 +1097,7 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
                           Expanded(child: _searchField(context)),
                           const SizedBox(width: 18),
                           Text(
-                            searching
-                                ? l10n.dockSearchApps
-                                : l10n.dockAllApps,
+                            searching ? l10n.dockSearchApps : l10n.dockAllApps,
                             style: TextStyle(
                               color: context.shellColors.panelText,
                               fontSize: 20,
@@ -1007,9 +1160,11 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
                             if (!searching && visibleGroups.length > 1)
                               Row(
                                 children: [
-                                  for (var index = 0;
-                                      index < visibleGroups.length;
-                                      index += 1)
+                                  for (
+                                    var index = 0;
+                                    index < visibleGroups.length;
+                                    index += 1
+                                  )
                                     AnimatedContainer(
                                       duration:
                                           MediaQuery.disableAnimationsOf(
@@ -1023,9 +1178,7 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
                                       decoration: BoxDecoration(
                                         color: index == page
                                             ? theme.accent
-                                            : context
-                                                  .shellColors
-                                                  .textTertiary
+                                            : context.shellColors.textTertiary
                                                   .withAlpha(70),
                                         borderRadius: BorderRadius.circular(3),
                                       ),
@@ -1180,10 +1333,7 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
         _query.isEmpty
             ? context.l10n.dockNoApplications
             : context.l10n.dockNoMatches,
-        style: TextStyle(
-          color: context.shellColors.textTertiary,
-          fontSize: 13,
-        ),
+        style: TextStyle(color: context.shellColors.textTertiary, fontSize: 13),
       ),
     );
   }
@@ -1227,10 +1377,7 @@ class _AppsGrid extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                SizedBox.square(
-                  dimension: 54,
-                  child: LauncherIcon.of(item),
-                ),
+                SizedBox.square(dimension: 54, child: LauncherIcon.of(item)),
                 const SizedBox(height: 7),
                 Text(
                   _nameOf(context, item),
