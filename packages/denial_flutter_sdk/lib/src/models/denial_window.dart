@@ -371,14 +371,32 @@ class DenialWindow {
   /// scale and offset from it, so they cannot disagree about where a window
   /// lands or which client pixel a touch means.
   ///
-  /// An in-bundle Flutter app is laid out from its geometry; a client surface
-  /// from the surface the compositor reports.
+  /// An in-bundle Flutter app is laid out from its geometry. A client surface
+  /// normally fills its frame, but a compositor-owned strip (an Android
+  /// system bar, say) makes the content smaller; the shell then fits the
+  /// content so the strip does not turn into a gap under the app.
   Rect get contentFitRect {
     final geometry = this.geometry;
     if (isLocalFlutter && geometry != null && !geometry.isEmpty) {
       return geometry;
     }
-    return presentationCoordinateRect;
+    final frame = presentationCoordinateRect;
+    final content = contentCoordinateRect;
+    return _cropsToContent(frame, content) ? content : frame;
+  }
+
+  bool _cropsToContent(Rect frame, Rect content) {
+    if (frame.isEmpty || content.isEmpty) return false;
+    if (content.width >= frame.width - 0.5 &&
+        content.height >= frame.height - 0.5) {
+      return false;
+    }
+    // Only a window painted from one full-surface texture can be cropped.
+    // A layered window maps its layers against the surface, so shrinking the
+    // destination would shift every layer with it.
+    final client = clientTexture;
+    if (client != null && client.isValid) return true;
+    return surfaceLayers.isEmpty && textureId > 0;
   }
 
   double get nativeInsetTop =>

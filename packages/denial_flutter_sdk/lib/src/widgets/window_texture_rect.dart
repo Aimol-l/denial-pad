@@ -48,16 +48,17 @@ class WindowTextureRect extends StatelessWidget {
         (theme.transparencyMode == ShellTransparencyMode.glass ||
             theme.backdropBlurSigma > 0);
     final cache = glass ? WindowBackdropCache.maybeOf(context) : null;
-    // The surface the compositor reports is the size the client actually
-    // shows; the buffer behind it may be larger by the display scale. Fitting
-    // the surface keeps this mapping identical to the one input resolves.
-    final frame = window.presentationCoordinateRect;
-    final windowSize = frame.isEmpty
+    // The rectangle the shell fits: the surface, or the content inside it
+    // when the compositor reports a strip (an Android system bar) that is not
+    // part of the app. Fitting the content is what keeps that strip from
+    // turning into a gap under the window.
+    final fitRect = window.contentFitRect;
+    final windowSize = fitRect.isEmpty
         ? Size(window.width.toDouble(), window.height.toDouble())
-        : frame.size;
+        : fitRect.size;
     final devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
     final texture = window.popupSurfaceLayers.isEmpty
-        ? singleWindowPlaneTexture(window)
+        ? _cropToFitRect(window, singleWindowPlaneTexture(window))
         : null;
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -137,4 +138,40 @@ class WindowTextureRect extends StatelessWidget {
       },
     );
   }
+}
+
+/// Cuts a full-surface texture down to the rectangle the shell fits, so the
+/// strip outside the client content is not painted as a gap.
+WindowPlaneTexture? _cropToFitRect(
+  DenialWindow window,
+  WindowPlaneTexture? texture,
+) {
+  if (texture == null || !texture.isValid) return texture;
+  final frame = window.presentationCoordinateRect;
+  final fit = window.contentFitRect;
+  if (frame.isEmpty || fit.isEmpty || fit == frame) return texture;
+  // Only a texture that covers its plane can be cropped; a layer offset
+  // would otherwise be applied twice.
+  final destination = texture.destination;
+  if (destination.left != 0 ||
+      destination.top != 0 ||
+      destination.width != 1 ||
+      destination.height != 1) {
+    return texture;
+  }
+  final source = texture.source;
+  final scaleX = source.width / frame.width;
+  final scaleY = source.height / frame.height;
+  return WindowPlaneTexture(
+    id: texture.id,
+    bufferSize: texture.bufferSize,
+    source: Rect.fromLTWH(
+      source.left + (fit.left - frame.left) * scaleX,
+      source.top + (fit.top - frame.top) * scaleY,
+      fit.width * scaleX,
+      fit.height * scaleY,
+    ),
+    transform: texture.transform,
+    opacity: texture.opacity,
+  );
 }
