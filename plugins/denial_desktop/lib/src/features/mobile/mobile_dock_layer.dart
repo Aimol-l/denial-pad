@@ -181,12 +181,21 @@ class MobileDockLayer extends ConsumerStatefulWidget {
   ConsumerState<MobileDockLayer> createState() => _MobileDockLayerState();
 }
 
-class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
+class _MobileDockLayerState extends ConsumerState<MobileDockLayer>
+    with SingleTickerProviderStateMixin {
   final _dockKey = GlobalKey();
   final _laneKey = GlobalKey();
   HomeDragController? _drag;
   HomeDrag? _lastDrag;
   bool _drawerOpen = false;
+
+  /// Fades the all-apps drawer in and out. A flat cut is the one transition
+  /// that looks most out of place on a large screen.
+  late final AnimationController _drawerController = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 200),
+    reverseDuration: const Duration(milliseconds: 160),
+  )..addStatusListener(_drawerStatus);
 
   /// The pinned order a long-press drag is showing. Null while no dock icon
   /// is being moved.
@@ -240,8 +249,30 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
     _detachDrag();
     _removeArmTimer?.cancel();
     _dragPosition.dispose();
+    _drawerController.dispose();
     super.dispose();
   }
+
+  void _drawerStatus(AnimationStatus status) {
+    if (status == AnimationStatus.dismissed && mounted) {
+      // Rebuild once the fade is over so the drawer's subtree leaves.
+      setState(() {});
+    }
+  }
+
+  void _openDrawer() {
+    if (_drawerOpen) return;
+    setState(() => _drawerOpen = true);
+    _drawerController.forward();
+  }
+
+  void _closeDrawer() {
+    if (!_drawerOpen && _drawerController.value == 0) return;
+    setState(() => _drawerOpen = false);
+    _drawerController.reverse();
+  }
+
+  bool get _drawerVisible => _drawerOpen || _drawerController.value > 0;
 
   void _detachDrag() {
     _drag?.drag.removeListener(_dragChanged);
@@ -480,7 +511,7 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
     if (!visible && _drawerOpen) {
       // Mutating during build is not allowed; defer the close.
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && _drawerOpen) setState(() => _drawerOpen = false);
+        if (mounted) _closeDrawer();
       });
     }
 
@@ -602,9 +633,7 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              _AllAppsButton(
-                onPressed: () => setState(() => _drawerOpen = true),
-              ),
+              _AllAppsButton(onPressed: _openDrawer),
               const _DockDivider(),
               // Fixed slots: each icon animates to its index, so the row
               // slides and never jumps, and a lifted icon leaves a real gap
@@ -774,12 +803,13 @@ class _MobileDockLayerState extends ConsumerState<MobileDockLayer> {
                 ),
               ),
             ),
-          if (_drawerOpen && visible)
+          if (_drawerVisible && visible)
             Positioned.fill(
               child: _AllAppsDrawer(
-                onClose: () => setState(() => _drawerOpen = false),
+                presentation: _drawerController,
+                onClose: _closeDrawer,
                 onLaunch: (item, rect) {
-                  setState(() => _drawerOpen = false);
+                  _closeDrawer();
                   launchHomeApp(context, ref, item, rect);
                 },
               ),
@@ -1114,8 +1144,14 @@ class _DockItemMenu extends StatelessWidget {
 }
 
 class _AllAppsDrawer extends ConsumerStatefulWidget {
-  const _AllAppsDrawer({required this.onClose, required this.onLaunch});
+  const _AllAppsDrawer({
+    required this.presentation,
+    required this.onClose,
+    required this.onLaunch,
+  });
 
+  /// 0 to 1: the drawer fades in over its scrim and grows slightly.
+  final Animation<double> presentation;
   final VoidCallback onClose;
   final void Function(HomeGridItem item, Rect rect) onLaunch;
 
@@ -1362,142 +1398,142 @@ class _AllAppsDrawerState extends ConsumerState<_AllAppsDrawer> {
     final page = _page.clamp(0, pageCount - 1);
     final searching = query.isNotEmpty;
 
-    return ColoredBox(
-      color: const Color(0x73000000),
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: widget.onClose,
-        child: Center(
+    return AnimatedBuilder(
+      animation: widget.presentation,
+      builder: (context, child) {
+        final t = Curves.easeOutCubic.transform(widget.presentation.value);
+        return ColoredBox(
+          color: Color.fromRGBO(0, 0, 0, 0.45 * t),
           child: GestureDetector(
-            onTap: () {},
-            child: FractionallySizedBox(
-              widthFactor: 0.84,
-              heightFactor: 0.76,
-              child: ShellBackdropBlur(
-                separateChild: true,
-                blur: theme.effectivePanelOpacity < 1.0,
+            behavior: HitTestBehavior.opaque,
+            onTap: widget.onClose,
+            child: Center(
+              child: Transform.scale(scale: 0.96 + 0.04 * t, child: child),
+            ),
+          ),
+        );
+      },
+      child: GestureDetector(
+        onTap: () {},
+        child: FractionallySizedBox(
+          widthFactor: 0.84,
+          heightFactor: 0.76,
+          child: ShellBackdropBlur(
+            separateChild: true,
+            blur: theme.effectivePanelOpacity < 1.0,
+            borderRadius: BorderRadius.circular(theme.scaledRadius(18)),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: theme.cardColor(context.shellColors.panelBackground),
                 borderRadius: BorderRadius.circular(theme.scaledRadius(18)),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: theme.cardColor(context.shellColors.panelBackground),
-                    borderRadius: BorderRadius.circular(theme.scaledRadius(18)),
-                    border: Border.all(color: context.shellColors.hairlineSoft),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x66000000),
-                        blurRadius: 40,
-                        offset: Offset(0, 18),
-                      ),
-                    ],
+                border: Border.all(color: context.shellColors.hairlineSoft),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x66000000),
+                    blurRadius: 40,
+                    offset: Offset(0, 18),
                   ),
-                  child: Padding(
-                    padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                ],
+              ),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(22, 16, 22, 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
                       children: [
-                        Row(
-                          children: [
-                            Expanded(child: _searchField(context)),
-                            const SizedBox(width: 18),
-                            Text(
-                              searching
-                                  ? l10n.dockSearchApps
-                                  : l10n.dockAllApps,
-                              style: TextStyle(
-                                color: context.shellColors.panelText,
-                                fontSize: 20,
-                                fontWeight: FontWeight.w600,
-                                height: 1.1,
-                              ),
-                            ),
-                            GestureDetector(
-                              behavior: HitTestBehavior.opaque,
-                              onTap: widget.onClose,
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
-                                child: Icon(
-                                  Icons.close_rounded,
-                                  size: 22,
-                                  color: context.shellColors.textTertiary,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (!searching && visibleGroups.isNotEmpty) ...[
-                          const SizedBox(height: 14),
-                          _groupTabs(context, visibleGroups, page),
-                        ],
-                        const SizedBox(height: 12),
-                        Expanded(
-                          child: PageView.builder(
-                            controller: _pageController,
-                            onPageChanged: (index) =>
-                                setState(() => _page = index),
-                            itemCount: pageCount,
-                            itemBuilder: (context, index) {
-                              if (visibleGroups.isEmpty) {
-                                return _emptyState(context);
-                              }
-                              return _AppsGrid(
-                                items: visibleGroups[index] == 'all'
-                                    ? items
-                                    : groups[visibleGroups[index]]!,
-                                onLaunch: widget.onLaunch,
-                                onLongPress: _showMenu,
-                              );
-                            },
+                        Expanded(child: _searchField(context)),
+                        const SizedBox(width: 18),
+                        Text(
+                          searching ? l10n.dockSearchApps : l10n.dockAllApps,
+                          style: TextStyle(
+                            color: context.shellColors.panelText,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w600,
+                            height: 1.1,
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Row(
-                            children: [
-                              if (!searching && visibleGroups.length > 1)
-                                Text(
-                                  '←  滑动切换分组  →',
-                                  style: TextStyle(
-                                    color: context.shellColors.textTertiary,
-                                    fontSize: 11.5,
-                                  ),
-                                ),
-                              const Spacer(),
-                              if (!searching && visibleGroups.length > 1)
-                                Row(
-                                  children: [
-                                    for (
-                                      var index = 0;
-                                      index < visibleGroups.length;
-                                      index += 1
-                                    )
-                                      AnimatedContainer(
-                                        duration:
-                                            MediaQuery.disableAnimationsOf(
-                                              context,
-                                            )
-                                            ? Duration.zero
-                                            : const Duration(milliseconds: 180),
-                                        margin: const EdgeInsets.only(left: 6),
-                                        width: index == page ? 18 : 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          color: index == page
-                                              ? theme.accent
-                                              : context.shellColors.textTertiary
-                                                    .withAlpha(70),
-                                          borderRadius: BorderRadius.circular(
-                                            3,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                            ],
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: widget.onClose,
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 8, 4, 8),
+                            child: Icon(
+                              Icons.close_rounded,
+                              size: 22,
+                              color: context.shellColors.textTertiary,
+                            ),
                           ),
                         ),
                       ],
                     ),
-                  ),
+                    if (!searching && visibleGroups.isNotEmpty) ...[
+                      const SizedBox(height: 14),
+                      _groupTabs(context, visibleGroups, page),
+                    ],
+                    const SizedBox(height: 12),
+                    Expanded(
+                      child: PageView.builder(
+                        controller: _pageController,
+                        onPageChanged: (index) => setState(() => _page = index),
+                        itemCount: pageCount,
+                        itemBuilder: (context, index) {
+                          if (visibleGroups.isEmpty) {
+                            return _emptyState(context);
+                          }
+                          return _AppsGrid(
+                            items: visibleGroups[index] == 'all'
+                                ? items
+                                : groups[visibleGroups[index]]!,
+                            onLaunch: widget.onLaunch,
+                            onLongPress: _showMenu,
+                          );
+                        },
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.only(top: 6),
+                      child: Row(
+                        children: [
+                          if (!searching && visibleGroups.length > 1)
+                            Text(
+                              '←  滑动切换分组  →',
+                              style: TextStyle(
+                                color: context.shellColors.textTertiary,
+                                fontSize: 11.5,
+                              ),
+                            ),
+                          const Spacer(),
+                          if (!searching && visibleGroups.length > 1)
+                            Row(
+                              children: [
+                                for (
+                                  var index = 0;
+                                  index < visibleGroups.length;
+                                  index += 1
+                                )
+                                  AnimatedContainer(
+                                    duration:
+                                        MediaQuery.disableAnimationsOf(context)
+                                        ? Duration.zero
+                                        : const Duration(milliseconds: 180),
+                                    margin: const EdgeInsets.only(left: 6),
+                                    width: index == page ? 18 : 6,
+                                    height: 6,
+                                    decoration: BoxDecoration(
+                                      color: index == page
+                                          ? theme.accent
+                                          : context.shellColors.textTertiary
+                                                .withAlpha(70),
+                                      borderRadius: BorderRadius.circular(3),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
