@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:denial_flutter_sdk/applications.dart';
 import 'package:denial_flutter_sdk/input.dart';
 import 'package:denial_flutter_sdk/lifecycle.dart';
 import 'package:denial_flutter_sdk/models.dart';
@@ -884,9 +885,51 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     if (inPair) endSplit();
     for (final app in closing) {
       _platform.closeWindow(app);
+      _stopAndroidApplication(app);
     }
     _deck.reorder(_presentedOrder(), ShellSprings.appStrip);
     if (_deck.length == 0) closeOverview();
+  }
+
+  /// Closing an Android window must end the app behind it: droidloom only
+  /// destroys the surface, so a closed player kept streaming in the
+  /// background and its process stayed alive.
+  ///
+  /// TEMPORARY: runs `adb shell am force-stop` through the shell's system
+  /// command channel. Replace with droidloom's own stop-app request once it
+  /// has one.
+  void _stopAndroidApplication(DenialWindow window) {
+    final package = _androidPackageFor(window);
+    if (package == null) return;
+    ref.read(denialBridgeProvider).launchDesktopApplication(
+      'denial-android-stop.desktop',
+      <String>['/usr/bin/adb', 'shell', 'am', 'force-stop', package],
+    );
+  }
+
+  /// The Android package behind [window], or null for anything the shell did
+  /// not start through droidloom.
+  String? _androidPackageFor(DenialWindow window) {
+    final catalog =
+        ref.read(homeGridControllerProvider).asData?.value.catalog ??
+        const <HomeGridItem>[];
+    final launcher = ref.read(appLauncherProvider);
+    final appId = window.appId.toLowerCase();
+    for (final item in catalog) {
+      final app = item.app;
+      if (app == null || !app.exec.contains('droidloomctl')) continue;
+      if (!launcher
+          .expectedWindowAppIds(app)
+          .any((id) => id.toLowerCase() == appId)) {
+        continue;
+      }
+      // `droidloomctl launch <package> --component ...`
+      final parts = app.exec.split(RegExp(r'\s+'));
+      final launch = parts.indexOf('launch');
+      if (launch >= 0 && launch + 1 < parts.length) return parts[launch + 1];
+      return app.startupWmClass;
+    }
+    return null;
   }
 
   /// The card the deck shows for [objectId]: both sides of a split sit in one
