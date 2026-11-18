@@ -886,6 +886,7 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     for (final app in closing) {
       _platform.closeWindow(app);
       _stopAndroidApplication(app);
+      _stopNativeApplication(app);
     }
     _deck.reorder(_presentedOrder(), ShellSprings.appStrip);
     if (_deck.length == 0) closeOverview();
@@ -904,6 +905,35 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     ref.read(denialBridgeProvider).launchDesktopApplication(
       'denial-android-stop.desktop',
       <String>['/usr/bin/adb', 'shell', 'am', 'force-stop', package],
+    );
+  }
+
+  /// Closing a native window usually ends the client, but a Qt or GTK app can
+  /// keep a windowless process running (QueMusic sat at 90% CPU after its
+  /// window closed). With no other window of the same app left, ask it to
+  /// quit the same way a terminal would.
+  void _stopNativeApplication(DenialWindow window) {
+    if (window.isLocalFlutter || window.isLayerShell) return;
+    final appId = window.appId.trim();
+    if (appId.isEmpty) return;
+    final others = state.openAppWindows.where(
+      (other) =>
+          other.objectId != window.objectId &&
+          other.appId.toLowerCase() == appId.toLowerCase(),
+    );
+    if (others.isNotEmpty) return;
+    final name = appId.split('.').last;
+    final lower = name.toLowerCase();
+    ref.read(denialBridgeProvider).launchDesktopApplication(
+      'denial-native-stop.desktop',
+      <String>[
+        '/bin/sh',
+        '-c',
+        r'pkill -TERM -x "$1" 2>/dev/null || pkill -TERM -x "$2" 2>/dev/null || true',
+        'sh',
+        name,
+        lower,
+      ],
     );
   }
 
