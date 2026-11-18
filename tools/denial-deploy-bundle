@@ -172,6 +172,18 @@ if remote 'test -e /usr/lib/systemd/user/droidloom.service' >/dev/null 2>&1; the
     printf '    droidloom waits for the compositor socket\n'
 fi
 
+# Wi-Fi power saving costs latency, so it should only run while the panel is
+# off. A small root service follows the panel's DPMS state.
+if remote 'test -e /sys/class/drm/card0-DSI-1/dpms' >/dev/null 2>&1; then
+    scp "${scp_args[@]}" "$ROOT/tools/denial-wifi-powersave" \
+        "$ROOT/tools/denial-wifi-powersave.service" "$HOST:/tmp/" >/dev/null
+    remote 'sudo install -m755 /tmp/denial-wifi-powersave /usr/local/bin/ &&
+        sudo install -m644 /tmp/denial-wifi-powersave.service /etc/systemd/system/ &&
+        sudo systemctl daemon-reload &&
+        sudo systemctl enable --now denial-wifi-powersave' >/dev/null
+    printf '    wifi power saving follows the panel\n'
+fi
+
 # The font is the part a bare libapp.so copy used to miss; check it landed.
 if [[ -n "$want_font" ]]; then
     got_font="$(remote "md5sum /usr/lib/denial/flutter/data/flutter_assets/fonts/MaterialIcons-Regular.otf" |

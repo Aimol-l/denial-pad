@@ -1,0 +1,11 @@
+[Unit]
+Description=Wi-Fi power saving while the panel is off
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/denial-wifi-powersave
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

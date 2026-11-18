@@ -1,0 +1,27 @@
+#!/bin/sh
+# Keep Wi-Fi power saving on only while the panel is off.
+#
+# Power saving costs latency: in standby the radio sleeps between beacons and
+# a packet waits for the next one. That is free while nobody is looking at the
+# screen, and noticeable the moment someone types over SSH.
+#
+# NetworkManager is told not to manage the setting (802-11-wireless.powersave
+# = 2); this loop owns it instead.
+set -u
+
+device=${DENIAL_WIFI_DEVICE:-wlan0}
+dpms=${DENIAL_DPMS_PATH:-/sys/class/drm/card0-DSI-1/dpms}
+last=
+
+while :; do
+    state=$(cat "$dpms" 2>/dev/null) || state=On
+    if [ "$state" != "$last" ]; then
+        last=$state
+        if [ "$state" = Off ]; then
+            iw dev "$device" set power_save on 2>/dev/null || true
+        else
+            iw dev "$device" set power_save off 2>/dev/null || true
+        fi
+    fi
+    sleep 1
+done
