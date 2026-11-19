@@ -56,6 +56,7 @@ class ReferenceShellState {
     required this.splitParked,
     required this.homeTransitionActive,
     required this.appSwitchOrder,
+    required this.lockedWindowIds,
   });
 
   factory ReferenceShellState.initial(ShellState platform) {
@@ -79,6 +80,7 @@ class ReferenceShellState {
       splitParked: false,
       homeTransitionActive: false,
       appSwitchOrder: const <int>[],
+      lockedWindowIds: const <int>{},
     );
   }
 
@@ -163,6 +165,11 @@ class ReferenceShellState {
   /// the live order would only alternate between the two most recent apps.
   final List<int> appSwitchOrder;
 
+  /// Tasks the person locked: an up-swipe no longer closes them.
+  final Set<int> lockedWindowIds;
+
+  bool isWindowLocked(int objectId) => lockedWindowIds.contains(objectId);
+
   /// The shade is open or held partly open.
   bool get quickSettingsEngaged => quickSettingsVisible || quickSettingsDragged;
 
@@ -202,6 +209,7 @@ class ReferenceShellState {
     bool? splitParked,
     bool? homeTransitionActive,
     List<int>? appSwitchOrder,
+    Set<int>? lockedWindowIds,
   }) {
     return ReferenceShellState._(
       platform: platform ?? this.platform,
@@ -232,6 +240,7 @@ class ReferenceShellState {
       splitParked: clearSplitPair ? false : splitParked ?? this.splitParked,
       homeTransitionActive: homeTransitionActive ?? this.homeTransitionActive,
       appSwitchOrder: appSwitchOrder ?? this.appSwitchOrder,
+      lockedWindowIds: lockedWindowIds ?? this.lockedWindowIds,
     );
   }
 

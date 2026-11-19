@@ -4,7 +4,6 @@ import 'package:denial_desktop/src/state/reference_shell_presentation.dart';
 import 'package:denial_flutter_sdk/rendering.dart' show FrostedBackdrop;
 
 import '../../widgets/overview/app_deck_layer.dart';
-import '../../widgets/overview/split_drop_zone.dart';
 import '../../widgets/shade/shade_progress.dart';
 
 import 'package:flutter/foundation.dart' show ValueListenable;
@@ -115,8 +114,14 @@ class MobileAppDeckLayer extends ConsumerWidget {
       onSplitSide: (window, side) => controller.dropCardOnSide(
         window,
         vertical: side.vertical,
-        first: side == SplitDropSide.left || side == SplitDropSide.top,
+        first: side.first,
       ),
+      lockedIds: ref.watch(
+        referenceShellProvider.select((state) => state.lockedWindowIds),
+      ),
+      onPinWindow: controller.toggleWindowLock,
+      onCloseWindow: (window) =>
+          controller.dismissFromRecents(window, force: true),
     );
   }
 }

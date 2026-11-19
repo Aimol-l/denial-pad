@@ -447,6 +447,14 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   void _reconcileWindowSnapshot() {
     final open = state.openAppWindowsByObjectId;
+    if (state.lockedWindowIds.isNotEmpty) {
+      final alive = state.lockedWindowIds
+          .where(open.containsKey)
+          .toSet();
+      if (alive.length != state.lockedWindowIds.length) {
+        state = state.copyWith(lockedWindowIds: alive);
+      }
+    }
     _dismissedIds.removeWhere((id) => !open.containsKey(id));
     _endSplitIfMemberClosed();
     if (_deck.presenting.value) {
@@ -909,7 +917,20 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   /// A card swiped away in recents: the row closes its gap at once, and the
   /// app closes. Recents with no app left closes for home.
-  void dismissFromRecents(DenialWindow window) {
+  /// Locks or unlocks a task: a locked window survives an up-swipe. The
+  /// close target still closes it, so locking guards against slips, not the
+  /// person's deliberate exit.
+  void toggleWindowLock(DenialWindow window) {
+    if (!window.isUserApp) return;
+    final next = {...state.lockedWindowIds};
+    if (!next.remove(window.objectId)) next.add(window.objectId);
+    state = state.copyWith(lockedWindowIds: next);
+  }
+
+  void dismissFromRecents(DenialWindow window, {bool force = false}) {
+    if (!force && state.isWindowLocked(window.objectId)) {
+      return;
+    }
     final pair = state.splitPair;
     final inPair = pair != null && pair.contains(window.objectId);
     final closing = <DenialWindow>[window];

@@ -41,6 +41,9 @@ class AppDeckLayer extends StatefulWidget {
     required this.onOpenWindow,
     this.onMoveWindowToDesk,
     this.onSplitSide,
+    this.onPinWindow,
+    this.onCloseWindow,
+    this.lockedIds = const <int>{},
   });
 
   final AppDeck deck;
@@ -74,6 +77,15 @@ class AppDeckLayer extends StatefulWidget {
   /// pane at the current ratio.
   final bool Function(DenialWindow window, SplitDropSide side)? onSplitSide;
 
+  /// Dropped on the lock target: keep the task from being swiped away.
+  final ValueChanged<DenialWindow>? onPinWindow;
+
+  /// Dropped on the close target: the same as the up-swipe.
+  final ValueChanged<DenialWindow>? onCloseWindow;
+
+  /// Tasks whose up-swipe is disabled; their card shows a lock.
+  final Set<int> lockedIds;
+
   @override
   State<AppDeckLayer> createState() => _AppDeckLayerState();
 }
@@ -95,7 +107,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
 
   /// The card being carried to a side, and the side under the finger.
   DenialWindow? _splitPickup;
-  SplitDropSide? _splitSide;
+  SplitDropTarget? _splitTarget;
   Offset? _pickupOrigin;
 
   /// How far the carried card follows the finger.
@@ -260,55 +272,75 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
       _splitRefusal = null;
       _pickupOrigin = global;
       _pickupOffset = Offset.zero;
-      // A long press alone must not choose a side: the card usually sits over
-      // one already. The drop only arms after the finger actually travels.
-      _splitSide = null;
+      // A long press alone must not choose a target: the card usually sits
+      // over one already. The drop only arms after the finger travels.
+      _splitTarget = null;
     });
   }
 
   void _pickupMove(Offset global) {
     final origin = _pickupOrigin;
     final travelled = origin == null ? 0.0 : (global - origin).distance;
-    final side = travelled < 24 ? null : _sideAt(global);
+    final target = travelled < 24 ? null : _targetAt(global);
     setState(() {
       _pickupOffset = origin == null ? Offset.zero : global - origin;
-      _splitSide = side;
+      _splitTarget = target;
     });
   }
 
   void _pickupEnd(Offset global) {
     final window = _splitPickup;
-    // The side armed while moving; a press that never travelled has none.
-    final side = _splitSide;
+    // The target armed while moving; a press that never travelled has none.
+    final target = _splitTarget;
     setState(() {
       _splitPickup = null;
-      _splitSide = null;
+      _splitTarget = null;
       _pickupOrigin = null;
       _pickupOffset = Offset.zero;
     });
-    if (window == null || side == null) return;
-    final accepted = widget.onSplitSide?.call(window, side) ?? true;
-    if (!accepted) {
-      setState(() {
-        _splitRefusal =
-            '该应用最小需要 ${window.minWidth.round()}×${window.minHeight.round()}';
-      });
+    if (window == null || target == null) return;
+    switch (target.function) {
+      case SplitDropFunction.split:
+        final accepted = widget.onSplitSide?.call(window, target.side) ?? true;
+        if (!accepted) {
+          setState(() {
+            _splitRefusal =
+                '该应用最小需要 ${window.minWidth.round()}×${window.minHeight.round()}';
+          });
+        }
+      case SplitDropFunction.pin:
+        widget.onPinWindow?.call(window);
+      case SplitDropFunction.close:
+        widget.onCloseWindow?.call(window);
     }
   }
 
-  SplitDropSide? _sideAt(Offset point) {
+  SplitDropTarget? _targetAt(Offset point) {
     final size = MediaQuery.sizeOf(context);
-    // 40% per side, and the middle 20% cancels: releasing there returns to
-    // recents instead of guessing which pane the user meant.
+    if (size.isEmpty) return null;
     final vertical = size.height > size.width;
+    // The outer 28% of each edge arms a side; the middle 44% cancels.
     final share = vertical ? point.dy / size.height : point.dx / size.width;
-    if (share < 0.4) {
-      return vertical ? SplitDropSide.top : SplitDropSide.left;
+    final SplitDropSide side;
+    if (share < 0.28) {
+      side = vertical ? SplitDropSide.top : SplitDropSide.left;
+    } else if (share > 0.72) {
+      side = vertical ? SplitDropSide.bottom : SplitDropSide.right;
+    } else {
+      return null;
     }
-    if (share > 0.6) {
-      return vertical ? SplitDropSide.bottom : SplitDropSide.right;
-    }
-    return null;
+    // Each edge band holds three stacked targets between 12% and 88%.
+    final along = vertical ? point.dx / size.width : point.dy / size.height;
+    if (along < 0.12 || along > 0.88) return null;
+    final index = (((along - 0.12) / 0.76) * 3).floor().clamp(0, 2);
+    return SplitDropTarget(
+      side,
+      const [
+        SplitDropFunction.split,
+        SplitDropFunction.pin,
+        SplitDropFunction.close,
+      ][index],
+    );
   }
 
   void _moveRow(DragUpdateDetails details) {
@@ -442,6 +474,10 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
                         onPickupEnd: widget.onSplitSide == null
                             ? null
                             : _pickupEnd,
+                        locked: widget.lockedIds.contains(id),
+                        onToggleLock: widget.onPinWindow == null
+                            ? null
+                            : () => widget.onPinWindow!(window),
                         follow: _splitPickup?.objectId == id
                             ? _pickupOffset
                             : Offset.zero,
@@ -450,12 +486,14 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
                             _splitPickup!.objectId != id,
                       ),
                   if (_splitPickup != null)
-                    SplitDropOverlay(
-                      side: _splitSide,
-                      refusal: _splitRefusal,
-                      vertical:
-                          MediaQuery.sizeOf(context).height >
-                          MediaQuery.sizeOf(context).width,
+                    Positioned.fill(
+                      child: SplitDropOverlay(
+                        target: _splitTarget,
+                        refusal: _splitRefusal,
+                        vertical:
+                            MediaQuery.sizeOf(context).height >
+                            MediaQuery.sizeOf(context).width,
+                      ),
                     ),
                 ],
               ),
@@ -486,6 +524,8 @@ class _DeckCard extends StatefulWidget {
     this.onPickupMove,
     this.onPickupEnd,
     this.follow = Offset.zero,
+    this.locked = false,
+    this.onToggleLock,
     this.dimmed = false,
   });
 
@@ -512,6 +552,10 @@ class _DeckCard extends StatefulWidget {
 
   /// Finger travel while this card is carried to a side.
   final Offset follow;
+
+  /// The task is pinned: an up-swipe will not close it.
+  final bool locked;
+  final VoidCallback? onToggleLock;
 
   /// Another card is being carried to a side.
   final bool dimmed;
@@ -695,7 +739,7 @@ class _DeckCardState extends State<_DeckCard>
                 child: PosedWindow(
                   pose: _pose,
                   child: AnimatedScale(
-                    scale: _picked ? 0.88 : 1,
+                    scale: _picked ? 0.78 : 1,
                     duration: const Duration(milliseconds: 120),
                     curve: Curves.easeOut,
                     child: _cardSurface(context),
@@ -704,6 +748,33 @@ class _DeckCardState extends State<_DeckCard>
               ),
             ),
           ),
+          if (widget.locked)
+            Positioned(
+              right: 10,
+              top: 10,
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: widget.onToggleLock,
+                child: Padding(
+                  padding: const EdgeInsets.all(6),
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xB3101016),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: const Color(0x33FFFFFF)),
+                    ),
+                    child: const Padding(
+                      padding: EdgeInsets.all(6),
+                      child: Icon(
+                        Icons.lock_rounded,
+                        size: 15,
+                        color: Color(0xFFF3F4F7),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
           if (labelOpacity != null)
             Positioned(
               left: 0,

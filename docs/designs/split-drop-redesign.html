@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>长按后的分屏判断 — 交互草稿</title>
+<style>
+  :root {
+    --fg: #f3f4f7;
+    --fg2: rgba(243, 244, 247, 0.66);
+    --accent: #8b5cf6;
+    --accent-soft: rgba(139, 92, 246, 0.16);
+    --radius: 20px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%;
+    font-family: "Inter", "Noto Sans SC", system-ui, sans-serif;
+    background: #14131a; color: var(--fg); overflow: hidden;
+  }
+  .stage {
+    position: relative;
+    width: min(100vw, 1400px);
+    height: min(100vh, 875px);
+    margin: 0 auto;
+    overflow: hidden;
+    background:
+      radial-gradient(900px 620px at 18% 12%, #4a6b8a 0%, rgba(74,107,138,0) 62%),
+      radial-gradient(820px 620px at 84% 24%, #7a5a86 0%, rgba(122,90,134,0) 60%),
+      radial-gradient(920px 720px at 55% 96%, #3d5a4c 0%, rgba(61,90,76,0) 62%),
+      linear-gradient(150deg, #22303c 0%, #2b2536 48%, #1d2622 100%);
+    user-select: none;
+    touch-action: none;
+  }
+
+  /* recents behind the gesture -------------------------------------------- */
+  .recents {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center; gap: 40px;
+    opacity: 0.55;
+    transition: opacity 180ms ease;
+  }
+  .card {
+    width: 400px; height: 286px; border-radius: var(--radius);
+    background: #f7f6f3; overflow: hidden;
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.35);
+    transition: transform 180ms ease, opacity 180ms ease;
+  }
+  .card.dim { opacity: 0.4; transform: scale(0.97); }
+  .card-head {
+    height: 38px; display: flex; align-items: center; gap: 8px;
+    padding: 0 12px; background: #ecebe6; color: #292825;
+    font-size: 12px; font-weight: 650;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #c9c7c1; }
+  .card-body { position: absolute; }
+
+  /* the sides that decide the split -------------------------------------- */
+  .sides {
+    position: absolute; inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 150ms ease;
+  }
+  .sides.on { opacity: 1; }
+
+  .side {
+    position: absolute; top: 12%; bottom: 12%; width: 28%;
+    display: flex; flex-direction: column; gap: 10px;
+  }
+  .side.left { left: 16px; }
+  .side.right { right: 16px; }
+
+  /* Each target is a function of its own: split, pin, close. */
+  .target {
+    flex: 1;
+    border-radius: var(--radius);
+    border: 1.5px dashed rgba(255, 255, 255, 0.24);
+    background: rgba(255, 255, 255, 0.04);
+    display: grid; place-items: center;
+    transition:
+      background 160ms ease,
+      border-color 160ms ease,
+      transform 160ms cubic-bezier(0.2, 0.9, 0.3, 1),
+      box-shadow 160ms ease;
+    position: relative;
+  }
+  .target .function {
+    position: absolute; top: 10px; left: 12px;
+    font-size: 10.5px; font-weight: 700; letter-spacing: 0.02em;
+    color: rgba(243, 244, 247, 0.4);
+    text-transform: uppercase;
+  }
+  .target.active {
+    border-style: solid;
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    transform: scale(0.985);
+    box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.55);
+  }
+  .target.active .function { color: rgba(243, 244, 247, 0.7); }
+  .target.active .label { color: var(--fg); }
+  .target.active .glyph {
+    border-style: solid;
+    border-color: rgba(139, 92, 246, 0.85);
+    background: rgba(139, 92, 246, 0.28);
+  }
+  .target.danger.active {
+    border-color: #d2544c;
+    background: rgba(210, 84, 76, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(210, 84, 76, 0.55);
+  }
+  .target.danger.active .glyph {
+    border-color: rgba(210, 84, 76, 0.85);
+    background: rgba(210, 84, 76, 0.28);
+  }
+
+  .target .label small {
+    display: block; margin-top: 4px;
+    font-size: 11px; font-weight: 500; opacity: 0.7;
+  }
+  .target .label {
+    position: relative;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    color: var(--fg2); font-size: 14px; font-weight: 650;
+    transition: color 160ms ease;
+    padding: 0 10px; text-align: center;
+  }
+  .target .glyph {
+    width: 46px; height: 46px; border-radius: 14px;
+    border: 1.5px dashed rgba(255, 255, 255, 0.32);
+    display: grid; place-items: center; font-size: 20px;
+    transition: border-color 160ms ease, background 160ms ease;
+  }
+
+  /* armed: this is the side the card will take */
+  .target.active {
+    border-style: solid;
+    border-color: var(--accent);
+    background: var(--accent-soft);
+    transform: scale(0.985);
+    box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.55);
+  }
+
+  /* the card in hand ------------------------------------------------------ */
+  .ghost {
+    position: fixed; z-index: 60; pointer-events: none;
+    width: 352px; height: 252px; border-radius: 18px;
+    overflow: hidden; opacity: 0;
+    transform: translate(-50%, -50%) scale(0.88);
+    transition: opacity 120ms ease;
+    box-shadow: 0 26px 60px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  }
+  .ghost.on { opacity: 1; }
+  .ghost .app {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; gap: 18px; padding: 24px;
+    background: linear-gradient(160deg, #2a2f52, #4b3a63 55%, #221f33);
+  }
+  .ghost .cover {
+    width: 104px; height: 104px; border-radius: 12px;
+    background: linear-gradient(150deg, #9d8bf0, #4b3f92);
+  }
+  .ghost h3 { margin: 0 0 4px; font-size: 18px; color: #eef0ff; }
+  .ghost p { margin: 0; font-size: 11.5px; color: rgba(238, 240, 255, 0.6); }
+
+  /* hints ----------------------------------------------------------------- */
+  .top-hint {
+    position: absolute; left: 50%; top: 18px; transform: translate(-50%, -8px);
+    padding: 8px 16px; border-radius: 999px;
+    background: rgba(18, 18, 26, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    backdrop-filter: blur(16px);
+    font-size: 12.5px; font-weight: 600; color: var(--fg2);
+    opacity: 0; transition: opacity 150ms ease, transform 150ms ease;
+    z-index: 40; pointer-events: none; white-space: nowrap;
+  }
+  .top-hint.on { opacity: 1; transform: translate(-50%, 0); }
+
+  .cancel-hint {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) scale(0.96);
+    padding: 10px 18px; border-radius: 999px;
+    background: rgba(18, 18, 26, 0.82);
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    font-size: 13px; font-weight: 650; color: var(--fg);
+    opacity: 0; transition: opacity 150ms ease, transform 150ms ease;
+    z-index: 45; pointer-events: none; white-space: nowrap;
+  }
+  .cancel-hint.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+
+  /* notes ----------------------------------------------------------------- */
+  .notes {
+    position: absolute; right: 18px; bottom: 18px; z-index: 70;
+    width: 300px; padding: 14px 16px; border-radius: 16px;
+    background: rgba(18, 18, 26, 0.6);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(20px) saturate(1.3);
+    font-size: 12px; line-height: 1.65; color: var(--fg2);
+  }
+  .notes h1 { margin: 0 0 6px; font-size: 13.5px; color: var(--fg); }
+  .notes b { color: var(--fg); }
+  .notes ul { margin: 6px 0 0; padding-left: 15px; }
+  .notes li { margin: 3px 0; }
+  .notes .state {
+    margin-top: 9px; padding-top: 8px; border-top: 1px dashed rgba(255, 255, 255, 0.16);
+    font-family: ui-monospace, Menlo, monospace; font-size: 10.5px;
+    color: rgba(243, 244, 247, 0.5);
+  }
+  .notes button {
+    margin-top: 9px; border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.06); color: var(--fg);
+    font: inherit; font-weight: 600; padding: 5px 11px; border-radius: 9px; cursor: pointer;
+  }
+  .notes button:hover { background: rgba(255, 255, 255, 0.14); }
+
+  /* Static states for screenshots: transitions would still be at zero. */
+  body.demo * { transition: none !important; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="recents" id="recents">
+    <div class="card" data-app="doc">
+      <div class="card-head"><span class="dot"></span>新建文档</div>
+    </div>
+    <div class="card" data-app="music">
+      <div class="card-head"><span class="dot"></span>QueMusic</div>
+    </div>
+  </div>
+
+  <div class="sides" id="sides">
+    <div class="side left" data-side="left">
+      <div class="target" data-function="split">
+        <span class="function">分屏</span>
+        <div class="label"><span class="glyph">◫</span>放到左侧分屏</div>
+      </div>
+      <div class="target" data-function="pin">
+        <span class="function">锁定</span>
+        <div class="label"><span class="glyph">🔒</span>锁定任务<br><small>上滑不关闭</small></div>
+      </div>
+      <div class="target danger" data-function="close">
+        <span class="function">关闭</span>
+        <div class="label"><span class="glyph">✕</span>关闭应用</div>
+      </div>
+    </div>
+    <div class="side right" data-side="right">
+      <div class="target" data-function="split">
+        <span class="function">分屏</span>
+        <div class="label"><span class="glyph">◫</span>放到右侧分屏</div>
+      </div>
+      <div class="target" data-function="pin">
+        <span class="function">锁定</span>
+        <div class="label"><span class="glyph">🔒</span>锁定任务<br><small>上滑不关闭</small></div>
+      </div>
+      <div class="target danger" data-function="close">
+        <span class="function">关闭</span>
+        <div class="label"><span class="glyph">✕</span>关闭应用</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="top-hint" id="topHint">拖到任意一侧开始分屏 · 中间松手取消</div>
+  <div class="cancel-hint" id="cancelHint">松手取消</div>
+
+  <div class="notes">
+    <h1>分屏判断 · 交互草稿</h1>
+    <ul>
+      <li>长按卡片后，左右各出现 <b>三格功能</b>：分屏 / 锁定 / 关闭</li>
+      <li>指针落在哪一格，那一格变实线紫色；同侧其它格和对面整列一起退到 28%</li>
+      <li>指针在中间 44%：两侧都退掉，只显示「松手取消」</li>
+      <li>「锁定」= 上滑关闭无效，应用常驻在最近任务里</li>
+      <li>「关闭」格用红色，避免误触</li>
+      <li>被拖的卡片缩小到 0.88 跟随手指</li>
+    </ul>
+    <div class="state" id="stateLine">state: idle</div>
+    <button id="demo">演示拖动</button>
+  </div>
+</div>
+
+<div class="ghost" id="ghost">
+  <div class="app">
+    <div class="cover"></div>
+    <div><h3>一念焚心</h3><p>周深 · 正在播放</p></div>
+  </div>
+</div>
+
+<script>
+(() => {
+  const stage = document.getElementById('stage');
+  const recents = document.getElementById('recents');
+  const sides = document.getElementById('sides');
+  const ghost = document.getElementById('ghost');
+  const topHint = document.getElementById('topHint');
+  const cancelHint = document.getElementById('cancelHint');
+  const stateLine = document.getElementById('stateLine');
+
+  const TARGETS = [...document.querySelectorAll('.target')];
+  let dragging = false;
+
+  function state(label) {
+    stateLine.textContent = 'state: ' + label;
+  }
+
+  function targetAt(x, y) {
+    const rect = stage.getBoundingClientRect();
+    const share = (x - rect.left) / rect.width;
+    const side = share < 0.28 ? 'left' : share > 0.72 ? 'right' : null;
+    if (!side) return null;
+    const stack = stage.querySelector(`.side[data-side="${side}"]`);
+    const box = stack.getBoundingClientRect();
+    const targets = [...stack.querySelectorAll('.target')];
+    const index = Math.min(
+      targets.length - 1,
+      Math.max(0, Math.floor(((y - box.top) / box.height) * targets.length)),
+    );
+    return targets[index];
+  }
+
+  function paint(target) {
+    for (const el of TARGETS) el.classList.toggle('active', el === target);
+    for (const side of document.querySelectorAll('.side')) {
+      const active = target && side.dataset.side === target.closest('.side').dataset.side;
+      side.style.opacity = target === null ? '1' : active ? '1' : '0.28';
+    }
+    cancelHint.classList.toggle('on', dragging && target === null);
+  }
+
+  function begin(x, y) {
+    dragging = true;
+    sides.classList.add('on');
+    topHint.classList.add('on');
+    ghost.classList.add('on');
+    recents.querySelectorAll('.card').forEach((c) => c.classList.add('dim'));
+    move(x, y);
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
+  function move(x, y) {
+    if (!dragging) return;
+    ghost.style.left = x + 'px';
+    ghost.style.top = y + 'px';
+    const target = targetAt(x, y);
+    paint(target);
+    state(target ? `${target.closest('.side').dataset.side}/${target.dataset.function}` : 'cancel');
+  }
+
+  function end() {
+    dragging = false;
+    sides.classList.remove('on');
+    topHint.classList.remove('on');
+    ghost.classList.remove('on');
+    cancelHint.classList.remove('on');
+    recents.querySelectorAll('.card').forEach((c) => c.classList.remove('dim'));
+    paint(null);
+    document.querySelectorAll('.side').forEach((el) => (el.style.opacity = '1'));
+    state('idle');
+  }
+
+  stage.addEventListener('pointerdown', (event) => {
+    if (event.target.closest('.notes')) return;
+    event.preventDefault();
+    stage.setPointerCapture(event.pointerId);
+    begin(event.clientX, event.clientY);
+  });
+  stage.addEventListener('pointermove', (event) => move(event.clientX, event.clientY));
+  stage.addEventListener('pointerup', end);
+  stage.addEventListener('pointercancel', end);
+
+  document.getElementById('demo').onclick = () => {
+    const rect = stage.getBoundingClientRect();
+    begin(rect.left + rect.width * 0.7, rect.top + rect.height * 0.5);
+    move(rect.left + rect.width * 0.7, rect.top + rect.height * 0.5);
+  };
+
+  // ?side=left|right|cancel shows one state without dragging.
+  const demo = new URLSearchParams(location.search).get('side');
+  if (demo) {
+    document.body.classList.add('demo');
+    const rect = stage.getBoundingClientRect();
+    const x =
+      rect.left +
+      rect.width * (demo === 'left' ? 0.22 : demo === 'right' ? 0.78 : 0.5);
+    const y = rect.top + rect.height * (demo === 'cancel' ? 0.5 : 0.2);
+    begin(x, y);
+    move(x, y);
+  }
+})();
+</script>
+</body>
+</html>
