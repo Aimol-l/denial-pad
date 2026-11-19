@@ -26,7 +26,7 @@
 | --- | --- |
 | [![带 Dock 与桌面快捷方式的 Denial Pad 主页](assets/screenshots/pad-home.jpg)](assets/screenshots/pad-home.jpg) | [![分组与搜索并存的应用抽屉](assets/screenshots/pad-all-apps.jpg)](assets/screenshots/pad-all-apps.jpg) |
 | **通知与快捷设置** | **分屏** |
-| [![下拉的通知中心与快捷设置磁贴](assets/screenshots/pad-shade.jpg)](assets/screenshots/pad-shade.jpg) | 从最近任务把卡片拖到屏幕一侧即可分屏；拖动中间的分界线改比例，双击回到 50:50。 |
+| [![下拉的通知中心与快捷设置磁贴](assets/screenshots/pad-shade.jpg)](assets/screenshots/pad-shade.jpg) | [![文本编辑器与 QueMusic 左右分屏](assets/screenshots/pad-split.jpg)](assets/screenshots/pad-split.jpg) |
 
 ## 这是什么
 
