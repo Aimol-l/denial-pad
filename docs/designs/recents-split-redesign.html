@@ -324,7 +324,6 @@
     <div class="card" data-app="music">
       <div class="card-head">
         <span class="dot"></span><span class="title">QueMusic</span>
-        <button class="head-btn" title="分屏" data-split="music">◫</button>
         <button class="head-btn" title="关闭">✕</button>
       </div>
       <div class="card-body body-music">
@@ -344,7 +343,6 @@
     <div class="card" data-app="doc">
       <div class="card-head">
         <span class="dot"></span><span class="title">新建文档</span>
-        <button class="head-btn" title="分屏" data-split="doc">◫</button>
         <button class="head-btn" title="关闭">✕</button>
       </div>
       <div class="card-body body-doc">
@@ -360,7 +358,6 @@
     <div class="card" data-app="settings">
       <div class="card-head">
         <span class="dot"></span><span class="title">设置</span>
-        <button class="head-btn" title="分屏" data-split="settings">◫</button>
         <button class="head-btn" title="关闭">✕</button>
       </div>
       <div class="card-body body-settings">
@@ -403,7 +400,6 @@
     <h1>分屏 · 交互草稿</h1>
     <ul>
       <li><b>长按卡片 0.4 秒</b>拾起，两侧出现“放到左侧/右侧分屏”的落点</li>
-      <li>或者直接点卡片标题栏的 <b>◫</b>，跳过拖拽</li>
       <li>松手后另一侧变成选择器：搜索、最近应用、全部应用</li>
       <li>分屏后拖动中间把手改比例，<b>双击复位 50:50</b></li>
       <li>顶部提供「交换左右」「退出分屏」</li>
@@ -535,15 +531,6 @@
     if (!app || !zone) { setState('recents'); return; }
     openPicker(app, zone);
   }
-
-  /* ---- split button ---------------------------------------------------- */
-  recentsEl.querySelectorAll('[data-split]').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      event.stopPropagation();
-      if (mode !== 'recents') return;
-      openPicker(button.dataset.split, 'left');
-    });
-  });
 
   /* ---- picker ---------------------------------------------------------- */
   function openPicker(app, chosenSide) {
