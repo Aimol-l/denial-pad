@@ -1,41 +1,137 @@
 import 'dart:ui' show ImageFilter;
 
+import 'package:flutter/material.dart'
+    show TextField, InputDecoration, InputBorder;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:denial_flutter_sdk/applications.dart';
+import 'package:denial_flutter_sdk/input.dart';
 import 'package:denial_flutter_sdk/models.dart';
 import 'package:denial_flutter_sdk/rendering.dart' show WindowContentRect;
 
+import '../../launcher/home_launch.dart';
+import '../../launcher/widgets/launcher_icon.dart';
 import '../../state/reference_shell_controller.dart';
 import '../../state/reference_shell_metrics.dart';
 
-/// Picks the second pane's app from a grid of live thumbnails, on the side of
-/// the screen that is still empty. The fixed side keeps rendering underneath.
-class SplitPicker extends ConsumerWidget {
-  const SplitPicker({super.key, required this.pair, required this.onAllApps});
+/// Picks the other pane's app on the side of the screen that is still empty.
+///
+/// The grid holds every application, not only the ones already running: an
+/// app that is not open starts and lands straight in the empty pane. Running
+/// apps show their live thumbnail; the rest show their icon.
+class SplitPicker extends ConsumerStatefulWidget {
+  const SplitPicker({super.key, required this.pair});
 
   final SplitPair pair;
 
-  /// Opens the launcher so an app that is not running can take this side.
-  final VoidCallback onAllApps;
+  @override
+  ConsumerState<SplitPicker> createState() => _SplitPickerState();
+}
+
+class _SplitPickerState extends ConsumerState<SplitPicker> {
+  final _search = TextEditingController();
+  String _query = '';
+  int? _surfaceId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final candidates = ref.watch(
-      referenceShellProvider.select(
-        (state) => state.openAppWindows
-            .where(
-              (window) => window.isUserApp && window.objectId != pair.first,
-            )
-            .toList(growable: false),
+  void initState() {
+    super.initState();
+    // Typing in the picker's search belongs to the shell: without a capture
+    // surface the keys went to the client that still held focus.
+    final registry = ref.read(shellInteractionRegistryProvider.notifier);
+    final id = registry.reserveSurfaceId();
+    _surfaceId = id;
+    registry.upsert(
+      ShellInteractionSurface(
+        id: id,
+        debugLabel: 'Split picker',
+        pointerPolicy: ShellPointerPolicy.fullScene,
+        keyboardPolicy: ShellKeyboardPolicy.capture,
+        compositorPolicy: ShellCompositorPolicy.normal,
       ),
     );
-    final fixed = ref.watch(
-      referenceShellProvider.select(
-        (state) => state.windowByObjectId(pair.first),
-      ),
-    );
+  }
+
+  @override
+  void deactivate() {
+    // Released here rather than in dispose: by dispose time the ref counts as
+    // unmounted, the removal was skipped, and the leftover capture kept the
+    // shell swallowing the keyboard so no app could raise it again.
+    final id = _surfaceId;
+    _surfaceId = null;
+    if (id != null) {
+      ref.read(shellInteractionRegistryProvider.notifier).remove(id);
+    }
+    super.deactivate();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
+  }
+
+  DenialWindow? _windowFor(
+    HomeGridItem item,
+    List<DenialWindow> windows,
+    AppLauncher launcher,
+  ) {
+    final app = item.app;
+    if (app != null) return launcher.findOpenWindow(app, windows);
+    final local = item.localApp;
+    if (local == null) return null;
+    for (final window in windows) {
+      if (window.isLocalFlutter && window.appId == local.id) return window;
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pair = widget.pair;
     final controller = ref.read(referenceShellProvider.notifier);
+    final launcher = ref.read(appLauncherProvider);
+    final windows = ref.watch(
+      referenceShellProvider.select((state) => state.openAppWindows),
+    );
+    final catalog =
+        ref
+            .watch(homeGridControllerProvider)
+            .asData
+            ?.value
+            .catalog
+            .where((item) => item.isApp)
+            .toList(growable: false) ??
+        const <HomeGridItem>[];
+    final lower = _query.trim().toLowerCase();
+    // The app already holding the other pane is not a candidate.
+    final taken = <int>{pair.first, pair.second}..remove(0);
+    final entries = <({HomeGridItem item, DenialWindow? window})>[
+      for (final item in catalog)
+        if ((lower.isEmpty ||
+                (item.app?.name ?? item.localApp?.titleFor(context) ?? '')
+                    .toLowerCase()
+                    .contains(lower)) &&
+            !taken.contains(_windowFor(item, windows, launcher)?.objectId))
+          (item: item, window: _windowFor(item, windows, launcher)),
+    ];
+    // Running apps first: they are what a split usually wants.
+    entries.sort((a, b) {
+      final runningA = a.window != null ? 0 : 1;
+      final runningB = b.window != null ? 0 : 1;
+      if (runningA != runningB) return runningA - runningB;
+      final nameA =
+          a.item.app?.name ?? a.item.localApp?.titleFor(context) ?? '';
+      final nameB =
+          b.item.app?.name ?? b.item.localApp?.titleFor(context) ?? '';
+      return nameA.toLowerCase().compareTo(nameB.toLowerCase());
+    });
+    final view = MediaQuery.sizeOf(context);
+    final extent = pair.vertical
+        ? view.height - ReferenceShellMetrics.appStatusInset(view)
+        : view.width;
+
     // The picker arrives rather than switching: a hard cut on a big screen
     // reads as a dropped frame.
     return TweenAnimationBuilder<double>(
@@ -55,7 +151,7 @@ class SplitPicker extends ConsumerWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 10),
                   child: Text(
                     switch ((pair.vertical, pair.first > 0)) {
                       (true, true) => '选择下方应用',
@@ -71,11 +167,18 @@ class SplitPicker extends ConsumerWidget {
                     ),
                   ),
                 ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 0, 18, 12),
+                  child: _SearchField(
+                    controller: _search,
+                    onChanged: (value) => setState(() => _query = value),
+                  ),
+                ),
                 Expanded(
-                  child: candidates.isEmpty
+                  child: entries.isEmpty
                       ? const Center(
                           child: Text(
-                            '没有其他打开的应用',
+                            '没有匹配的应用',
                             style: TextStyle(
                               color: Color(0xB3F3F4F7),
                               fontSize: 15,
@@ -83,70 +186,121 @@ class SplitPicker extends ConsumerWidget {
                             ),
                           ),
                         )
-                      : Builder(
-                          builder: (context) {
-                            final view = MediaQuery.sizeOf(context);
-                            final extent = pair.vertical
-                                ? view.height -
-                                      ReferenceShellMetrics.appStatusInset(view)
-                                : view.width;
-                            return GridView.builder(
-                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: 2,
-                                    mainAxisSpacing: 14,
-                                    crossAxisSpacing: 14,
-                                    childAspectRatio: 4 / 3.5,
-                                  ),
-                              itemCount: candidates.length + 1,
-                              itemBuilder: (context, index) {
-                                if (index == candidates.length) {
-                                  return _Tile(
-                                    label: '全部应用',
-                                    onTap: onAllApps,
-                                    child: const _AllAppsMark(),
-                                  );
-                                }
-                                final window = candidates[index];
-                                final fits = fixed == null
-                                    ? true
-                                    : (splitRatioBounds(
-                                            extent: extent,
-                                            firstMin: pair.vertical
-                                                ? fixed.minHeight
-                                                : fixed.minWidth,
-                                            secondMin: pair.vertical
-                                                ? window.minHeight
-                                                : window.minWidth,
-                                          ) !=
-                                          null);
-                                return _Tile(
-                                  label: window.title.isEmpty
-                                      ? window.appId
-                                      : window.title,
-                                  detail: fits
-                                      ? null
-                                      : '最小需要 '
-                                            '${window.minWidth.round()}×'
-                                            '${window.minHeight.round()}',
-                                  onTap: fits
-                                      ? () => controller.pickSplitSecond(window)
-                                      : null,
-                                  child: Opacity(
-                                    opacity: fits ? 1 : 0.4,
-                                    child: WindowContentRect(
-                                      window: window,
-                                      applyBackdrop: false,
+                      : GridView.builder(
+                          padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: 2,
+                                mainAxisSpacing: 14,
+                                crossAxisSpacing: 14,
+                                childAspectRatio: 4 / 3.5,
+                              ),
+                          itemCount: entries.length,
+                          itemBuilder: (context, index) {
+                            final entry = entries[index];
+                            final window = entry.window;
+                            final fits = window == null
+                                ? true
+                                : (splitRatioBounds(
+                                        extent: extent,
+                                        firstMin: pair.vertical
+                                            ? _minHeight(entry.item)
+                                            : _minWidth(entry.item),
+                                        secondMin: pair.vertical
+                                            ? window.minHeight
+                                            : window.minWidth,
+                                      ) !=
+                                      null);
+                            return _Tile(
+                              label: _nameOf(context, entry.item),
+                              detail: window == null ? '未运行' : null,
+                              onTap: !fits
+                                  ? null
+                                  : () {
+                                      if (window != null) {
+                                        controller.pickSplitSecond(window);
+                                      } else {
+                                        controller.expectSplitWith(entry.item);
+                                        launchHomeApp(
+                                          context,
+                                          ref,
+                                          entry.item,
+                                          Rect.zero,
+                                        );
+                                      }
+                                    },
+                              child: window != null
+                                  ? Opacity(
+                                      opacity: fits ? 1 : 0.4,
+                                      child: WindowContentRect(
+                                        window: window,
+                                        applyBackdrop: false,
+                                      ),
+                                    )
+                                  : Center(
+                                      child: Opacity(
+                                        opacity: fits ? 1 : 0.4,
+                                        child: SizedBox.square(
+                                          dimension: 46,
+                                          child: LauncherIcon.of(entry.item),
+                                        ),
+                                      ),
                                     ),
-                                  ),
-                                );
-                              },
                             );
                           },
                         ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // In-bundle apps do not report a minimum size; a pane always fits them.
+  static double _minWidth(HomeGridItem item) => 0;
+
+  static double _minHeight(HomeGridItem item) => 0;
+
+  String _nameOf(BuildContext context, HomeGridItem item) =>
+      item.localApp?.titleFor(context) ?? item.app?.name ?? '';
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 46,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: const Color(0x1AFFFFFF),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: const Color(0x24FFFFFF)),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Center(
+            child: TextField(
+              controller: controller,
+              onChanged: onChanged,
+              cursorColor: const Color(0xFF8B5CF6),
+              style: const TextStyle(
+                color: Color(0xFFF3F4F7),
+                fontSize: 14,
+                decoration: TextDecoration.none,
+              ),
+              decoration: const InputDecoration(
+                isDense: true,
+                border: InputBorder.none,
+                hintText: '搜索应用',
+                hintStyle: TextStyle(color: Color(0x80F3F4F7), fontSize: 14),
+              ),
             ),
           ),
         ),
@@ -210,40 +364,6 @@ class _Tile extends StatelessWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _AllAppsMark extends StatelessWidget {
-  const _AllAppsMark();
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0x14FFFFFF),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0x40FFFFFF)),
-      ),
-      child: Center(
-        child: Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (var i = 0; i < 9; i += 1)
-              const SizedBox(
-                width: 9,
-                height: 9,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: Color(0x8CFFFFFF),
-                    borderRadius: BorderRadius.all(Radius.circular(3)),
-                  ),
-                ),
-              ),
-          ],
-        ),
       ),
     );
   }

@@ -145,15 +145,7 @@ class MobileSplitStage extends ConsumerWidget {
           if (second != null) pane(second, 1),
           Positioned.fromRect(
             rect: rectAt(pickerOnFirst ? 0 : 1),
-            child: SplitPicker(
-              pair: pair,
-              onAllApps: () {
-                // The launcher is a fullscreen shell surface today: leave
-                // the split and show it rather than faking a third pane.
-                controller.endSplit();
-                controller.goHome();
-              },
-            ),
+            child: SplitPicker(pair: pair),
           ),
         ],
       );

@@ -687,10 +687,13 @@ class _DeckCardState extends State<_DeckCard>
           IgnorePointer(
             child: WindowBackdropMotion(
               motion: _pose,
-              child: PosedWindow(
-                pose: _pose,
-                child: Transform.translate(
-                  offset: widget.follow,
+              // The carry offset sits outside PosedWindow: its clip keeps a
+              // card inside its own rounded rect, which pinned the lifted
+              // card to its original slot.
+              child: Transform.translate(
+                offset: widget.follow,
+                child: PosedWindow(
+                  pose: _pose,
                   child: AnimatedScale(
                     scale: _picked ? 0.88 : 1,
                     duration: const Duration(milliseconds: 120),

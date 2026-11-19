@@ -318,6 +318,11 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   DenialTextInputState? _lastTextInput;
   int _nextLaunchRequestId = 1;
   Timer? _launchRequestTimer;
+
+  /// An app picked in the split picker that is not running yet: when its
+  /// window appears, the shell puts it into the empty side instead of letting
+  /// the launch take the whole screen.
+  String? _pendingSplitAppId;
   Timer? _appSwitchOrderTimer;
   bool _mobileShellProfile = false;
   final Set<String> _backgroundLaunchAppIds = <String>{};
@@ -453,6 +458,25 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
         ? null
         : _matchingLaunchWindow(state.windows, request);
     if (launchWindow != null) {
+      final pending = _pendingSplitAppId;
+      if (pending != null) {
+        final item = ref
+            .read(homeGridControllerProvider)
+            .asData
+            ?.value
+            .catalog
+            .where((candidate) => candidate.id == pending)
+            .firstOrNull;
+        if (item != null && _windowMatchesItem(launchWindow, item)) {
+          _pendingSplitAppId = null;
+          final window = launchWindow;
+          // Let this snapshot finish before the split rewrites it.
+          Future<void>.microtask(() {
+            if (state.splitPair != null) pickSplitSecond(window);
+          });
+          return;
+        }
+      }
       final shouldActivate = state.launchingObjectId != launchWindow.objectId;
       // Launching an app while two apps share the screen gives the newcomer
       // the whole screen, as opening it from the launcher would.
@@ -476,6 +500,24 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       clearLaunchingObjectId:
           state.windowByObjectId(state.launchingObjectId) == null,
     );
+  }
+
+  /// Asks the next launched window of [item] to land in the split's empty
+  /// side.
+  void expectSplitWith(HomeGridItem item) {
+    _pendingSplitAppId = item.id;
+  }
+
+  bool _windowMatchesItem(DenialWindow window, HomeGridItem item) {
+    final app = item.app;
+    if (app != null) {
+      final ids = ref
+          .read(appLauncherProvider)
+          .expectedWindowAppIds(app)
+          .map((id) => id.toLowerCase());
+      return ids.contains(window.appId.toLowerCase());
+    }
+    return window.isLocalFlutter && window.appId == item.localApp?.id;
   }
 
   /// A split whose member closed leaves the other app filling the screen.
@@ -1055,12 +1097,18 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   bool _appFitsPane(DenialWindow window, {required bool vertical}) {
     final size = _deck.geometry.size;
     if (size.width <= 0 || size.height <= 0) return true;
-    final status = ReferenceShellMetrics.appStatusInset(size);
-    final paneWidth = vertical ? size.width : size.width / 2;
-    final paneHeight = vertical
-        ? (size.height - status) / 2
-        : size.height - status;
-    return window.minWidth <= paneWidth && window.minHeight <= paneHeight;
+    final extent = vertical
+        ? size.height - ReferenceShellMetrics.appStatusInset(size)
+        : size.width;
+    final minExtent = vertical ? window.minHeight : window.minWidth;
+    // A pane can be resized, so a window only fails when no ratio fits it.
+    // Requiring a 50:50 fit refused apps that merely wanted a wider pane.
+    return splitRatioBounds(
+          extent: extent,
+          firstMin: minExtent,
+          secondMin: 0,
+        ) !=
+        null;
   }
 
   /// Whether a pair at 50:50 can host both apps; the split is refused when it
@@ -1091,13 +1139,36 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
   }) {
     if (!window.isUserApp) return false;
     if (!_appFitsPane(window, vertical: vertical)) return false;
+    // Open at the narrowest pane that still fits the app: a client with a
+    // large minimum would otherwise be squeezed below it at 50:50.
+    final size = _deck.geometry.size;
+    final extent = vertical
+        ? size.height - ReferenceShellMetrics.appStatusInset(size)
+        : size.width;
+    final minExtent = vertical ? window.minHeight : window.minWidth;
+    final bounds = size.isEmpty
+        ? null
+        : splitRatioBounds(
+            extent: extent,
+            firstMin: first ? minExtent : 0,
+            secondMin: first ? 0 : minExtent,
+          );
+    final ratio = bounds == null
+        ? 0.5
+        : 0.5.clamp(bounds.min, bounds.max).toDouble();
     // The app stays on the side it was dropped on; the picker takes the other.
     final pair = first
-        ? SplitPair(first: window.objectId, second: 0, vertical: vertical)
+        ? SplitPair(
+            first: window.objectId,
+            second: 0,
+            vertical: vertical,
+            ratio: ratio,
+          )
         : SplitPair(
             first: 0,
             second: window.objectId,
             vertical: vertical,
+            ratio: ratio,
             active: SplitSide.second,
           );
     _endFingerGesture();
@@ -1159,7 +1230,26 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     final pickedSide = next.first == second.objectId
         ? SplitSide.first
         : SplitSide.second;
-    final active = next.withActive(pickedSide);
+    // Keep the picked app inside the pane's minimums when the current ratio
+    // cannot host it.
+    final size = _deck.geometry.size;
+    final firstWindow = state.windowByObjectId(next.first);
+    final extent = next.vertical
+        ? size.height - ReferenceShellMetrics.appStatusInset(size)
+        : size.width;
+    final bounds = firstWindow == null || size.isEmpty
+        ? null
+        : splitRatioBounds(
+            extent: extent,
+            firstMin: next.vertical
+                ? firstWindow.minHeight
+                : firstWindow.minWidth,
+            secondMin: next.vertical ? second.minHeight : second.minWidth,
+          );
+    final ratio = bounds == null
+        ? next.ratio
+        : next.ratio.clamp(bounds.min, bounds.max).toDouble();
+    final active = next.withActive(pickedSide).withRatio(ratio);
     state = state.copyWith(
       splitPair: active,
       foregroundObjectId: second.objectId,
