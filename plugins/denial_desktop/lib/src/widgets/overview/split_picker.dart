@@ -36,107 +36,118 @@ class SplitPicker extends ConsumerWidget {
       ),
     );
     final controller = ref.read(referenceShellProvider.notifier);
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
-        child: DecoratedBox(
-          decoration: const BoxDecoration(color: Color(0xC412121A)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
-                child: Text(
-                  switch ((pair.vertical, pair.first > 0)) {
-                    (true, true) => '选择下方应用',
-                    (true, false) => '选择上方应用',
-                    (false, true) => '选择右侧应用',
-                    (false, false) => '选择左侧应用',
-                  },
-                  style: const TextStyle(
-                    color: Color(0xFFF3F4F7),
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    decoration: TextDecoration.none,
+    // The picker arrives rather than switching: a hard cut on a big screen
+    // reads as a dropped frame.
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 200),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.scale(scale: 0.97 + 0.03 * value, child: child),
+      ),
+      child: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 22, sigmaY: 22),
+          child: DecoratedBox(
+            decoration: const BoxDecoration(color: Color(0xC412121A)),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 12),
+                  child: Text(
+                    switch ((pair.vertical, pair.first > 0)) {
+                      (true, true) => '选择下方应用',
+                      (true, false) => '选择上方应用',
+                      (false, true) => '选择右侧应用',
+                      (false, false) => '选择左侧应用',
+                    },
+                    style: const TextStyle(
+                      color: Color(0xFFF3F4F7),
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                child: candidates.isEmpty
-                    ? const Center(
-                        child: Text(
-                          '没有其他打开的应用',
-                          style: TextStyle(
-                            color: Color(0xB3F3F4F7),
-                            fontSize: 15,
-                            decoration: TextDecoration.none,
+                Expanded(
+                  child: candidates.isEmpty
+                      ? const Center(
+                          child: Text(
+                            '没有其他打开的应用',
+                            style: TextStyle(
+                              color: Color(0xB3F3F4F7),
+                              fontSize: 15,
+                              decoration: TextDecoration.none,
+                            ),
                           ),
-                        ),
-                      )
-                    : Builder(
-                        builder: (context) {
-                          final view = MediaQuery.sizeOf(context);
-                          final extent = pair.vertical
-                              ? view.height -
-                                    ReferenceShellMetrics.appStatusInset(view)
-                              : view.width;
-                          return GridView.builder(
-                            padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                                  crossAxisCount: 2,
-                                  mainAxisSpacing: 14,
-                                  crossAxisSpacing: 14,
-                                  childAspectRatio: 4 / 3.5,
-                                ),
-                            itemCount: candidates.length + 1,
-                            itemBuilder: (context, index) {
-                              if (index == candidates.length) {
-                                return _Tile(
-                                  label: '全部应用',
-                                  onTap: onAllApps,
-                                  child: const _AllAppsMark(),
-                                );
-                              }
-                              final window = candidates[index];
-                              final fits = fixed == null
-                                  ? true
-                                  : (splitRatioBounds(
-                                          extent: extent,
-                                          firstMin: pair.vertical
-                                              ? fixed.minHeight
-                                              : fixed.minWidth,
-                                          secondMin: pair.vertical
-                                              ? window.minHeight
-                                              : window.minWidth,
-                                        ) !=
-                                        null);
-                              return _Tile(
-                                label: window.title.isEmpty
-                                    ? window.appId
-                                    : window.title,
-                                detail: fits
-                                    ? null
-                                    : '最小需要 '
-                                          '${window.minWidth.round()}×'
-                                          '${window.minHeight.round()}',
-                                onTap: fits
-                                    ? () => controller.pickSplitSecond(window)
-                                    : null,
-                                child: Opacity(
-                                  opacity: fits ? 1 : 0.4,
-                                  child: WindowContentRect(
-                                    window: window,
-                                    applyBackdrop: false,
+                        )
+                      : Builder(
+                          builder: (context) {
+                            final view = MediaQuery.sizeOf(context);
+                            final extent = pair.vertical
+                                ? view.height -
+                                      ReferenceShellMetrics.appStatusInset(view)
+                                : view.width;
+                            return GridView.builder(
+                              padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 2,
+                                    mainAxisSpacing: 14,
+                                    crossAxisSpacing: 14,
+                                    childAspectRatio: 4 / 3.5,
                                   ),
-                                ),
-                              );
-                            },
-                          );
-                        },
-                      ),
-              ),
-            ],
+                              itemCount: candidates.length + 1,
+                              itemBuilder: (context, index) {
+                                if (index == candidates.length) {
+                                  return _Tile(
+                                    label: '全部应用',
+                                    onTap: onAllApps,
+                                    child: const _AllAppsMark(),
+                                  );
+                                }
+                                final window = candidates[index];
+                                final fits = fixed == null
+                                    ? true
+                                    : (splitRatioBounds(
+                                            extent: extent,
+                                            firstMin: pair.vertical
+                                                ? fixed.minHeight
+                                                : fixed.minWidth,
+                                            secondMin: pair.vertical
+                                                ? window.minHeight
+                                                : window.minWidth,
+                                          ) !=
+                                          null);
+                                return _Tile(
+                                  label: window.title.isEmpty
+                                      ? window.appId
+                                      : window.title,
+                                  detail: fits
+                                      ? null
+                                      : '最小需要 '
+                                            '${window.minWidth.round()}×'
+                                            '${window.minHeight.round()}',
+                                  onTap: fits
+                                      ? () => controller.pickSplitSecond(window)
+                                      : null,
+                                  child: Opacity(
+                                    opacity: fits ? 1 : 0.4,
+                                    child: WindowContentRect(
+                                      window: window,
+                                      applyBackdrop: false,
+                                    ),
+                                  ),
+                                );
+                              },
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           ),
         ),
       ),

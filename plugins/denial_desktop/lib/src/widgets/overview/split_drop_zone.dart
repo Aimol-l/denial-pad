@@ -45,65 +45,76 @@ class SplitDropOverlay extends StatelessWidget {
     final sides = vertical
         ? [SplitDropSide.top, SplitDropSide.bottom]
         : [SplitDropSide.left, SplitDropSide.right];
-    return IgnorePointer(
-      child: Stack(
-        children: [
-          for (final candidate in sides)
-            Positioned.fromRect(
-              rect: _rectFor(candidate, size),
-              child: _DropRegion(
-                label: candidate.label,
-                detail: _detail(size, MediaQuery.devicePixelRatioOf(context)),
-                active: candidate == active,
+    // The drop sides fade in as the card lifts, so the gesture explains
+    // itself instead of waiting for the first move.
+    return TweenAnimationBuilder<double>(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.scale(scale: 0.98 + 0.02 * value, child: child),
+      ),
+      child: IgnorePointer(
+        child: Stack(
+          children: [
+            for (final candidate in sides)
+              Positioned.fromRect(
+                rect: _rectFor(candidate, size),
+                child: _DropRegion(
+                  label: candidate.label,
+                  detail: _detail(size, MediaQuery.devicePixelRatioOf(context)),
+                  active: candidate == active,
+                ),
               ),
-            ),
-          if (refusal case final message?)
-            Positioned(
-              left: 24,
-              right: 24,
-              bottom: 96,
-              child: Center(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: const Color(0xE614161C),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 14,
-                      vertical: 10,
+            if (refusal case final message?)
+              Positioned(
+                left: 24,
+                right: 24,
+                bottom: 96,
+                child: Center(
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: const Color(0xE614161C),
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Text(
-                      message,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xFFF2F3F7),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        decoration: TextDecoration.none,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      child: Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFFF2F3F7),
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          decoration: TextDecoration.none,
+                        ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-          if (active == null)
-            Positioned(
-              left: 0,
-              right: 0,
-              top: size.height * 0.8,
-              child: const Center(
-                child: Text(
-                  '松手取消',
-                  style: TextStyle(
-                    color: Color(0x80FFFFFF),
-                    fontSize: 13,
-                    decoration: TextDecoration.none,
+            if (active == null)
+              Positioned(
+                left: 0,
+                right: 0,
+                top: size.height * 0.8,
+                child: const Center(
+                  child: Text(
+                    '松手取消',
+                    style: TextStyle(
+                      color: Color(0x80FFFFFF),
+                      fontSize: 13,
+                      decoration: TextDecoration.none,
+                    ),
                   ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

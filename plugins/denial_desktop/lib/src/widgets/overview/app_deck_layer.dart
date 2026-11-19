@@ -97,6 +97,9 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
   DenialWindow? _splitPickup;
   SplitDropSide? _splitSide;
   Offset? _pickupOrigin;
+
+  /// How far the carried card follows the finger.
+  Offset _pickupOffset = Offset.zero;
   late final Animation<double> _openAnimation = Animation.fromValueListenable(
     _open,
   );
@@ -256,6 +259,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
       _splitPickup = window;
       _splitRefusal = null;
       _pickupOrigin = global;
+      _pickupOffset = Offset.zero;
       // A long press alone must not choose a side: the card usually sits over
       // one already. The drop only arms after the finger actually travels.
       _splitSide = null;
@@ -266,7 +270,10 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
     final origin = _pickupOrigin;
     final travelled = origin == null ? 0.0 : (global - origin).distance;
     final side = travelled < 24 ? null : _sideAt(global);
-    if (side != _splitSide) setState(() => _splitSide = side);
+    setState(() {
+      _pickupOffset = origin == null ? Offset.zero : global - origin;
+      _splitSide = side;
+    });
   }
 
   void _pickupEnd(Offset global) {
@@ -277,6 +284,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
       _splitPickup = null;
       _splitSide = null;
       _pickupOrigin = null;
+      _pickupOffset = Offset.zero;
     });
     if (window == null || side == null) return;
     final accepted = widget.onSplitSide?.call(window, side) ?? true;
@@ -374,8 +382,16 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
         ignoring: !interactive,
         child: Listener(
           onPointerDown: _catchRow,
-          onPointerUp: _releaseCatch,
-          onPointerCancel: _releaseCatch,
+          onPointerUp: (event) {
+            _releaseCatch(event);
+            // The long-press recogniser can lose its end event; without this
+            // the drop zones stayed on screen after the finger left.
+            if (_splitPickup != null) _pickupEnd(event.position);
+          },
+          onPointerCancel: (event) {
+            _releaseCatch(event);
+            if (_splitPickup != null) _pickupEnd(event.position);
+          },
           child: GestureDetector(
             onHorizontalDragStart: _startRowDrag,
             onHorizontalDragUpdate: _moveRow,
@@ -426,6 +442,9 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
                         onPickupEnd: widget.onSplitSide == null
                             ? null
                             : _pickupEnd,
+                        follow: _splitPickup?.objectId == id
+                            ? _pickupOffset
+                            : Offset.zero,
                         dimmed:
                             _splitPickup != null &&
                             _splitPickup!.objectId != id,
@@ -466,6 +485,7 @@ class _DeckCard extends StatefulWidget {
     this.onPickupStart,
     this.onPickupMove,
     this.onPickupEnd,
+    this.follow = Offset.zero,
     this.dimmed = false,
   });
 
@@ -489,6 +509,9 @@ class _DeckCard extends StatefulWidget {
   final void Function(DenialWindow window, Offset global)? onPickupStart;
   final ValueChanged<Offset>? onPickupMove;
   final ValueChanged<Offset>? onPickupEnd;
+
+  /// Finger travel while this card is carried to a side.
+  final Offset follow;
 
   /// Another card is being carried to a side.
   final bool dimmed;
@@ -657,18 +680,19 @@ class _DeckCardState extends State<_DeckCard>
       opacity: widget.dimmed ? 0.25 : 1,
       child: Stack(
         fit: StackFit.expand,
+        // A carried card leaves its own slot; without this the deck clip
+        // kept it stuck inside the original rectangle.
+        clipBehavior: Clip.none,
         children: [
           IgnorePointer(
             child: WindowBackdropMotion(
               motion: _pose,
               child: PosedWindow(
                 pose: _pose,
-                child: AnimatedScale(
-                  scale: _picked ? 0.72 : 1,
-                  duration: const Duration(milliseconds: 120),
-                  curve: Curves.easeOut,
-                  child: AnimatedRotation(
-                    turns: _picked ? -0.007 : 0,
+                child: Transform.translate(
+                  offset: widget.follow,
+                  child: AnimatedScale(
+                    scale: _picked ? 0.88 : 1,
                     duration: const Duration(milliseconds: 120),
                     curve: Curves.easeOut,
                     child: _cardSurface(context),
