@@ -750,7 +750,7 @@ class _DeckCardState extends State<_DeckCard>
           ),
           if (widget.locked)
             Positioned(
-              right: 10,
+              left: 10,
               top: 10,
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,

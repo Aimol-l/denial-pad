@@ -917,6 +917,8 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   /// A card swiped away in recents: the row closes its gap at once, and the
   /// app closes. Recents with no app left closes for home.
+  Timer? _taskNoticeTimer;
+
   /// Locks or unlocks a task: a locked window survives an up-swipe. The
   /// close target still closes it, so locking guards against slips, not the
   /// person's deliberate exit.
@@ -929,6 +931,16 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
 
   void dismissFromRecents(DenialWindow window, {bool force = false}) {
     if (!force && state.isWindowLocked(window.objectId)) {
+      // Say why the swipe did nothing instead of looking stuck.
+      _taskNoticeTimer?.cancel();
+      state = state.copyWith(
+        splitNotice: '任务已锁定 · 拖到「关闭」或点锁图标解锁',
+      );
+      _taskNoticeTimer = Timer(const Duration(seconds: 3), () {
+        if (state.splitNotice != null) {
+          state = state.copyWith(clearSplitNotice: true);
+        }
+      });
       return;
     }
     final pair = state.splitPair;
