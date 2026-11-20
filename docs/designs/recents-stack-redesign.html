@@ -1,0 +1,878 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>最近任务 · 聚光灯轮播 — 交互草稿</title>
+<style>
+  :root {
+    --fg: #f3f4f7;
+    --fg2: rgba(243, 244, 247, 0.66);
+    --accent: #8b5cf6;
+    --radius: 26px;
+    --card-w: 896px;
+    --card-h: 560px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%;
+    font-family: "Inter", "Noto Sans SC", system-ui, sans-serif;
+    background: #100f16; color: var(--fg);
+    overflow: hidden;
+    display: grid; place-items: center;
+  }
+  .stage {
+    position: relative;
+    width: min(100vw, 160vh, 1400px);
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    background: #1a1922;
+    user-select: none;
+    touch-action: none;
+  }
+  /* parallax backdrop: drifts against the cards while flipping */
+  .backdrop {
+    position: absolute; inset: -80px;
+    background:
+      radial-gradient(900px 620px at 16% 10%, #4a6b8a 0%, rgba(74,107,138,0) 62%),
+      radial-gradient(820px 620px at 86% 22%, #7a5a86 0%, rgba(122,90,134,0) 60%),
+      radial-gradient(920px 720px at 54% 98%, #3d5a4c 0%, rgba(61,90,76,0) 62%),
+      linear-gradient(150deg, #22303c 0%, #2b2536 48%, #1d2622 100%);
+    filter: blur(0px);
+    will-change: transform;
+  }
+  .stage::before {
+    content: "";
+    position: absolute; inset: -40px;
+    background: inherit;
+    filter: blur(26px) saturate(1.1);
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  /* status strip ---------------------------------------------------------- */
+  .status {
+    position: absolute; inset: 0 0 auto 0; height: 46px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 26px; font-size: 13px; font-weight: 600; color: var(--fg2);
+    z-index: 300;
+  }
+
+  /* the carousel ---------------------------------------------------------- */
+  .deck { position: absolute; inset: 0; z-index: 10; }
+
+  .slot {
+    position: absolute; left: 50%; top: 50%;
+    width: var(--card-w); height: var(--card-h);
+    transform: translate(-50%, -50%);
+    transform-origin: 50% 50%;
+    transition:
+      transform 380ms cubic-bezier(0.22, 0.9, 0.28, 1),
+      opacity 240ms ease,
+      filter 380ms ease;
+    will-change: transform, filter;
+  }
+  .slot.dragging { transition: none; }
+
+  .card {
+    position: absolute; inset: 0;
+    border-radius: var(--radius);
+    background: #f7f6f3; color: #26251f;
+    overflow: hidden;
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.30);
+    transition: box-shadow 220ms ease;
+  }
+  .slot.front .card {
+    box-shadow:
+      0 36px 84px rgba(0, 0, 0, 0.55),
+      0 0 44px rgba(0, 0, 0, 0.28),
+      0 0 0 1px rgba(255, 255, 255, 0.10) inset;
+  }
+  .slot.lifted .card {
+    box-shadow:
+      0 52px 110px rgba(0, 0, 0, 0.62),
+      0 0 60px rgba(0, 0, 0, 0.32),
+      0 0 0 1px rgba(255, 255, 255, 0.14) inset;
+  }
+
+  .body-music {
+    background: linear-gradient(160deg, #2a2f52, #4b3a63 55%, #221f33);
+    color: #eef0ff; height: 100%;
+    display: flex; align-items: center; gap: 24px; padding: 32px;
+  }
+  .body-music .cover {
+    width: 142px; height: 142px; border-radius: 16px;
+    background: linear-gradient(150deg, #7c6bd8, #3f3a72);
+    box-shadow: 0 12px 26px rgba(0, 0, 0, 0.35);
+  }
+  .body-music h3 { margin: 0 0 6px; font-size: 23px; font-weight: 650; }
+  .body-music p { margin: 0; font-size: 13px; opacity: 0.62; }
+  .body-music .bars { margin-top: 20px; display: flex; gap: 4px; align-items: flex-end; height: 28px; }
+  .body-music .bars i {
+    width: 4px; border-radius: 2px; background: rgba(255, 255, 255, 0.45);
+    animation: bounce 900ms ease-in-out infinite alternate;
+  }
+  .body-music .bars i:nth-child(1) { animation-delay: 0ms; }
+  .body-music .bars i:nth-child(2) { animation-delay: 120ms; }
+  .body-music .bars i:nth-child(3) { animation-delay: 240ms; }
+  .body-music .bars i:nth-child(4) { animation-delay: 60ms; }
+  .body-music .bars i:nth-child(5) { animation-delay: 180ms; }
+  @keyframes bounce { from { height: 6px; } to { height: 24px; } }
+
+  .body-doc {
+    background: #ffffff; color: #2a2926; padding: 26px 30px; height: 100%;
+  }
+  .body-doc .page-title { font-size: 17px; font-weight: 700; margin-bottom: 15px; }
+  .body-doc .line { height: 9px; border-radius: 4px; background: #ecebe6; margin: 11px 0; }
+  .body-doc .line.short { width: 62%; }
+
+  .body-settings { background: #f2f1ee; color: #2a2926; padding: 24px 28px; height: 100%; }
+  .body-settings .row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 15px 0; font-size: 14px; font-weight: 550;
+    border-bottom: 1px solid #e4e2dd;
+  }
+  .body-settings .row:last-child { border-bottom: 0; }
+  .body-settings .glyph { width: 30px; height: 30px; border-radius: 9px; background: #dedcd6; }
+
+  .body-browser { background: #fbfbfa; height: 100%; }
+  .body-browser .addr {
+    margin: 15px 19px; height: 32px; border-radius: 16px;
+    background: #eceae5; color: #7a7770;
+    font-size: 12px; display: flex; align-items: center; padding: 0 16px;
+  }
+  .body-browser .hero {
+    height: 185px; margin: 0 19px; border-radius: 14px;
+    background: linear-gradient(135deg, #b9c8dd, #d8c3d4);
+  }
+  .body-browser .line { height: 9px; border-radius: 4px; background: #efede8; margin: 15px 19px 0; }
+  .body-browser .line.short { width: 46%; }
+
+  .body-files {
+    background: #f7f6f3; padding: 24px; height: 100%;
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 17px;
+  }
+  .body-files .file { border-radius: 14px; background: linear-gradient(160deg, #e8e6e0, #d9d6cf); }
+
+  /* a tap on the front card flashes it: "this is what opens" */
+  .card::after {
+    content: ""; position: absolute; inset: 0;
+    background: #fff; opacity: 0; pointer-events: none;
+  }
+  .card.opening::after { animation: flash 260ms ease-out; }
+  @keyframes flash { from { opacity: 0.45; } to { opacity: 0; } }
+
+  /* labels: pill above the front card, whisper tags on the sides ---------- */
+  .labels { position: absolute; inset: 0; z-index: 1400; pointer-events: none; }
+  .stack-label {
+    position: absolute; left: 0; top: 0;
+    display: flex; align-items: center; gap: 8px;
+    pointer-events: auto; cursor: pointer;
+    will-change: transform, opacity;
+    white-space: nowrap;
+  }
+  .stack-label .app-icon {
+    width: 26px; height: 26px; border-radius: 8px;
+    display: grid; place-items: center;
+    font-size: 12px; font-weight: 800; color: #fff;
+    box-shadow: 0 3px 8px rgba(0, 0, 0, 0.28);
+    flex: none;
+  }
+  .stack-label .name { font-size: 12.5px; font-weight: 650; }
+  .stack-label .lock { font-size: 11px; opacity: 0.75; }
+  .stack-label.pill {
+    background: rgba(12, 12, 18, 0.55);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(10px);
+    border-radius: 999px;
+    padding: 5px 14px 5px 7px;
+  }
+  .stack-label.pill .name { font-size: 13px; }
+  .stack-label.side { opacity: 0.55; }
+  .stack-label.side .name { font-size: 11px; color: var(--fg2); }
+
+  /* the three drop targets, only while a card is lifted ------------------- */
+  .zones {
+    position: absolute; inset: 12% 0;
+    display: flex; justify-content: space-between;
+    z-index: 1500; pointer-events: none;
+    opacity: 0; transition: opacity 160ms ease;
+  }
+  .zones.on { opacity: 1; }
+  .zones .col {
+    width: 28%; display: flex; flex-direction: column; gap: 10px; padding: 0 14px;
+  }
+  .zones .zone {
+    flex: 1; border-radius: 18px;
+    border: 1.5px dashed rgba(255, 255, 255, 0.55);
+    background: rgba(8, 8, 14, 0.62);
+    display: grid; place-items: center;
+    font-size: 13px; font-weight: 700; color: rgba(255, 255, 255, 0.82);
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .zones .zone.active {
+    background: rgba(139, 92, 246, 0.36);
+    border-color: var(--accent); border-style: solid;
+  }
+
+  /* close button ---------------------------------------------------------- */
+  .close-btn {
+    position: absolute; left: 50%; bottom: 30px;
+    width: 62px; height: 62px; margin-left: -31px;
+    border-radius: 50%; border: 0; cursor: pointer;
+    background: rgba(255, 255, 255, 0.94);
+    color: #1b1a20; font-size: 21px; font-weight: 700;
+    display: grid; place-items: center;
+    box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32);
+    z-index: 280;
+    transition: transform 140ms ease, background 140ms ease;
+  }
+  .close-btn:hover { background: #fff; transform: scale(1.05); }
+  .close-btn:active { transform: scale(0.94); }
+
+  .hud {
+    position: absolute; right: 30px; bottom: 44px;
+    z-index: 280; font-size: 12.5px; font-weight: 700;
+    color: var(--fg2); font-variant-numeric: tabular-nums;
+  }
+
+  /* notes ----------------------------------------------------------------- */
+  .notes {
+    position: absolute; left: 22px; bottom: 22px; z-index: 290;
+    width: 330px; padding: 14px 16px 12px;
+    border-radius: 16px;
+    background: rgba(18, 17, 24, 0.72);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+    backdrop-filter: blur(18px) saturate(1.2);
+    font-size: 11.5px; line-height: 1.55; color: var(--fg2);
+  }
+  .notes h1 { margin: 0 0 6px; font-size: 13px; color: var(--fg); }
+  .notes b { color: var(--fg); }
+  .notes ul { margin: 6px 0 0; padding-left: 15px; }
+  .notes li { margin: 3px 0; }
+  .notes .state {
+    margin-top: 9px; padding-top: 8px;
+    border-top: 1px dashed rgba(255, 255, 255, 0.14);
+    font-family: ui-monospace, Menlo, monospace;
+    font-size: 10.5px; color: rgba(243, 244, 247, 0.5);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .notes .say { color: var(--accent); font-weight: 700; }
+  .notes button {
+    margin-top: 9px; border: 1px solid rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.06); color: var(--fg);
+    font: inherit; font-weight: 600; padding: 5px 11px; border-radius: 9px;
+    cursor: pointer;
+  }
+  .notes button:hover { background: rgba(255, 255, 255, 0.14); }
+
+  body.instant .slot { transition: none !important; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="status">
+    <span>20:41</span>
+    <span>Wi-Fi 小米_47A9 · 76%</span>
+  </div>
+
+  <div class="backdrop" id="backdrop"></div>
+  <div class="deck" id="deck"></div>
+  <div class="labels" id="labels"></div>
+
+  <div class="zones" id="zones">
+    <div class="col" data-side="left">
+      <div class="zone" data-row="0">分屏</div>
+      <div class="zone" data-row="1">锁定</div>
+      <div class="zone" data-row="2">关闭</div>
+    </div>
+    <div class="col" data-side="right">
+      <div class="zone" data-row="0">分屏</div>
+      <div class="zone" data-row="1">锁定</div>
+      <div class="zone" data-row="2">关闭</div>
+    </div>
+  </div>
+
+  <button class="close-btn" id="closeBtn" title="关闭当前任务">✕</button>
+
+  <div class="hud"><span id="count">1 / 5</span></div>
+
+  <div class="notes">
+    <h1>最近任务 · 聚光灯轮播草稿</h1>
+    <ul>
+      <li><b>横向轮播 + 透视</b>：中心一张最大最亮，两侧逐层缩小（×0.88）、压暗，压在中心卡下面（重叠 45%）</li>
+      <li><b>左右拖动整排跟手</b>；松手按速度投射、吸附到最近一张，边界有橡皮筋回弹</li>
+      <li>拖动时中心卡<b>微微提起</b>（放大 3%、阴影加深），松手落下</li>
+      <li><b>上滑顶卡 = 关闭</b>该任务（和 iOS / MIUI 一致）</li>
+      <li>点当前卡片 → 打开应用；点侧边露出的卡或它的标签 → 切过去</li>
+      <li>底部圆形按钮 → 关闭当前任务</li>
+      <li>长按 400 ms 仍是拾起（三格拖放，本次不改）</li>
+    </ul>
+    <div class="state" id="stateLine">state: idle</div>
+    <button id="reset">回到第一张</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  // Spotlight carousel: perspective scaling, deep overlap, flick-to-settle.
+  const SCALE_BASE = 0.88;  // each layer out is 12% smaller
+  const DIM_PER = 0.28;     // ...and 28% darker
+  const STRIDE_FRAC = 0.55; // neighbour stride as a fraction of card width
+  const FLICK_MS = 130;     // velocity projection window
+  const LONG_PRESS = 400;
+  const SLOP = 10;
+
+  const APPS = [
+    { name: '设置',     kind: 'settings', color: 'linear-gradient(150deg,#8fa4c8,#5d7398)', initial: '设' },
+    { name: '新建文档', kind: 'doc',      color: 'linear-gradient(150deg,#7fb0f0,#3d6fd0)', initial: '文' },
+    { name: 'QueMusic', kind: 'music',    color: 'linear-gradient(150deg,#f07ab0,#c2407f)', initial: 'Q', locked: true },
+    { name: 'Firefox',  kind: 'browser',  color: 'linear-gradient(150deg,#f6a057,#d95f2b)', initial: 'F' },
+    { name: '文件',     kind: 'files',    color: 'linear-gradient(150deg,#6fc79a,#2e8f67)', initial: '件' },
+  ];
+
+  const stage = document.getElementById('stage');
+  const backdrop = document.getElementById('backdrop');
+  const deck = document.getElementById('deck');
+  const labels = document.getElementById('labels');
+  const zones = document.getElementById('zones');
+  const closeBtn = document.getElementById('closeBtn');
+  const countEl = document.getElementById('count');
+  const stateLine = document.getElementById('stateLine');
+
+  let stageW = 1400, stageH = 875, cardW = 896, cardH = 560, stride = 493;
+  let slots = [];        // { el, card, label, app }
+  let index = 0;         // centred card
+  let progress = 0;      // continuous position while dragging
+  let dragX = 0, dragY = 0;
+  let axis = null;       // 'x' swipe, 'y-up' close, null until decided
+  let press = null;
+  let picked = false;
+  let flyingEl = null;
+  let lastSay = '';
+
+  /* ---- markup ----------------------------------------------------------- */
+  function bodyFor(kind) {
+    switch (kind) {
+      case 'music':
+        return `<div class="body-music">
+          <div class="cover"></div>
+          <div>
+            <h3>一念焚心</h3>
+            <p>周深 · 正在播放</p>
+            <div class="bars"><i></i><i></i><i></i><i></i><i></i></div>
+          </div>
+        </div>`;
+      case 'doc':
+        return `<div class="body-doc">
+          <div class="page-title">分屏设计草稿</div>
+          <div class="line"></div><div class="line"></div>
+          <div class="line short"></div><div class="line"></div>
+          <div class="line short"></div>
+        </div>`;
+      case 'settings':
+        return `<div class="body-settings">
+          <div class="row"><span class="glyph"></span>外观</div>
+          <div class="row"><span class="glyph"></span>显示</div>
+          <div class="row"><span class="glyph"></span>声音</div>
+        </div>`;
+      case 'browser':
+        return `<div class="body-browser">
+          <div class="addr">denial.local</div>
+          <div class="hero"></div>
+          <div class="line"></div><div class="line short"></div>
+        </div>`;
+      default:
+        return `<div class="body-files">
+          <div class="file"></div><div class="file"></div><div class="file"></div>
+          <div class="file"></div><div class="file"></div><div class="file"></div>
+        </div>`;
+    }
+  }
+
+  function makeLabel(app, i) {
+    const label = document.createElement('div');
+    label.className = 'stack-label';
+    label.dataset.i = String(i);
+    label.innerHTML =
+      `<span class="app-icon" style="background:${app.color}">${app.initial}</span>` +
+      `<span class="name">${app.name}</span>` +
+      (app.locked ? '<span class="lock">🔒</span>' : '');
+    labels.appendChild(label);
+    return label;
+  }
+
+  function build() {
+    deck.innerHTML = '';
+    labels.innerHTML = '';
+    slots = APPS.map((app) => {
+      const el = document.createElement('div');
+      el.className = 'slot';
+      el.innerHTML = `<div class="card">${bodyFor(app.kind)}</div>`;
+      deck.appendChild(el);
+      return { el, card: el.querySelector('.card'), label: null, app };
+    });
+    slots.forEach((slot, i) => { slot.label = makeLabel(slot.app, i); });
+    measure();
+  }
+
+  /* ---- geometry --------------------------------------------------------- */
+  function measure() {
+    const r = stage.getBoundingClientRect();
+    stageW = r.width;
+    stageH = r.height;
+
+    cardW = stageW * 0.64;
+    cardH = cardW / 1.6;
+    if (cardH > stageH * 0.68) {
+      cardH = stageH * 0.68;
+      cardW = cardH * 1.6;
+    }
+    stride = cardW * STRIDE_FRAC;
+
+    document.documentElement.style.setProperty('--card-w', cardW + 'px');
+    document.documentElement.style.setProperty('--card-h', cardH + 'px');
+    document.documentElement.style.setProperty(
+      '--deck-shift', Math.round(-cardH * 0.03) + 'px');
+    layout(progress);
+  }
+
+  const scaleFor = (d) => Math.pow(SCALE_BASE, Math.abs(d));
+  const dimFor = (d) => 1 - DIM_PER * Math.min(Math.abs(d), 2.4);
+
+  /* ---- the carousel ----------------------------------------------------- */
+  function beginDragVisual() {
+    slots.forEach((s) => s.el.classList.add('dragging'));
+  }
+  function endDragVisual() {
+    slots.forEach((s) => s.el.classList.remove('dragging'));
+  }
+
+  function layout() {
+    slots.forEach((slot, i) => {
+      const el = slot.el;
+      if (el === flyingEl) return;
+
+      const d = i - progress;
+      const ad = Math.abs(d);
+      const front = ad < 0.5;
+      const x = d * stride;
+      let scale = scaleFor(ad);
+      let y = 0;
+      let opacity = 1;
+
+      // While a swipe or the close gesture is under way, the centred card
+      // lifts a touch (bigger, softer shadow) or follows the finger up.
+      if (front) {
+        if (picked) {
+          scale *= 0.78;
+        } else if (axis === 'y-up') {
+          y = dragY * 0.55;
+          scale *= Math.max(0.7, 1 + dragY / 2400);
+          opacity = Math.max(0.35, 1 + dragY / 520);
+        } else if (press && press.moved) {
+          scale *= 1.03;
+          y = -8;
+        }
+      } else if (picked) {
+        opacity = 0;
+      }
+
+      el.style.transform =
+        `translate(-50%, -50%) translateY(var(--deck-shift)) ` +
+        `translate(${x.toFixed(2)}px, ${y.toFixed(2)}px) scale(${scale.toFixed(4)})`;
+      el.style.opacity = opacity.toFixed(3);
+      el.style.zIndex = String(1000 - Math.round(ad * 100));
+      el.style.filter = ad > 0.01 ? `brightness(${dimFor(ad).toFixed(3)})` : 'none';
+      el.style.pointerEvents = !picked && ad < 2.3 ? 'auto' : 'none';
+      el.classList.toggle('front', front);
+      el.classList.toggle('lifted', front && !picked && axis !== 'y-up' &&
+        !!press && press.moved);
+
+      // Label: a pill above the centred card; side cards get a whisper tag
+      // pinned to the corner that is actually visible (not covered by the
+      // centred card).
+      const shift = -cardH * 0.03;
+      const side = d > 0.5 ? 1 : d < -0.5 ? -1 : 0;
+      const cardLeft = stageW / 2 + x - cardW * scale / 2;
+      const cardRight = stageW / 2 + x + cardW * scale / 2;
+      const cardTop = stageH / 2 + shift + y - cardH * scale / 2;
+      const frontLeft = stageW / 2 - cardW / 2;
+      const frontRight = stageW / 2 + cardW / 2;
+
+      let lx = cardLeft + (front ? 16 : 12);
+      let alignRight = false;
+      if (side > 0) lx = Math.max(cardLeft, frontRight) + 12;
+      if (side < 0) { lx = Math.min(cardRight, frontLeft) - 12; alignRight = true; }
+      const ly = cardTop - 46;
+
+      slot.label.style.transform =
+        `translate(${lx.toFixed(2)}px, ${ly.toFixed(2)}px)` +
+        (alignRight ? ' translateX(-100%)' : '');
+      slot.label.style.opacity = (opacity * (front ? 1 : 0.6)).toFixed(3);
+      slot.label.classList.toggle('pill', front);
+      slot.label.classList.toggle('side', !front);
+      slot.label.style.display = ad > 1.35 ? 'none' : '';
+      slot.label.style.zIndex = String(1400 - Math.round(ad * 100));
+    });
+
+    // backdrop drifts against the flip
+    const span = Math.max(1, slots.length - 1);
+    backdrop.style.transform =
+      `translateX(${(-(progress / span - 0.5) * 90).toFixed(2)}px)`;
+
+    hud();
+  }
+
+  function hud() {
+    countEl.textContent = `${Math.min(index + 1, slots.length)} / ${slots.length}`;
+    const p = Math.min(1, Math.abs(dragX) / stride);
+    stateLine.innerHTML =
+      `state: index ${index} · dx ${Math.round(dragX)} dy ${Math.round(dragY)} · ${axis ?? '–'}` +
+      (lastSay ? ` · <span class="say">${lastSay}</span>` : '');
+  }
+
+  function say(text) {
+    lastSay = text;
+    hud();
+    clearTimeout(say._t);
+    say._t = setTimeout(() => { lastSay = ''; hud(); }, 1600);
+  }
+
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+
+  function settle() {
+    dragX = 0;
+    dragY = 0;
+    axis = null;
+    endDragVisual();
+    progress = index;
+    layout();
+  }
+
+  /* ---- snapping --------------------------------------------------------- */
+  function swipeTarget(speed) {
+    const projected = progress - (speed * FLICK_MS) / stride;
+    return Math.round(projected);
+  }
+
+  function settleTo(target) {
+    const clamped = clamp(Math.round(target), 0, slots.length - 1);
+    const wanted = Math.round(target);
+    const over = wanted !== clamped;
+    const changed = clamped !== index;
+
+    index = clamped;
+    dragX = 0;
+    dragY = 0;
+    axis = null;
+    progress = index;
+    endDragVisual();
+    layout();
+
+    if (over) say(index === 0 ? '已是最新的任务' : '已是最后一个任务');
+    else if (changed) say(`切到 ${slots[index].app.name}`);
+  }
+
+  /* ---- flipping / closing ----------------------------------------------- */
+  function commit(dir) {
+    const target = index + dir;
+    if (target < 0 || target >= slots.length) {
+      settle();
+      say(dir > 0 ? '已是最后一个任务' : '已是最新的任务');
+      return;
+    }
+
+    // The centred card is not carried by progress: it flies out on its own
+    // while every other card glides one slot towards the centre.
+    const el = slots[index].el;
+    flyingEl = el;
+    el.classList.remove('dragging', 'front', 'lifted');
+    el.style.transition =
+      'transform 380ms cubic-bezier(0.3, 0.85, 0.25, 1), opacity 380ms ease';
+    el.style.zIndex = '1100';
+    el.style.transform =
+      `translate(-50%, -50%) translateY(var(--deck-shift)) ` +
+      `translate(${(dir > 0 ? -1 : 1) * stageW * 0.75}px, ${dragY * 0.3 - 10}px) ` +
+      `scale(${(SCALE_BASE * 0.94).toFixed(3)})`;
+    el.style.opacity = '0';
+
+    index = target;
+    dragX = 0;
+    dragY = 0;
+    axis = null;
+    progress = index;
+    endDragVisual();
+    layout();
+    say(dir > 0 ? `切到 ${slots[index].app.name}` : `切回 ${slots[index].app.name}`);
+
+    setTimeout(() => {
+      flyingEl = null;
+      el.style.transition = '';
+      layout();
+    }, 400);
+  }
+
+  function flyOutAndClose() {
+    const el = slots[index].el;
+    const card = slots[index].card;
+    flyingEl = el;
+    card.classList.remove('opening');
+    el.classList.remove('dragging', 'front', 'lifted');
+    el.style.transition =
+      'transform 320ms cubic-bezier(0.4, 0.1, 0.6, 1), opacity 320ms ease';
+    el.style.zIndex = '1100';
+    el.style.transform =
+      `translate(-50%, -50%) translateY(var(--deck-shift)) ` +
+      `translate(${(dragX || 0).toFixed(1)}px, ${-stageH * 0.55}px) scale(0.72)`;
+    el.style.opacity = '0';
+
+    say(`关闭 ${slots[index].app.name}`);
+    slots.splice(index, 1);
+    index = clamp(index, 0, Math.max(0, slots.length - 1));
+    dragX = 0;
+    dragY = 0;
+    axis = null;
+    progress = index;
+    endDragVisual();
+    layout();
+
+    setTimeout(() => {
+      flyingEl = null;
+      el.remove();
+      layout();
+    }, 340);
+  }
+
+  function openFront() {
+    const card = slots[index].card;
+    card.classList.add('opening');
+    setTimeout(() => card.classList.remove('opening'), 280);
+    say(`打开 ${slots[index].app.name}`);
+  }
+
+  function closeFront() {
+    if (!slots.length) return;
+    const i = index;
+    const slot = slots[i];
+    say(`关闭 ${slot.app.name}`);
+    slots.splice(i, 1);
+    slot.el.remove();
+    index = clamp(i, 0, Math.max(0, slots.length - 1));
+    progress = index;
+    layout();
+  }
+
+  /* ---- gestures --------------------------------------------------------- */
+  function onPointerDown(e) {
+    if (e.button !== undefined && e.button !== 0) return;
+    const el = e.target.closest('.slot');
+    if (!el) return;
+    const i = slots.findIndex((s) => s.el === el);
+    if (i < 0) return;
+
+    press = {
+      i,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      picked: false,
+      longTimer: null,
+      samples: [],
+    };
+
+    if (i === index) {
+      press.longTimer = setTimeout(enterPick, LONG_PRESS);
+    }
+
+    window.addEventListener('pointermove', onPointerMove);
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
+  }
+
+  function onPointerMove(e) {
+    if (!press) return;
+    const dx = e.clientX - press.startX;
+    const dy = e.clientY - press.startY;
+
+    press.samples.push({ x: e.clientX, t: performance.now() });
+    if (press.samples.length > 8) press.samples.shift();
+
+    if (!press.moved && Math.hypot(dx, dy) > SLOP) {
+      press.moved = true;
+      // Lock the axis once: horizontal flips, vertical-up closes.
+      axis = Math.abs(dy) > Math.abs(dx) * 1.25 && dy < 0 ? 'y-up' : 'x';
+      if (press.longTimer) {
+        clearTimeout(press.longTimer);
+        press.longTimer = null;
+      }
+    }
+
+    if (press.picked) {
+      dragX = dx;
+      dragY = dy;
+      highlightTarget(e.clientX, e.clientY);
+      layout();
+      return;
+    }
+
+    if (!press.moved) return;
+
+    if (axis === 'y-up') {
+      dragY = Math.min(0, dy);
+      dragX = 0;
+      beginDragVisual();
+      layout();
+      return;
+    }
+
+    if (press.i !== index) return; // neighbours only take taps
+
+    dragX = dx;
+    dragY = dy;
+    progress = clamp(index - dx / stride, -0.22, slots.length - 1 + 0.22);
+    beginDragVisual();
+    layout();
+  }
+
+  function onPointerUp() {
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
+    if (!press) return;
+    if (press.longTimer) clearTimeout(press.longTimer);
+
+    const p = press;
+    press = null;
+
+    if (p.picked) {
+      endPick();
+      return;
+    }
+
+    if (!p.moved) {
+      if (p.i === index) openFront();
+      else settleTo(p.i);
+      return;
+    }
+
+    if (axis === 'y-up') {
+      if (dragY < -90) flyOutAndClose();
+      else settle();
+      return;
+    }
+
+    if (p.i !== index) {
+      settle();
+      return;
+    }
+
+    const speed = velocity(p);
+    const threshold = stride * 0.38;
+    if (dragX < -threshold || speed < -0.5) commit(1);
+    else if (dragX > threshold || speed > 0.5) commit(-1);
+    else settle();
+  }
+
+  function velocity(p) {
+    const now = performance.now();
+    const recent = p.samples.filter((s) => now - s.t < 120);
+    if (recent.length < 2) return 0;
+    const a = recent[0];
+    const b = recent[recent.length - 1];
+    return (b.x - a.x) / Math.max(1, b.t - a.t); // px per ms
+  }
+
+  /* ---- lifted card: the three targets, unchanged ------------------------ */
+  function enterPick() {
+    picked = true;
+    press.picked = true;
+    press.longTimer = null;
+    dragX = 0;
+    dragY = 0;
+    beginDragVisual();
+    zones.classList.add('on');
+    layout();
+    say('已拾起 · 拖到左右三格');
+    if (navigator.vibrate) navigator.vibrate(8);
+  }
+
+  function highlightTarget(clientX, clientY) {
+    const r = stage.getBoundingClientRect();
+    const sx = (clientX - r.left) / r.width;
+    const sy = (clientY - r.top) / r.height;
+    const side = sx < 0.28 ? 'left' : sx > 0.72 ? 'right' : null;
+    const row = sy < 0.373 ? 0 : sy < 0.627 ? 1 : 2;
+    zones.querySelectorAll('.zone').forEach((z) => {
+      const col = z.parentElement.dataset.side;
+      const hit = side !== null && col === side &&
+        Number(z.dataset.row) === row && sy > 0.12 && sy < 0.88;
+      z.classList.toggle('active', hit);
+    });
+  }
+
+  function endPick() {
+    picked = false;
+    zones.classList.remove('on');
+    zones.querySelectorAll('.zone').forEach((z) => z.classList.remove('active'));
+    say('放下');
+    settle();
+  }
+
+  /* ---- init ------------------------------------------------------------- */
+  deck.addEventListener('pointerdown', onPointerDown);
+  labels.addEventListener('pointerdown', (e) => {
+    const lab = e.target.closest('.stack-label');
+    if (!lab || picked) return;
+    e.stopPropagation();
+    settleTo(Number(lab.dataset.i));
+  });
+  closeBtn.addEventListener('click', (e) => { e.stopPropagation(); closeFront(); });
+  document.getElementById('reset').onclick = () => {
+    settle();
+    index = 0;
+    progress = 0;
+    layout();
+    say('回到第一张');
+  };
+  window.addEventListener('resize', measure);
+  if ('ResizeObserver' in window) new ResizeObserver(measure).observe(stage);
+
+  const params = new URLSearchParams(location.search);
+  const demo = params.get('state');
+  if (demo) document.body.classList.add('instant');
+
+  // First paint must not animate.
+  document.body.classList.add('instant');
+  build();
+  requestAnimationFrame(() =>
+    requestAnimationFrame(() => {
+      if (!demo) document.body.classList.remove('instant');
+    }));
+
+  // Deep links for screenshots: ?state=mid / index2 / close / pick
+  if (demo === 'mid') {
+    beginDragVisual();
+    dragX = -stride * 0.42;
+    progress = index - dragX / stride;
+    layout();
+  } else if (demo === 'index2') {
+    index = Math.min(2, slots.length - 1);
+    progress = index;
+    layout();
+  } else if (demo === 'close') {
+    beginDragVisual();
+    axis = 'y-up';
+    dragY = -120;
+    layout();
+  } else if (demo === 'pick') {
+    picked = true;
+    dragX = 120;
+    dragY = -40;
+    zones.classList.add('on');
+    layout();
+  }
+})();
+</script>
+</body>
+</html>

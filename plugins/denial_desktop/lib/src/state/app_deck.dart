@@ -536,7 +536,20 @@ class _Glide extends Simulation {
 
 /// Where the deck draws each app, from the deck's four values.
 @immutable
+/// The spotlight carousel the recents row lays out as: the centred card is
+/// the largest and brightest, its neighbours step out behind it, smaller and
+/// dimmer, each sliding about half under the centred card.
 class DeckGeometry {
+  /// How deep a neighbour sits under the centred card, as a fraction of the
+  /// card's width. The stride is whatever is left of the width.
+  static const double overlapFraction = 0.45;
+
+  /// Each layer off the centre scales the card by this much.
+  static const double scaleBase = 0.88;
+
+  /// And dims it by this much, saturating two and a half layers out.
+  static const double dimPerLayer = 0.28;
+
   DeckGeometry({
     required this.size,
     required this.padding,
@@ -582,11 +595,27 @@ class DeckGeometry {
   /// recents [open] that far.
   double strideAt(double open) => lerpDouble(
     size.width + ReferenceShellMetrics.appSwitchGap,
-    // Recents is one row of cards on every screen: side by side and scrolling,
-    // never a grid whose shape changes with the number of apps.
-    card.width + overviewPageSpacing,
+    // Recents piles its cards: a neighbour slides under the centred one
+    // instead of standing a whole width away.
+    card.width * (1 - overlapFraction),
     open.clamp(0.0, 1.0),
   )!;
+
+  /// The scale of a card [depth] layers off the centre, with recents [open]
+  /// that far: 1 on the centred card, ×[scaleBase] per layer.
+  double scaleAt(double depth, double open) => lerpDouble(
+    1.0,
+    math.pow(scaleBase, depth.abs()).toDouble(),
+    open.clamp(0.0, 1.0),
+  )!;
+
+  /// How much darker a card [depth] layers off the centre sits, with
+  /// recents [open] that far: 0 on the centred card.
+  double dimAt(double depth, double open) =>
+      (dimPerLayer * math.min(depth.abs(), 2.4) * open.clamp(0.0, 1.0)).clamp(
+        0.0,
+        1.0,
+      );
 
   /// Finger travel that lifts an app from the screen into its card: the
   /// app's bottom edge stays under the finger. From home, a fixed share of
@@ -630,12 +659,16 @@ class DeckGeometry {
         along.clamp(-1.0, 1.0) *
         size.width *
         _sign;
-    // One row of cards, on every screen: side by side and scrolling.
-    final app = Rect.lerp(
-      screen,
-      card,
-      p,
-    )!.shift(Offset(offset * strideAt(p), 0));
+    // One row of cards, on every screen: side by side and scrolling. The
+    // neighbours sit behind the centred card, smaller and overlapped.
+    final depth = along.abs();
+    final scale = scaleAt(depth, p);
+    final laid = Rect.lerp(screen, card, p)!;
+    final app = Rect.fromCenter(
+      center: laid.center.translate(offset * strideAt(p), 0),
+      width: laid.width * scale,
+      height: laid.height * scale,
+    );
     // Sliding apps round their corners as soon as they leave the screen's
     // edges, and square them again as they come to rest.
     final apart = ((row - row.roundToDouble()).abs() * 8).clamp(0.0, 1.0);

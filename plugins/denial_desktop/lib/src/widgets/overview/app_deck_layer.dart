@@ -122,6 +122,9 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
   var _windows = <int, DenialWindow>{};
   final _poses = <int, ValueNotifier<WindowPose>>{};
 
+  /// How much darker than the centred card each drawn card sits.
+  final _dims = <int, ValueNotifier<double>>{};
+
   /// The apps drawn, back to front.
   List<int> _drawn = const <int>[];
   bool _presenting = false;
@@ -195,11 +198,16 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
 
   void _indexWindows() {
     _windows = {for (final window in widget.windows) window.objectId: window};
-    _poses.removeWhere((id, pose) {
-      if (_windows.containsKey(id)) return false;
-      WidgetsBinding.instance.addPostFrameCallback((_) => pose.dispose());
-      return true;
-    });
+    void prune<T>(Map<int, ValueNotifier<T>> notifiers) {
+      notifiers.removeWhere((id, notifier) {
+        if (_windows.containsKey(id)) return false;
+        WidgetsBinding.instance.addPostFrameCallback((_) => notifier.dispose());
+        return true;
+      });
+    }
+
+    prune(_poses);
+    prune(_dims);
   }
 
   /// Poses every app from the deck's values, and draws those on screen with
@@ -216,12 +224,17 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
     if (presenting && !geometry.isEmpty) {
       final screen = geometry.screen;
       final row = deck.row.value;
+      // A finger on the row lifts the centred card a touch.
+      final lifting = deck.row.held;
       for (final id in deck.order) {
         if (id == deck.hidden || !_windows.containsKey(id)) continue;
         final slot = deck.slotOf(id);
-        final pose = deck.poseOf(id);
+        final depth = (slot - row).abs();
+        var pose = deck.poseOf(id);
+        if (lifting && depth < 0.5) pose = _lifted(pose);
         (_poses[id] ??= ValueNotifier(pose)).value = pose;
-        if (pose.rect.overlaps(screen)) drawn.add((id, (slot - row).abs()));
+        (_dims[id] ??= ValueNotifier(0)).value = geometry.dimAt(depth, shown);
+        if (pose.rect.overlaps(screen)) drawn.add((id, depth));
       }
       drawn.sort((a, b) => b.$2.compareTo(a.$2));
     }
@@ -235,6 +248,21 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
         _drawn = ids;
       });
     }
+  }
+
+  /// The centred card rises a touch while the row is under a finger: the
+  /// spotlight picks it up.
+  static WindowPose _lifted(WindowPose pose) {
+    final rect = pose.rect;
+    return WindowPose(
+      Rect.fromCenter(
+        center: rect.center.translate(0, -8),
+        width: rect.width * 1.03,
+        height: rect.height * 1.03,
+      ),
+      pose.radius,
+      opacity: pose.opacity,
+    );
   }
 
   // The recents row under the finger --------------------------------------
@@ -257,7 +285,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
 
   void _startRowDrag(DragStartDetails details) {
     final deck = widget.deck;
-    if (!widget.recents || deck.geometry.landscape || deck.length == 0) {
+    if (!widget.recents || deck.length == 0) {
       return;
     }
     if (!deck.row.held) deck.row.grab();
@@ -460,6 +488,7 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
                         pair: _pairAt(id),
                         pairWindow: _pairWindowAt(id),
                         pose: pose,
+                        dim: (_dims[id] ??= ValueNotifier(0)),
                         labelWidth: geometry.card.width,
                         labelOpacity: geometry.landscape ? null : _labelOpacity,
                         onOpen: widget.onOpenWindow,
@@ -515,6 +544,7 @@ class _DeckCard extends StatefulWidget {
     this.pair,
     this.pairWindow,
     required this.pose,
+    required this.dim,
     required this.labelWidth,
     required this.labelOpacity,
     required this.onOpen,
@@ -537,6 +567,10 @@ class _DeckCard extends StatefulWidget {
   /// The pair's other app, drawn beside [window] inside the card.
   final DenialWindow? pairWindow;
   final ValueListenable<WindowPose> pose;
+
+  /// How much darker than the centred card this one sits: 0 for none.
+  final ValueListenable<double> dim;
+
   final double labelWidth;
 
   /// The app's icon and name above the card; none without it.
@@ -738,11 +772,34 @@ class _DeckCardState extends State<_DeckCard>
                 offset: widget.follow,
                 child: PosedWindow(
                   pose: _pose,
-                  child: AnimatedScale(
-                    scale: _picked ? 0.78 : 1,
-                    duration: const Duration(milliseconds: 120),
-                    curve: Curves.easeOut,
-                    child: _cardSurface(context),
+                  child: Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      AnimatedScale(
+                        scale: _picked ? 0.78 : 1,
+                        duration: const Duration(milliseconds: 120),
+                        curve: Curves.easeOut,
+                        child: _cardSurface(context),
+                      ),
+                      // Layers off the centre sit darker; the centred card
+                      // keeps the spotlight.
+                      ValueListenableBuilder<double>(
+                        valueListenable: widget.dim,
+                        builder: (context, dim, child) {
+                          if (dim <= 0) return const SizedBox.shrink();
+                          return IgnorePointer(
+                            child: ColoredBox(
+                              color: Color.fromARGB(
+                                (dim * 255).round(),
+                                6,
+                                6,
+                                12,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
                 ),
               ),
