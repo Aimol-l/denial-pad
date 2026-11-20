@@ -43,6 +43,7 @@ class AppDeckLayer extends StatefulWidget {
     this.onSplitSide,
     this.onPinWindow,
     this.onCloseWindow,
+    this.onClearAll,
     this.lockedIds = const <int>{},
   });
 
@@ -82,6 +83,10 @@ class AppDeckLayer extends StatefulWidget {
 
   /// Dropped on the close target: the same as the up-swipe.
   final ValueChanged<DenialWindow>? onCloseWindow;
+
+  /// The clear-all button under the pile: closes every unlocked task, one
+  /// after another. None without a shell to ask.
+  final VoidCallback? onClearAll;
 
   /// Tasks whose up-swipe is disabled; their card shows a lock.
   final Set<int> lockedIds;
@@ -514,6 +519,15 @@ class _AppDeckLayerState extends State<AppDeckLayer> {
                             _splitPickup != null &&
                             _splitPickup!.objectId != id,
                       ),
+                  if (interactive && widget.onClearAll != null && deck.length > 0)
+                    Positioned(
+                      left: 0,
+                      right: 0,
+                      bottom: 48,
+                      child: Center(
+                        child: _ClearAllButton(onTap: widget.onClearAll!),
+                      ),
+                    ),
                   if (_splitPickup != null)
                     Positioned.fill(
                       child: SplitDropOverlay(
@@ -1017,6 +1031,41 @@ class _RenderPoseHitRegion extends RenderProxyBox {
       return false;
     }
     return super.hitTest(result, position: position);
+  }
+}
+
+/// The clear-all button under the pile, the circle Android puts there.
+class _ClearAllButton extends StatelessWidget {
+  const _ClearAllButton({required this.onTap});
+
+  static const double size = 56;
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: '清除全部任务',
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: const Color(0xA6101016),
+            border: Border.all(color: const Color(0x40FFFFFF)),
+          ),
+          child: const Icon(
+            Icons.close_rounded,
+            size: 24,
+            color: Color(0xFFF3F4F7),
+          ),
+        ),
+      ),
+    );
   }
 }
 

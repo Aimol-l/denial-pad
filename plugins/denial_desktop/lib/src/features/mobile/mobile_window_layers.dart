@@ -122,6 +122,7 @@ class MobileAppDeckLayer extends ConsumerWidget {
       onPinWindow: controller.toggleWindowLock,
       onCloseWindow: (window) =>
           controller.dismissFromRecents(window, force: true),
+      onClearAll: controller.clearRecents,
     );
   }
 }

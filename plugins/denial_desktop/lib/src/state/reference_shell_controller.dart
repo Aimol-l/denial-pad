@@ -168,6 +168,12 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
       _launchRequestTimer = null;
       _appSwitchOrderTimer?.cancel();
       _appSwitchOrderTimer = null;
+      _taskNoticeTimer?.cancel();
+      _taskNoticeTimer = null;
+      for (final timer in _clearTimers) {
+        timer.cancel();
+      }
+      _clearTimers.clear();
       unawaited(_textInputStateSubscription?.cancel());
       _textInputStateSubscription = null;
     });
@@ -965,6 +971,59 @@ class ReferenceShellController extends Notifier<ReferenceShellState>
     }
     _deck.reorder(_presentedOrder(), ShellSprings.appStrip);
     if (_deck.length == 0) closeOverview();
+  }
+
+  bool _clearingAll = false;
+  final _clearTimers = <Timer>{};
+
+  /// Clears every unlocked task from recents, one after another, the way
+  /// Android's clear-all does. Locked tasks - and a split pair either side
+  /// of which is locked - stay.
+  void clearRecents() {
+    if (_clearingAll) return;
+    final locked = state.lockedWindowIds;
+    final skip = <int>{...locked};
+    final pair = state.splitPair;
+    if (pair != null &&
+        (locked.contains(pair.first) || locked.contains(pair.second))) {
+      skip.addAll([pair.first, pair.second]);
+    }
+    final clearable = [
+      for (final id in _presentedOrder())
+        if (!skip.contains(id)) id,
+    ];
+    if (clearable.isEmpty) {
+      // Say why the button did nothing instead of looking dead.
+      _taskNoticeTimer?.cancel();
+      state = state.copyWith(splitNotice: '所有任务都已锁定');
+      _taskNoticeTimer = Timer(const Duration(seconds: 3), () {
+        if (state.splitNotice != null) {
+          state = state.copyWith(clearSplitNotice: true);
+        }
+      });
+      return;
+    }
+    _clearingAll = true;
+    var delay = 0;
+    for (final id in clearable) {
+      final window = state.windowByObjectId(id);
+      if (window == null) continue;
+      _clearTimers.add(
+        Timer(Duration(milliseconds: delay), () {
+          // Disposed controllers cancel every timer; the window check drops
+          // tasks the user closed while the sweep was running.
+          if (state.windowByObjectId(id) != null) {
+            dismissFromRecents(window, force: true);
+          }
+        }),
+      );
+      delay += 70;
+    }
+    _clearTimers.add(
+      Timer(Duration(milliseconds: delay + 200), () {
+        _clearingAll = false;
+      }),
+    );
   }
 
   /// Closing an Android window must end the app behind it: droidloom only
